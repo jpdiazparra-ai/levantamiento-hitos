@@ -250,9 +250,9 @@ RESTANTE_PILOTO_10KW_CSV_URL_DEFAULT = (
 INGENIERIA_PILOTO_10KW_CSV_URL_DEFAULT = (
     "https://docs.google.com/spreadsheets/d/e/"
     "2PACX-1vQOu_diukhhZWDV7kIcU9Ewto4lo_xQdSEZ0FMi2oto-Jb4r2e7aRNCBKF3qoVVk_4XsimMFx7eASkt/"
-    "pub?gid=1098900642&single=true&output=csv"
+    "pub?gid=1868833924&single=true&output=csv"
 )
-INGENIERIA_PILOTO_10KW_CACHE_VERSION = 2
+INGENIERIA_PILOTO_10KW_CACHE_VERSION = 3
 INGENIERIA_PILOTO_10KW_ALLOWED_MONTHS = {"dic", "abr", "may"}
 BULLET_CONTEXTO_10KW_CSV_URL_DEFAULT = (
     "https://docs.google.com/spreadsheets/d/e/"
@@ -279,6 +279,13 @@ GANTT_DATE_COL_START = "Inicio (AAAA-MM-DD)"
 GANTT_DATE_COL_END_PLAN = "Fin plan (AAAA-MM-DD)"
 GANTT_DATE_COL_END_REAL = "Fin real"
 ASPAS_FRP_GANTT_PHASE_OPTION = "Fabricación ASPAS frp"
+GANTT_PROJECT_SOURCE_VERSION = 2
+GANTT_COLUMN_ALIASES = {
+    "LÃ\xadnea": "Línea",
+    "MÃ©todo": "Método",
+    "UbicaciÃ³n": "Ubicación",
+    "MitigaciÃ³n breve": "Mitigación breve",
+}
 REMOTE_FETCH_TTL_SECONDS = 3600
 REMOTE_CONNECT_TIMEOUT_SECONDS = 5
 REMOTE_READ_TIMEOUT_SECONDS = 20
@@ -655,15 +662,140 @@ def parse_ingenieria_schedule_date_col(col: str) -> int | None:
     return month_offsets[month] + day
 
 
+def empty_ingenieria_schedule_df() -> pd.DataFrame:
+    return pd.DataFrame(
+        columns=[
+            "PIEZA",
+            "Tarea",
+            "Fecha",
+            "Fecha_dt",
+            "Fecha_orden",
+            "Fecha_plot",
+            "Carga",
+            "Actividad",
+            "_row_order",
+            "Inicio_label",
+            "Fin_label",
+        ]
+    )
+
+
+def format_ingenieria_schedule_day(ts: pd.Timestamp) -> str:
+    month_abbr = {
+        1: "ene",
+        2: "feb",
+        3: "mar",
+        4: "abr",
+        5: "may",
+        6: "jun",
+        7: "jul",
+        8: "ago",
+        9: "sep",
+        10: "oct",
+        11: "nov",
+        12: "dic",
+    }
+    return f"{int(ts.day)}-{month_abbr.get(int(ts.month), '')}"
+
+
+def build_ingenieria_schedule_from_explicit_ranges(df_raw: pd.DataFrame) -> pd.DataFrame:
+    if df_raw.empty:
+        return empty_ingenieria_schedule_df()
+
+    header_row_idx = None
+    required_tokens = {"id", "piezafrente", "tareaentregable", "inicio", "fin"}
+    header_scan_limit = min(len(df_raw), 18)
+    for idx in range(header_scan_limit):
+        row_tokens = {normalize_key(val) for val in df_raw.iloc[idx].fillna("").tolist() if normalize_key(val)}
+        if required_tokens.issubset(row_tokens):
+            header_row_idx = idx
+            break
+
+    if header_row_idx is None:
+        return empty_ingenieria_schedule_df()
+
+    df_matrix = df_raw.iloc[header_row_idx + 1 :].copy()
+    df_matrix.columns = [str(col).strip() for col in df_raw.iloc[header_row_idx].tolist()]
+    df_matrix = df_matrix.dropna(how="all").reset_index(drop=True)
+    if df_matrix.empty:
+        return empty_ingenieria_schedule_df()
+
+    pieza_col = find_best_column(df_matrix, ["piezafrente", "piezafrente", "pieza", "frente"])
+    tarea_col = find_best_column(df_matrix, ["tareaentregable", "tarea", "entregable"])
+    inicio_col = find_best_column(df_matrix, ["inicio"])
+    fin_col = find_best_column(df_matrix, ["fin"])
+    id_col = find_best_column(df_matrix, ["id"])
+    if not pieza_col or not tarea_col or not inicio_col or not fin_col:
+        return empty_ingenieria_schedule_df()
+
+    if id_col:
+        df_matrix[id_col] = df_matrix[id_col].fillna("").astype(str).str.strip()
+        df_matrix = df_matrix[df_matrix[id_col].str.fullmatch(r"\d+")].copy()
+
+    df_matrix[pieza_col] = df_matrix[pieza_col].replace({"": np.nan, "nan": np.nan}).ffill()
+    df_matrix[tarea_col] = df_matrix[tarea_col].fillna("").astype(str).str.strip()
+    df_matrix = df_matrix[df_matrix[tarea_col] != ""].copy()
+    if df_matrix.empty:
+        return empty_ingenieria_schedule_df()
+
+    df_matrix["_inicio_dt"] = pd.to_datetime(df_matrix[inicio_col], dayfirst=True, errors="coerce")
+    df_matrix["_fin_dt"] = pd.to_datetime(df_matrix[fin_col], dayfirst=True, errors="coerce")
+    df_matrix["_fin_dt"] = df_matrix["_fin_dt"].fillna(df_matrix["_inicio_dt"])
+    df_matrix = df_matrix.dropna(subset=["_inicio_dt", "_fin_dt"]).copy()
+    if df_matrix.empty:
+        return empty_ingenieria_schedule_df()
+
+    swapped_mask = df_matrix["_fin_dt"] < df_matrix["_inicio_dt"]
+    if swapped_mask.any():
+        df_matrix.loc[swapped_mask, ["_inicio_dt", "_fin_dt"]] = df_matrix.loc[
+            swapped_mask, ["_fin_dt", "_inicio_dt"]
+        ].to_numpy()
+
+    df_matrix["_row_order"] = range(len(df_matrix))
+    records = []
+    for _, row in df_matrix.iterrows():
+        start_dt = pd.Timestamp(row["_inicio_dt"]).normalize()
+        end_dt = pd.Timestamp(row["_fin_dt"]).normalize()
+        start_label = format_ingenieria_schedule_day(start_dt)
+        end_label = format_ingenieria_schedule_day(end_dt)
+        for day_dt in pd.date_range(start_dt, end_dt, freq="D"):
+            fecha_label = format_ingenieria_schedule_day(pd.Timestamp(day_dt))
+            records.append(
+                {
+                    "PIEZA": str(row[pieza_col]).strip() or "Sin pieza",
+                    "Tarea": str(row[tarea_col]).strip() or "Sin tarea",
+                    "Fecha": fecha_label,
+                    "Fecha_dt": pd.Timestamp(day_dt).normalize(),
+                    "Carga": 1.0,
+                    "_row_order": int(row["_row_order"]),
+                    "Inicio_label": start_label,
+                    "Fin_label": end_label,
+                }
+            )
+
+    if not records:
+        return empty_ingenieria_schedule_df()
+
+    df_long = pd.DataFrame.from_records(records)
+    unique_dates = sorted(pd.to_datetime(df_long["Fecha_dt"].dropna().unique()).tolist())
+    compressed_date_order = {
+        pd.Timestamp(fecha_dt).normalize(): idx for idx, fecha_dt in enumerate(unique_dates, start=1)
+    }
+    df_long["Fecha_plot"] = df_long["Fecha_dt"].map(compressed_date_order)
+    df_long["Fecha_orden"] = df_long["Fecha_plot"]
+    df_long["Actividad"] = df_long["PIEZA"] + " | " + df_long["Tarea"]
+    return df_long.sort_values(["Fecha_dt", "_row_order", "PIEZA", "Tarea"]).reset_index(drop=True)
+
+
 def build_ingenieria_piloto_10kw_schedule(url: str, refresh_nonce: int = 0) -> pd.DataFrame:
     df_raw = load_ingenieria_piloto_10kw_data(url, refresh_nonce=refresh_nonce).copy()
     if df_raw.empty:
-        return pd.DataFrame(columns=["PIEZA", "Tarea", "Fecha", "Fecha_orden", "Fecha_plot", "Carga", "Actividad"])
+        return empty_ingenieria_schedule_df()
 
     pieza_col = find_best_column(df_raw, ["pieza", "piezas"])
     tarea_col = find_best_column(df_raw, ["tarea", "tareas"])
     if not pieza_col or not tarea_col:
-        return pd.DataFrame(columns=["PIEZA", "Tarea", "Fecha", "Fecha_orden", "Fecha_plot", "Carga", "Actividad"])
+        return build_ingenieria_schedule_from_explicit_ranges(df_raw)
 
     date_col_orders = [
         (col, parsed_order)
@@ -675,7 +807,7 @@ def build_ingenieria_piloto_10kw_schedule(url: str, refresh_nonce: int = 0) -> p
     date_col_orders = sorted(date_col_orders, key=lambda item: item[1])
     date_cols = [col for col, _ in date_col_orders]
     if not date_cols:
-        return pd.DataFrame(columns=["PIEZA", "Tarea", "Fecha", "Fecha_orden", "Fecha_plot", "Carga", "Actividad"])
+        return build_ingenieria_schedule_from_explicit_ranges(df_raw)
 
     df_raw[pieza_col] = df_raw[pieza_col].replace({"": np.nan, "nan": np.nan}).ffill()
     df_raw[tarea_col] = df_raw[tarea_col].fillna("").astype(str).str.strip()
@@ -692,7 +824,7 @@ def build_ingenieria_piloto_10kw_schedule(url: str, refresh_nonce: int = 0) -> p
     df_long = df_long.dropna(subset=["Carga"]).copy()
     df_long = df_long[df_long["Carga"] > 0].copy()
     if df_long.empty:
-        return pd.DataFrame(columns=["PIEZA", "Tarea", "Fecha", "Fecha_orden", "Fecha_plot", "Carga", "Actividad"])
+        return build_ingenieria_schedule_from_explicit_ranges(df_raw)
 
     fecha_order = dict(date_col_orders)
     df_long["Fecha_orden"] = df_long["Fecha"].map(fecha_order)
@@ -702,8 +834,123 @@ def build_ingenieria_piloto_10kw_schedule(url: str, refresh_nonce: int = 0) -> p
     df_long = df_long.rename(columns={pieza_col: "PIEZA", tarea_col: "Tarea"})
     df_long["PIEZA"] = df_long["PIEZA"].fillna("Sin pieza").astype(str).str.strip()
     df_long["Tarea"] = df_long["Tarea"].fillna("Sin tarea").astype(str).str.strip()
+    df_long["Fecha_dt"] = pd.NaT
+    df_long["Inicio_label"] = df_long["Fecha"]
+    df_long["Fin_label"] = df_long["Fecha"]
     df_long["Actividad"] = df_long["PIEZA"] + " | " + df_long["Tarea"]
     return df_long.sort_values(["Fecha_orden", "PIEZA", "Tarea"]).reset_index(drop=True)
+
+
+def build_ingenieria_schedule_summary(df_ing_schedule: pd.DataFrame) -> pd.DataFrame:
+    if df_ing_schedule is None or df_ing_schedule.empty:
+        return pd.DataFrame(
+            columns=[
+                "Pieza / frente",
+                "Inicio",
+                "Fin",
+                "Duración calendario",
+                "Tareas",
+                "Días con actividad",
+                "Tarea crítica / mayor duración",
+            ]
+        )
+
+    df = df_ing_schedule.copy()
+    has_real_dates = "Fecha_dt" in df.columns and df["Fecha_dt"].notna().any()
+
+    task_summary = (
+        df.groupby(["PIEZA", "Tarea"], as_index=False)
+        .agg(
+            Fecha_orden_inicio=("Fecha_orden", "min"),
+            Fecha_orden_fin=("Fecha_orden", "max"),
+            Dias_con_actividad=("Fecha_orden", "nunique"),
+            _row_order=("_row_order", "min"),
+        )
+    )
+
+    if has_real_dates:
+        date_bounds = (
+            df.groupby(["PIEZA", "Tarea"], as_index=False)
+            .agg(
+                Fecha_dt_inicio=("Fecha_dt", "min"),
+                Fecha_dt_fin=("Fecha_dt", "max"),
+            )
+        )
+        task_summary = task_summary.merge(date_bounds, on=["PIEZA", "Tarea"], how="left")
+        task_summary["Duración_calendario"] = (
+            (task_summary["Fecha_dt_fin"] - task_summary["Fecha_dt_inicio"]).dt.days + 1
+        ).clip(lower=1)
+    else:
+        task_summary["Duración_calendario"] = (
+            task_summary["Fecha_orden_fin"] - task_summary["Fecha_orden_inicio"] + 1
+        ).clip(lower=1)
+
+    task_summary = task_summary.sort_values(
+        ["PIEZA", "Duración_calendario", "Dias_con_actividad", "_row_order"],
+        ascending=[True, False, False, True],
+    )
+    critical_map = task_summary.drop_duplicates(subset=["PIEZA"]).set_index("PIEZA")["Tarea"].to_dict()
+
+    pieza_summary = (
+        df.groupby("PIEZA", as_index=False)
+        .agg(
+            Fecha_orden_inicio=("Fecha_orden", "min"),
+            Fecha_orden_fin=("Fecha_orden", "max"),
+            Tareas=("Tarea", "nunique"),
+            Dias_con_actividad=("Fecha_orden", "nunique"),
+        )
+    )
+
+    if has_real_dates:
+        pieza_dates = (
+            df.groupby("PIEZA", as_index=False)
+            .agg(
+                Fecha_dt_inicio=("Fecha_dt", "min"),
+                Fecha_dt_fin=("Fecha_dt", "max"),
+            )
+        )
+        pieza_summary = pieza_summary.merge(pieza_dates, on="PIEZA", how="left")
+        pieza_summary["Duración calendario"] = (
+            (pieza_summary["Fecha_dt_fin"] - pieza_summary["Fecha_dt_inicio"]).dt.days + 1
+        ).clip(lower=1)
+        pieza_summary["Inicio"] = pieza_summary["Fecha_dt_inicio"].dt.strftime("%d-%m-%Y")
+        pieza_summary["Fin"] = pieza_summary["Fecha_dt_fin"].dt.strftime("%d-%m-%Y")
+    else:
+        fecha_ref = (
+            df[["PIEZA", "Fecha_orden", "Fecha"]]
+            .drop_duplicates()
+            .sort_values(["PIEZA", "Fecha_orden"])
+        )
+        inicio_map = fecha_ref.drop_duplicates(subset=["PIEZA"]).set_index("PIEZA")["Fecha"].to_dict()
+        fin_map = fecha_ref.drop_duplicates(subset=["PIEZA"], keep="last").set_index("PIEZA")["Fecha"].to_dict()
+        pieza_summary["Duración calendario"] = (
+            pieza_summary["Fecha_orden_fin"] - pieza_summary["Fecha_orden_inicio"] + 1
+        ).clip(lower=1)
+        pieza_summary["Inicio"] = pieza_summary["PIEZA"].map(inicio_map)
+        pieza_summary["Fin"] = pieza_summary["PIEZA"].map(fin_map)
+
+    pieza_summary["Tarea crítica / mayor duración"] = pieza_summary["PIEZA"].map(critical_map).fillna("Sin tarea")
+    pieza_summary = pieza_summary.rename(
+        columns={
+            "PIEZA": "Pieza / frente",
+            "Dias_con_actividad": "Días con actividad",
+        }
+    )
+    pieza_summary = pieza_summary[
+        [
+            "Pieza / frente",
+            "Inicio",
+            "Fin",
+            "Duración calendario",
+            "Tareas",
+            "Días con actividad",
+            "Tarea crítica / mayor duración",
+        ]
+    ].copy()
+    pieza_summary["Duración calendario"] = pieza_summary["Duración calendario"].astype(int)
+    pieza_summary["Tareas"] = pieza_summary["Tareas"].astype(int)
+    pieza_summary["Días con actividad"] = pieza_summary["Días con actividad"].astype(int)
+    return pieza_summary.reset_index(drop=True)
 
 
 def build_bullet_contexto_10kw_sections(url: str, refresh_nonce: int = 0) -> tuple[str, list[dict]]:
@@ -2719,10 +2966,33 @@ def gantt_infer_piloto(row):
     return "Piloto 10 kW"
 
 
+def gantt_normalize_linea(row: pd.Series) -> str:
+    linea = str(row.get("Línea", "")).strip()
+    if not linea:
+        return ""
+    if linea.lower() != "acople":
+        return linea
+
+    task = str(row.get("Tarea / Entregable", "")).strip().lower()
+    texto = " ".join(
+        [
+            task,
+            str(row.get("Método", "")).strip().lower(),
+            str(row.get("Ubicación", "")).strip().lower(),
+        ]
+    )
+    # Separa la línea antigua "Acople" en la taxonomía actual del archivo.
+    if any(token in texto for token in ("viga-aspa", "vigas- aspas", "hexagonal", "circular", "extremo", "aspa")):
+        return "Acople Externo"
+    return "Acople Central"
+
+
 def gantt_process_df(df: pd.DataFrame) -> pd.DataFrame:
     df = df.copy()
     if "ID" in df.columns:
         df["ID"] = pd.to_numeric(df["ID"], errors="coerce").astype("Int64")
+    if "Línea" in df.columns:
+        df["Línea"] = df.apply(gantt_normalize_linea, axis=1)
     for col in [GANTT_DATE_COL_START, GANTT_DATE_COL_END_PLAN, GANTT_DATE_COL_END_REAL]:
         if col in df.columns:
             df[col] = pd.to_datetime(df[col], errors="coerce")
@@ -2745,9 +3015,130 @@ def gantt_process_df(df: pd.DataFrame) -> pd.DataFrame:
 
 @st.cache_data(show_spinner=False, ttl=REMOTE_FETCH_TTL_SECONDS, persist="disk")
 def load_project_gantt_data(url: str, refresh_nonce: int = 0) -> pd.DataFrame:
-    df = read_remote_csv(url, refresh_nonce=refresh_nonce, encoding="utf-8-sig")
-    df.columns = [str(c).strip() for c in df.columns]
+    df = read_remote_csv(url, refresh_nonce=refresh_nonce + GANTT_PROJECT_SOURCE_VERSION, encoding="utf-8-sig")
+    df.columns = [GANTT_COLUMN_ALIASES.get(str(c).strip(), str(c).strip()) for c in df.columns]
     return gantt_process_df(df)
+
+
+def build_gantt_phase_color_map(df: pd.DataFrame) -> dict[str, str]:
+    if "Fase" not in df.columns:
+        return {}
+    fases = sorted(
+        {
+            str(val).strip()
+            for val in df["Fase"].astype(str).tolist()
+            if str(val).strip() and str(val).strip().lower() not in {"nan", "none"}
+        }
+    )
+    return {fase: PX_COLORS[idx % len(PX_COLORS)] for idx, fase in enumerate(fases)}
+
+
+def build_gantt_line_color_map(df: pd.DataFrame) -> dict[str, str]:
+    if "Línea" not in df.columns:
+        return {}
+    lineas = sorted(
+        {
+            str(val).strip()
+            for val in df["Línea"].astype(str).tolist()
+            if str(val).strip() and str(val).strip().lower() not in {"nan", "none"}
+        }
+    )
+    return {linea: PX_COLORS[idx % len(PX_COLORS)] for idx, linea in enumerate(lineas)}
+
+
+def format_gantt_task_label(label: str, max_chars: int = 42, max_lines: int = 2) -> str:
+    clean = " ".join(str(label).split()).strip()
+    if not clean:
+        return ""
+    wrapped = textwrap.wrap(clean, width=max_chars, break_long_words=False, break_on_hyphens=False)
+    if len(wrapped) <= max_lines:
+        return "<br>".join(html.escape(part) for part in wrapped)
+    clipped = wrapped[:max_lines]
+    clipped[-1] = clipped[-1].rstrip(" .,;:") + "…"
+    return "<br>".join(html.escape(part) for part in clipped)
+
+
+def render_inputs_gantt_kpis(df: pd.DataFrame, date_mode: str = "Real") -> None:
+    if df.empty:
+        return
+    dfk = df.copy()
+    dfk["_start"] = pd.to_datetime(dfk.get(GANTT_DATE_COL_START), errors="coerce")
+    dfk["_end_plan"] = pd.to_datetime(dfk.get(GANTT_DATE_COL_END_PLAN), errors="coerce")
+    dfk["_end_real"] = pd.to_datetime(dfk.get(GANTT_DATE_COL_END_REAL), errors="coerce")
+    dfk["_start"] = dfk["_start"].fillna(dfk["_end_real"]).fillna(dfk["_end_plan"])
+    dfk["_end"] = dfk["_end_real"] if date_mode == "Real" else dfk["_end_plan"]
+    dfk["_end"] = dfk["_end"].fillna(dfk["_end_plan"]).fillna(dfk["_end_real"]).fillna(dfk["_start"])
+    bad = dfk["_end"] <= dfk["_start"]
+    dfk.loc[bad, "_end"] = dfk.loc[bad, "_start"] + pd.Timedelta(days=1)
+    dfk = dfk[dfk["_start"].notna() & dfk["_end"].notna()].copy()
+    if dfk.empty:
+        return
+
+    today_ts = pd.Timestamp.today().normalize()
+    total_tasks = int(len(dfk))
+    completed_tasks = int(dfk["Estado"].astype(str).str.contains("complet", case=False, na=False).sum()) if "Estado" in dfk.columns else 0
+    in_progress_tasks = int(dfk["Estado"].astype(str).str.contains("curso", case=False, na=False).sum()) if "Estado" in dfk.columns else 0
+    overdue_tasks = int(((dfk["_end"] < today_ts) & ~dfk["Estado"].astype(str).str.contains("complet", case=False, na=False)).sum()) if "Estado" in dfk.columns else 0
+    due_soon_tasks = int(
+        (
+            (dfk["_end"] >= today_ts)
+            & (dfk["_end"] <= today_ts + pd.Timedelta(days=5))
+            & ~dfk["Estado"].astype(str).str.contains("complet", case=False, na=False)
+        ).sum()
+    ) if "Estado" in dfk.columns else 0
+    active_lines = int(dfk["Línea"].astype(str).str.strip().replace({"nan": np.nan, "None": np.nan, "": np.nan}).dropna().nunique()) if "Línea" in dfk.columns else 0
+    avg_duration = int(round(((dfk["_end"] - dfk["_start"]).dt.days.clip(lower=1)).mean())) if not dfk.empty else 0
+    progress_pct = int(round(100 * completed_tasks / total_tasks)) if total_tasks else 0
+    dfk["_delay_days"] = (dfk["_end_real"] - dfk["_end_plan"]).dt.days
+    atraso_task_label = "Sin atraso"
+    atraso_task_note = "Sin brecha positiva entre fin plan y fin real"
+    atraso_task_value = "0 d"
+    if dfk["_delay_days"].notna().any():
+        atraso_df = dfk[dfk["_delay_days"].fillna(0) > 0].copy()
+        if not atraso_df.empty:
+            atraso_row = atraso_df.sort_values(["_delay_days", "_end_real"], ascending=[False, False]).iloc[0]
+            atraso_task_value = f"{int(atraso_row['_delay_days'])} d"
+            atraso_task_label = str(atraso_row.get("Tarea / Entregable", "")).strip() or "Tarea sin nombre"
+            atraso_task_note = f"Mayor atraso vs plan: {atraso_task_label[:58]}"
+
+    cards = [
+        ("Tareas en fase", str(total_tasks), "Filas visibles en el cronograma", "#0f766e"),
+        ("Completadas", f"{completed_tasks} · {progress_pct}%", "Cierre del bloque filtrado", "#15803d"),
+        ("Atrasadas", str(overdue_tasks), "No completadas con fecha vencida", "#b45309"),
+        ("Vencen < 5 Dias", str(due_soon_tasks), "Tareas próximas a vencimiento", "#7c3aed"),
+        ("Mayor atraso", atraso_task_value, atraso_task_note, "#be123c"),
+        ("Duración media", f"{avg_duration} d", "Duración promedio por tarea", "#1d4ed8"),
+    ]
+    if active_lines:
+        cards.append(("Líneas", str(active_lines), "Subfrentes activos del bloque", "#475569"))
+
+    cols = st.columns(len(cards))
+    for col, (label, value, note, accent) in zip(cols, cards):
+        with col:
+            st.markdown(
+                f"""
+                <div style="
+                    border-radius:18px;
+                    padding:14px 16px 12px 16px;
+                    background:linear-gradient(180deg,#ffffff 0%,#f8fafc 100%);
+                    border:1px solid rgba(148,163,184,.22);
+                    box-shadow:0 10px 24px rgba(15,23,42,.05);
+                    border-top:4px solid {accent};
+                    min-height:96px;
+                ">
+                    <div style="font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#64748b;margin-bottom:8px;">
+                        {html.escape(label)}
+                    </div>
+                    <div style="font-size:28px;font-weight:900;line-height:1;color:#0f172a;margin-bottom:8px;">
+                        {html.escape(value)}
+                    </div>
+                    <div style="font-size:12px;line-height:1.4;color:#475569;">
+                        {html.escape(note)}
+                    </div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
 
 
 def build_inputs_gantt_figure(
@@ -2755,6 +3146,7 @@ def build_inputs_gantt_figure(
     date_mode: str = "Real",
     color_by: str = "Estado",
     color_y_labels_by_phase: bool = False,
+    color_y_labels_by_line: bool = False,
 ):
     dfp = df.copy()
     dfp["_start"] = pd.to_datetime(dfp.get(GANTT_DATE_COL_START), errors="coerce")
@@ -2773,19 +3165,20 @@ def build_inputs_gantt_figure(
     dfp = dfp.sort_values(["_start", "_end", "ID"], ascending=[False, False, True])
     dfp["_task_label"] = dfp["Tarea / Entregable"].astype(str)
     y_labels = pd.unique(dfp["_task_label"].astype(str))
-    max_len = max((len(s) for s in y_labels), default=12)
+    display_label_map = {label: format_gantt_task_label(label) for label in y_labels}
+    max_len = max((max((len(part) for part in str(display_label_map[label]).split("<br>")), default=12)) for label in y_labels) if len(y_labels) else 12
     rows = len(y_labels)
-    left_margin = min(56 + max_len * 6, 380)
+    left_margin = min(84 + max_len * 8, 500)
     # Altura realmente responsiva para que al filtrar estados no queden huecos verticales.
     height_px = min(max(260, 110 + 36 * rows), 1200)
 
     apple = {
-        "Planificado": "#0A84FF",
-        "En curso": "#FF3B30",
-        "Completado": "#30D158",
-        "Pendiente": "#FF9F0A",
-        "Recurrente": "#C5C213",
-        "default": "#8E8E93",
+        "Planificado": "#D9A766",
+        "En curso": "#D7605E",
+        "Completado": "#7FA8A4",
+        "Pendiente": "#A9A7A4",
+        "Recurrente": "#4F5D6F",
+        "default": "#7B8794",
     }
 
     def color_estado(s):
@@ -2806,19 +3199,14 @@ def build_inputs_gantt_figure(
     color_map = None
     if color_by == "Estado" and "Estado" in dfp.columns:
         color_map = {val: color_estado(val) for val in dfp["Estado"].dropna().unique()}
+    elif color_by == "Línea" and "Línea" in dfp.columns:
+        color_map = build_gantt_line_color_map(dfp)
     elif color_by == "Piloto" and "Piloto" in dfp.columns:
         pilotos = dfp["Piloto"].dropna().unique()
         color_map = {p: PX_COLORS[i % len(PX_COLORS)] for i, p in enumerate(pilotos)}
 
-    phase_color_map = {}
-    if "Fase" in dfp.columns:
-        fases = pd.unique(dfp["Fase"].astype(str).str.strip())
-        phase_color_map = {
-            fase: PX_COLORS[i % len(PX_COLORS)]
-            for i, fase in enumerate(
-                [fase for fase in fases if fase and fase.lower() not in {"nan", "none"}]
-            )
-        }
+    phase_color_map = build_gantt_phase_color_map(dfp)
+    line_color_map = build_gantt_line_color_map(dfp)
 
     safe_pct = pd.to_numeric(dfp.get("%", 0), errors="coerce").fillna(0).astype(float)
     fig = go.Figure()
@@ -2827,11 +3215,13 @@ def build_inputs_gantt_figure(
         legend_name = str(row.get(color_arg, "")) if color_arg in row.index else ""
         legend_name = legend_name.strip() or "Sin categoría"
         color_value = color_map.get(legend_name, apple["default"]) if color_map else apple["default"]
+        estado_color_value = color_estado(str(row.get("Estado", ""))) if "Estado" in row.index else apple["default"]
         duration_days = max(int((row["_end"] - row["_start"]).days), 1)
         completion_pct = float(safe_pct.loc[idx]) if idx in safe_pct.index else 0.0
         task_name = str(row.get("Tarea / Entregable", ""))
         task_label = str(row.get("_task_label", task_name))
         phase_name = str(row.get("Fase", ""))
+        line_name = str(row.get("Línea", ""))
         state_name = str(row.get("Estado", ""))
         task_id = row.get("ID", "")
         end_label = row["_end"].strftime("%d-%m-%Y") if pd.notna(row["_end"]) else ""
@@ -2849,13 +3239,13 @@ def build_inputs_gantt_figure(
                     size=[9, 14],
                     color=[color_value, color_value],
                     symbol=["circle", "diamond"],
-                    line=dict(color="white", width=1.4),
+                    line=dict(color=estado_color_value if color_by == "Línea" else "white", width=1.6 if color_by == "Línea" else 1.4),
                 ),
                 text=["", end_label],
                 textposition="middle right",
-                customdata=[[phase_name, state_name, task_id, duration_days, completion_pct, task_name]] * 2,
+                customdata=[[phase_name, state_name, task_id, duration_days, completion_pct, task_name, line_name]] * 2,
                 hovertemplate="<b>%{y}</b><br>"
-                              "Estado: %{customdata[1]} · ID: %{customdata[2]}<br>"
+                              "Estado: %{customdata[1]} · Línea: %{customdata[6]} · ID: %{customdata[2]}<br>"
                               "Inicio: %{x|%Y-%m-%d}<br>"
                               "Fase: %{customdata[0]}<br>"
                               "Tarea: %{customdata[5]}<extra>Duración: %{customdata[3]} días · Avance: %{customdata[4]:.0f}%</extra>",
@@ -2908,28 +3298,37 @@ def build_inputs_gantt_figure(
         gridcolor="rgba(60,60,67,0.08)",
     )
     fig.update_yaxes(autorange="reversed", automargin=True, showticklabels=True)
+    label_color_field = None
+    label_color_map = None
     if color_y_labels_by_phase and "Fase" in dfp.columns:
-        task_phase_map = (
-            dfp[["_task_label", "Fase"]]
+        label_color_field = "Fase"
+        label_color_map = phase_color_map
+    elif color_y_labels_by_line and "Línea" in dfp.columns:
+        label_color_field = "Línea"
+        label_color_map = line_color_map
+
+    if label_color_field and label_color_map:
+        task_label_map = (
+            dfp[["_task_label", label_color_field]]
             .drop_duplicates(subset=["_task_label"])
-            .set_index("_task_label")["Fase"]
+            .set_index("_task_label")[label_color_field]
             .to_dict()
         )
         fig.update_yaxes(showticklabels=False)
-        left_margin = min(max(left_margin + 24, 220), 460)
+        left_margin = min(max(left_margin + 28, 260), 720)
         for task_label in y_labels:
-            phase_name = str(task_phase_map.get(task_label, "")).strip()
-            label_color = phase_color_map.get(phase_name, "#667085")
+            label_group_name = str(task_label_map.get(task_label, "")).strip()
+            label_color = label_color_map.get(label_group_name, "#667085")
             fig.add_annotation(
                 x=0,
                 xref="paper",
                 xanchor="right",
-                xshift=-10,
+                xshift=-14,
                 y=task_label,
                 yref="y",
-                text=html.escape(str(task_label)),
+                text=display_label_map.get(task_label, html.escape(str(task_label))),
                 showarrow=False,
-                font=dict(size=11, color=label_color),
+                font=dict(size=10.5, color=label_color, family="Arial Black, Arial, sans-serif"),
                 align="right",
             )
     fig.update_layout(
@@ -2952,34 +3351,30 @@ def build_inputs_gantt_figure(
     return fig
 
 
-def render_inputs_gantt_phase_legend(df: pd.DataFrame) -> None:
-    if "Fase" not in df.columns:
+def render_inputs_gantt_group_legend(color_map: dict[str, str]) -> None:
+    if not color_map:
         return
-
-    fases = [
-        str(val).strip()
-        for val in df["Fase"].astype(str).tolist()
-        if str(val).strip() and str(val).strip().lower() not in {"nan", "none"}
-    ]
-    fases = list(dict.fromkeys(fases))
-    if not fases:
-        return
-
     chips = []
-    for idx, fase in enumerate(fases):
-        color = PX_COLORS[idx % len(PX_COLORS)]
+    for label, color in color_map.items():
         chips.append(
-            f"<span style='color:{color};font-weight:700;'>● {html.escape(fase)}</span>"
+            (
+                f"<span style='display:inline-flex;align-items:center;gap:8px;padding:6px 10px;"
+                f"border-radius:999px;background:rgba(248,250,252,.96);"
+                f"border:1px solid rgba(148,163,184,.22);color:#334155;font-weight:700;'>"
+                f"<span style='width:10px;height:10px;border-radius:999px;background:{color};"
+                f"display:inline-block;box-shadow:0 0 0 2px rgba(255,255,255,.95);'></span>"
+                f"{html.escape(label)}</span>"
+            )
         )
 
     st.markdown(
         f"""
         <div style="
-            margin: 10px 0 2px 0;
-            padding: 8px 12px 0 12px;
+            margin: 10px 0 4px 0;
+            padding: 8px 12px 2px 12px;
             display: flex;
             flex-wrap: wrap;
-            gap: 10px 18px;
+            gap: 10px 12px;
             font-size: 0.92rem;
             line-height: 1.45;
         ">
@@ -3016,7 +3411,7 @@ def render_inputs_aspas_frp_schedule_chart() -> None:
         .tolist()
     )
     fecha_ticks = (
-        df_ing_schedule[["Fecha", "Fecha_orden", "Fecha_plot"]]
+        df_ing_schedule[["Fecha", "Fecha_orden", "Fecha_plot", "Fecha_dt"]]
         .drop_duplicates()
         .sort_values("Fecha_orden")
     )
@@ -3037,7 +3432,10 @@ def render_inputs_aspas_frp_schedule_chart() -> None:
     today_ts = pd.Timestamp.now(tz="America/Santiago")
     today_label = f"{today_ts.day}-{month_abbr.get(today_ts.month, '')}"
     today_x = None
-    today_match = fecha_ticks[fecha_ticks["Fecha"].astype(str).str.lower().eq(today_label)]
+    if "Fecha_dt" in fecha_ticks.columns and fecha_ticks["Fecha_dt"].notna().any():
+        today_match = fecha_ticks[fecha_ticks["Fecha_dt"].dt.normalize().eq(today_ts.tz_localize(None).normalize())]
+    else:
+        today_match = fecha_ticks[fecha_ticks["Fecha"].astype(str).str.lower().eq(today_label)]
     if not today_match.empty:
         today_x = float(today_match.iloc[0]["Fecha_plot"])
     tick_step = max(1, math.ceil(len(fecha_ticks) / 18))
@@ -3063,12 +3461,21 @@ def render_inputs_aspas_frp_schedule_chart() -> None:
     kpi_inicio = fecha_ticks.iloc[0]["Fecha"] if not fecha_ticks.empty else "-"
     kpi_termino = fecha_ticks.iloc[-1]["Fecha"] if not fecha_ticks.empty else "-"
     kpi_peak = int(df_ing_schedule.groupby("Fecha_orden").size().max() or 0)
-    today_order = parse_ingenieria_schedule_date_col(today_label)
-    kpi_dias = (
-        int(df_ing_schedule.loc[df_ing_schedule["Fecha_orden"] >= today_order, "Fecha_orden"].nunique() or 0)
-        if today_order is not None
-        else 0
-    )
+    if "Fecha_dt" in df_ing_schedule.columns and df_ing_schedule["Fecha_dt"].notna().any():
+        kpi_dias = int(
+            df_ing_schedule.loc[
+                df_ing_schedule["Fecha_dt"].dt.normalize().ge(today_ts.tz_localize(None).normalize()),
+                "Fecha_dt",
+            ].nunique()
+            or 0
+        )
+    else:
+        today_order = parse_ingenieria_schedule_date_col(today_label)
+        kpi_dias = (
+            int(df_ing_schedule.loc[df_ing_schedule["Fecha_orden"] >= today_order, "Fecha_orden"].nunique() or 0)
+            if today_order is not None
+            else 0
+        )
     pro_kpi_cols = st.columns(4)
     with pro_kpi_cols[0]:
         kpi_card("Inicio plan", str(kpi_inicio), "Primera fecha con actividad.", variant="palette_teal", compact=True)
@@ -3120,13 +3527,13 @@ def render_inputs_aspas_frp_schedule_chart() -> None:
                 showlegend=True,
                 line=dict(color=hex_to_rgba(trace_color, 0.30), width=0.85),
                 marker=dict(size=8, color=trace_color, opacity=0.94, symbol="circle", line=dict(color="white", width=1.15)),
-                customdata=df_task[["Fecha", "PIEZA", "Tarea", "Carga"]],
+                customdata=df_task[["Fecha", "PIEZA", "Tarea", "Carga", "Inicio_label", "Fin_label"]],
                 hovertemplate=(
                     "<b>%{customdata[1]}</b><br>"
                     "%{customdata[2]}<br>"
                     "Fecha: %{customdata[0]}<br>"
                     "Trabajo registrado en la hoja<br>"
-                    "Inicio y término: %{customdata[0]}<extra></extra>"
+                    "Inicio y término: %{customdata[4]} a %{customdata[5]}<extra></extra>"
                 ),
             )
         )
@@ -3189,6 +3596,76 @@ def render_inputs_aspas_frp_schedule_chart() -> None:
         unsafe_allow_html=True,
     )
 
+    resumen_frp = build_ingenieria_schedule_summary(df_ing_schedule)
+    total_tareas_frp = int(df_ing_schedule["Tarea"].nunique() or 0)
+    total_frentes_frp = int(df_ing_schedule["PIEZA"].nunique() or 0)
+    if "Fecha_dt" in df_ing_schedule.columns and df_ing_schedule["Fecha_dt"].notna().any():
+        fecha_inicio_global = pd.Timestamp(df_ing_schedule["Fecha_dt"].min()).strftime("%d-%m-%Y")
+        fecha_fin_global = pd.Timestamp(df_ing_schedule["Fecha_dt"].max()).strftime("%d-%m-%Y")
+        criterio_text = (
+            "La hoja fuente se interpreta como cronograma por rango: para cada tarea se toma "
+            "Inicio y Fin explícitos, y se consolida la actividad diaria intermedia para lectura ejecutiva."
+        )
+    else:
+        fecha_inicio_global = str(fecha_ticks.iloc[0]["Fecha"]) if not fecha_ticks.empty else "-"
+        fecha_fin_global = str(fecha_ticks.iloc[-1]["Fecha"]) if not fecha_ticks.empty else "-"
+        criterio_text = (
+            "Los registros de la hoja se leen como marcas de actividad por fecha. "
+            "No representan dotación ni horas; se usan para estimar inicio, fin y duración calendario."
+        )
+
+    st.markdown(
+        '<div class="eng-body-title" style="font-size:18px;font-weight:800;color:#0f172a;margin:18px 0 10px 0;">Resumen ejecutivo — Cronograma FRP</div>',
+        unsafe_allow_html=True,
+    )
+    st.markdown(
+        f"""
+        <div style="margin:0 0 12px 0;padding:14px 16px;border:1px solid rgba(203,213,225,.72);border-radius:14px;background:#F8FAFC;">
+            <div style="font-size:14px;font-weight:800;color:#274C77;margin:0 0 6px 0;">Criterio aplicado</div>
+            <div style="font-size:13.5px;line-height:1.55;color:#475569;">{html.escape(criterio_text)}</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+    st.dataframe(
+        style_engineering_table(resumen_frp, header_color="#2F557F", row_color="#F8FBFF")
+        .set_properties(
+            **{
+                "font-size": "13px",
+                "color": "#334155",
+                "font-family": '"Aptos","Segoe UI",sans-serif',
+            }
+        )
+        .set_properties(
+            subset=["Pieza / frente", "Tarea crítica / mayor duración"],
+            **{
+                "text-align": "left",
+                "font-weight": "700",
+                "color": "#243B53",
+            }
+        )
+        .set_properties(
+            subset=["Inicio", "Fin", "Duración calendario", "Tareas", "Días con actividad"],
+            **{
+                "font-variant-numeric": "tabular-nums",
+                "font-weight": "600",
+            }
+        ),
+        hide_index=True,
+        use_container_width=True,
+        height=min(420, 80 + 46 * max(len(resumen_frp), 1)),
+    )
+    st.markdown("### Lectura rápida")
+    st.markdown(
+        "\n".join(
+            [
+                f"- El cronograma consolidado contiene `{total_tareas_frp}` tareas distribuidas en `{total_frentes_frp}` frentes.",
+                f"- El tramo total va desde `{fecha_inicio_global}` hasta `{fecha_fin_global}`.",
+                "- La tabla resume inicio, término, carga de tareas y la actividad crítica de cada frente.",
+            ]
+        )
+    )
+
 
 def render_inputs_project_gantt():
     try:
@@ -3203,7 +3680,11 @@ def render_inputs_project_gantt():
     st.markdown("### Cronograma de Ejecución y Validación")
     st.caption("Vista integrada del cronograma del proyecto antes del análisis financiero por categorías.")
 
-    c1, c2, c3, c4 = st.columns([4, 2.2, 1.8, 1.8])
+    has_linea = "Línea" in df_gantt.columns
+    if has_linea:
+        c1, c2, c3, c4, c5 = st.columns([3.2, 2.6, 2.1, 1.7, 1.7])
+    else:
+        c1, c3, c4, c5 = st.columns([4, 2.2, 1.8, 1.8])
     with c1:
         fases = sorted(
             df_gantt["Fase"].astype(str).str.strip().replace({"nan": np.nan, "None": np.nan, "": np.nan}).dropna().unique().tolist()
@@ -3225,7 +3706,30 @@ def render_inputs_project_gantt():
             fase_options,
             key="inputs_gantt_fase",
         )
-    with c2:
+    linea_sel = "Todas"
+    if has_linea:
+        with c2:
+            lineas_df = df_gantt.copy()
+            if fase_sel != "Todas" and "Fase" in lineas_df.columns:
+                lineas_df = lineas_df[lineas_df["Fase"].astype(str).str.strip() == fase_sel].copy()
+            lineas = sorted(
+                lineas_df["Línea"].astype(str).str.strip().replace({"nan": np.nan, "None": np.nan, "": np.nan}).dropna().unique().tolist()
+            )
+            linea_options = ["Todas"] + lineas
+            linea_saved = st.session_state.pop("inputs_gantt_linea__sticky", None)
+            if linea_saved in linea_options:
+                st.session_state["inputs_gantt_linea"] = linea_saved
+            linea_default = st.session_state.get("inputs_gantt_linea", "Todas")
+            if linea_default not in linea_options:
+                linea_default = "Todas"
+                st.session_state["inputs_gantt_linea"] = linea_default
+            linea_sel = st.selectbox(
+                "Línea",
+                linea_options,
+                index=linea_options.index(linea_default),
+                key="inputs_gantt_linea",
+            )
+    with c3:
         estados = sorted(
             df_gantt["Estado"].astype(str).str.strip().replace({"nan": np.nan, "None": np.nan, "": np.nan}).dropna().unique().tolist()
         ) if "Estado" in df_gantt.columns else []
@@ -3243,7 +3747,7 @@ def render_inputs_project_gantt():
             index=estado_options.index(estado_default),
             key="inputs_gantt_estado",
         )
-    with c3:
+    with c4:
         mode_saved = st.session_state.pop("inputs_gantt_mode__sticky", None)
         if mode_saved in ("Plan", "Real"):
             st.session_state["inputs_gantt_mode"] = mode_saved
@@ -3254,13 +3758,14 @@ def render_inputs_project_gantt():
             horizontal=True,
             key="inputs_gantt_mode",
         )
-    with c4:
+    with c5:
         color_saved = st.session_state.pop("inputs_gantt_color__sticky", None)
-        if color_saved in ("Estado", "Piloto"):
+        color_options = ["Estado", "Línea", "Piloto"] if has_linea else ["Estado", "Piloto"]
+        if color_saved in color_options:
             st.session_state["inputs_gantt_color"] = color_saved
         color_by = st.radio(
             "Color por",
-            ["Estado", "Piloto"],
+            color_options,
             horizontal=True,
             key="inputs_gantt_color",
         )
@@ -3272,21 +3777,33 @@ def render_inputs_project_gantt():
     plot_df = df_gantt.copy()
     if fase_sel != "Todas" and "Fase" in plot_df.columns:
         plot_df = plot_df[plot_df["Fase"].astype(str).str.strip() == fase_sel].copy()
+    if linea_sel != "Todas" and "Línea" in plot_df.columns:
+        plot_df = plot_df[plot_df["Línea"].astype(str).str.strip() == linea_sel].copy()
     if estado_sel != "Todos" and "Estado" in plot_df.columns:
         plot_df = plot_df[plot_df["Estado"].astype(str).str.strip() == estado_sel].copy()
     if plot_df.empty:
         st.info("No hay tareas para los filtros seleccionados.")
         return
 
+    st.caption(f"{len(plot_df)} tareas visibles para los filtros seleccionados.")
+    render_inputs_gantt_kpis(plot_df, date_mode=date_mode)
+
+    legend_color_map = None
+    if fase_sel == "Todas":
+        legend_color_map = build_gantt_phase_color_map(plot_df)
+    elif "Línea" in plot_df.columns and linea_sel == "Todas":
+        legend_color_map = build_gantt_line_color_map(plot_df)
+    if legend_color_map:
+        render_inputs_gantt_group_legend(legend_color_map)
+
     fig_gantt = build_inputs_gantt_figure(
         plot_df,
         date_mode=date_mode,
         color_by=color_by,
         color_y_labels_by_phase=(fase_sel == "Todas"),
+        color_y_labels_by_line=(fase_sel != "Todas" and linea_sel == "Todas" and "Línea" in plot_df.columns),
     )
     st.plotly_chart(fig_gantt, use_container_width=True, key="inputs_estado_actual_gantt")
-    if fase_sel == "Todas":
-        render_inputs_gantt_phase_legend(plot_df)
 
 
 def render_inputs_contexto_block():
@@ -4904,15 +5421,21 @@ st.sidebar.caption(
 )
 if "data_refresh_nonce" not in st.session_state:
     st.session_state["data_refresh_nonce"] = 0
+if st.session_state.get("gantt_project_source_version") != GANTT_PROJECT_SOURCE_VERSION:
+    load_project_gantt_data.clear()
+    st.session_state["gantt_project_source_version"] = GANTT_PROJECT_SOURCE_VERSION
 if st.sidebar.button("🔁 Actualizar datos desde URL"):
     for key in (
         "inputs_gantt_fase",
+        "inputs_gantt_linea",
         "inputs_gantt_estado",
         "inputs_gantt_mode",
         "inputs_gantt_color",
     ):
         if key in st.session_state:
             st.session_state[f"{key}__sticky"] = st.session_state[key]
+    fetch_remote_file_bytes.clear()
+    load_project_gantt_data.clear()
     st.session_state["data_refresh_nonce"] += 1
     st.rerun()
 
