@@ -4505,16 +4505,18 @@ def render_inputs_capex_10kw_detail():
         .capex10-v{font-size:22px;line-height:1;font-weight:900;color:#08122a;margin:0 0 8px 0;}
         .capex10-s{font-size:11px;color:#14284a;margin:0;}
         .capex10-main{display:grid;grid-template-columns:1.05fr 1fr;gap:16px;margin:0 0 16px 0;}
-        .capex10-panel{border:1px solid #d9e2ee;border-radius:14px;background:#fff;padding:18px 18px 16px 18px;min-height:520px;}
+        .capex10-panel{border:1px solid #d9e2ee;border-radius:14px;background:#fff;padding:18px 18px 16px 18px;height:560px;box-sizing:border-box;overflow:hidden;}
+        .capex10-panel-body{height:calc(100% - 38px);display:flex;flex-direction:column;}
         .capex10-panel-head{display:flex;align-items:center;justify-content:space-between;margin:0 0 12px 0;}
         .capex10-panel-title{font-size:15px;font-weight:900;color:#0b1730;margin:0;}
         .capex10-info{width:16px;height:16px;border-radius:50%;border:1px solid #94a3b8;color:#64748b;display:inline-flex;align-items:center;justify-content:center;font-size:11px;font-weight:900;}
         .capex10-download{border:1px solid #dce5f0;border-radius:8px;background:#f8fbff;padding:8px 12px;color:#102039;font-size:11px;font-weight:900;}
-        .capex10-legend{display:grid;gap:9px;align-content:center;padding-top:18px;}
-        .capex10-leg-row{display:grid;grid-template-columns:14px 1fr 48px;gap:8px;align-items:center;font-size:11px;color:#102039;font-weight:700;}
+        .capex10-legend{display:grid;gap:7px;align-content:start;padding-top:10px;max-height:350px;overflow:auto;padding-right:4px;}
+        .capex10-leg-row{display:grid;grid-template-columns:14px 1fr 46px;gap:7px;align-items:center;font-size:10.5px;color:#102039;font-weight:700;}
         .capex10-dot{width:10px;height:10px;border-radius:50%;background:var(--c);}
         .capex10-pct{text-align:right;font-weight:900;color:#102039;}
-        .capex10-callout{display:grid;grid-template-columns:46px 1fr;gap:14px;align-items:center;border:1px solid #d9e5f5;border-radius:12px;background:#fbfdff;margin-top:16px;padding:14px 16px;}
+        .capex10-chart-area{flex:1;min-height:0;}
+        .capex10-callout{display:grid;grid-template-columns:46px 1fr;gap:14px;align-items:center;border:1px solid #d9e5f5;border-radius:12px;background:#fbfdff;margin-top:12px;padding:14px 16px;}
         .capex10-call-ico{width:38px;height:38px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:#eef5ff;color:#1d4ed8;font-size:24px;}
         .capex10-call-t{font-size:13px;font-weight:900;color:#1d4ed8;margin:0 0 5px 0;}
         .capex10-call-s{font-size:11.5px;color:#274060;margin:0;}
@@ -4527,6 +4529,12 @@ def render_inputs_capex_10kw_detail():
         .capex10-table tr.total td{background:#e8f8f4;color:#087f6f;font-size:13px;font-weight:900;border-bottom:0;}
         .capex10-name{display:flex;align-items:center;gap:9px;}
         .capex10-row-dot{width:8px;height:8px;border-radius:50%;background:var(--c);flex:0 0 auto;}
+        .capex10-table-scroll{flex:1;min-height:0;overflow:auto;border-radius:10px;}
+        .capex10-table-legend{border:1px solid #dce6f2;border-radius:10px;background:#fbfdff;padding:9px 10px;margin:0 0 10px 0;}
+        .capex10-table-legend-title{font-size:10px;text-transform:uppercase;letter-spacing:.04em;color:#52657f;font-weight:900;margin:0 0 7px 0;}
+        .capex10-table-legend-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px 12px;max-height:78px;overflow:auto;}
+        .capex10-table-legend-item{display:flex;align-items:center;gap:7px;font-size:10px;color:#102039;font-weight:700;min-width:0;}
+        .capex10-table-legend-item span:last-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
         .capex10-footer{display:grid;grid-template-columns:1.1fr 1fr 1.2fr 1.25fr 1fr;gap:0;border:1px solid #d9e2ee;border-radius:14px;background:#fbfdff;padding:14px 18px;}
         .capex10-foot-item{display:grid;grid-template-columns:42px 1fr;gap:10px;align-items:center;border-right:1px solid #d8e2ee;padding:0 18px;}
         .capex10-foot-item:first-child{padding-left:0;}
@@ -4534,7 +4542,7 @@ def render_inputs_capex_10kw_detail():
         .capex10-foot-ico{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:#eef4ff;color:#315d9b;font-size:20px;}
         .capex10-foot-k{font-size:11px;color:#587093;margin:0 0 4px 0;}
         .capex10-foot-v{font-size:12px;color:#18345c;margin:0;font-weight:600;}
-        @media (max-width: 1100px){.capex10-kpis,.capex10-main,.capex10-footer{grid-template-columns:1fr}.capex10-foot-item{border-right:0;border-bottom:1px solid #d8e2ee;padding:10px 0}.capex10-foot-item:last-child{border-bottom:0}.capex10-panel{min-height:auto}}
+        @media (max-width: 1100px){.capex10-kpis,.capex10-main,.capex10-footer{grid-template-columns:1fr}.capex10-foot-item{border-right:0;border-bottom:1px solid #d8e2ee;padding:10px 0}.capex10-foot-item:last-child{border-bottom:0}.capex10-panel{height:auto;overflow:visible}.capex10-panel-body,.capex10-table-scroll{height:auto;overflow:visible}.capex10-table-legend-grid{max-height:none}}
         </style>
         """,
         unsafe_allow_html=True,
@@ -4616,6 +4624,18 @@ def render_inputs_capex_10kw_detail():
         for _, row in resumen_10kw.iterrows()
     )
 
+    table_legend_html = "".join(
+        textwrap.dedent(
+            f"""
+            <div class="capex10-table-legend-item">
+              <span class="capex10-dot" style="--c:{row['_color']};"></span>
+              <span>{html.escape(str(row['Columna A']))}</span>
+            </div>
+            """
+        ).strip()
+        for _, row in resumen_10kw.iterrows()
+    )
+
     pie_col, table_col = st.columns([1.04, 1])
     with pie_col:
         with st.container(border=True):
@@ -4656,13 +4676,21 @@ def render_inputs_capex_10kw_detail():
                 <p class="capex10-panel-title">Resumen consolidado por componente</p>
                 <span class="capex10-download">⇩&nbsp;&nbsp;Descargar</span>
               </div>
-              <table class="capex10-table">
-                <thead><tr><th>Componente</th><th>Monto CLP.</th><th>Ítems</th><th>% del total</th></tr></thead>
-                <tbody>
-                  {table_rows}
-                  <tr class="total"><td>TOTAL</td><td>{format_clp(total_10kw)}</td><td>{total_items}</td><td>100%</td></tr>
-                </tbody>
-              </table>
+              <div class="capex10-panel-body">
+                <div class="capex10-table-legend">
+                  <p class="capex10-table-legend-title">Leyenda de colores por componente</p>
+                  <div class="capex10-table-legend-grid">{"".join(table_legend_html.splitlines())}</div>
+                </div>
+                <div class="capex10-table-scroll">
+                  <table class="capex10-table">
+                    <thead><tr><th>Componente</th><th>Monto CLP.</th><th>Ítems</th><th>% del total</th></tr></thead>
+                    <tbody>
+                      {table_rows}
+                      <tr class="total"><td>TOTAL</td><td>{format_clp(total_10kw)}</td><td>{total_items}</td><td>100%</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
             </div>
             """,
             unsafe_allow_html=True,
