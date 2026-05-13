@@ -4590,25 +4590,29 @@ def render_inputs_capex_10kw_detail():
     )
 
     legend_html = "".join(
-        f"""
-        <div class="capex10-leg-row">
-          <span class="capex10-dot" style="--c:{row['_color']};"></span>
-          <span>{html.escape(str(row['Columna A']))}</span>
-          <span class="capex10-pct">{float(row['Pct_total']):.1f}%</span>
-        </div>
-        """
+        textwrap.dedent(
+            f"""
+            <div class="capex10-leg-row">
+              <span class="capex10-dot" style="--c:{row['_color']};"></span>
+              <span>{html.escape(str(row['Columna A']))}</span>
+              <span class="capex10-pct">{float(row['Pct_total']):.1f}%</span>
+            </div>
+            """
+        ).strip()
         for _, row in resumen_10kw.iterrows()
     )
 
     table_rows = "".join(
-        f"""
-        <tr>
-          <td><span class="capex10-name"><span class="capex10-row-dot" style="--c:{row['_color']};"></span>{html.escape(str(row['Columna A']))}</span></td>
-          <td>{format_clp(float(row['Monto_CLP']))}</td>
-          <td>{int(row['Items'])}</td>
-          <td>{float(row['Pct_total']):.1f}%</td>
-        </tr>
-        """
+        textwrap.dedent(
+            f"""
+            <tr>
+              <td><span class="capex10-name"><span class="capex10-row-dot" style="--c:{row['_color']};"></span>{html.escape(str(row['Columna A']))}</span></td>
+              <td>{format_clp(float(row['Monto_CLP']))}</td>
+              <td>{int(row['Items'])}</td>
+              <td>{float(row['Pct_total']):.1f}%</td>
+            </tr>
+            """
+        ).strip()
         for _, row in resumen_10kw.iterrows()
     )
 
@@ -4628,7 +4632,10 @@ def render_inputs_capex_10kw_detail():
             with chart_col:
                 st.plotly_chart(fig_10kw, use_container_width=True, config={"displayModeBar": False})
             with legend_col:
-                st.markdown(f'<div class="capex10-legend">{legend_html}</div>', unsafe_allow_html=True)
+                st.markdown(
+                    f'<div class="capex10-legend">{"".join(legend_html.splitlines())}</div>',
+                    unsafe_allow_html=True,
+                )
             st.markdown(
                 f"""
               <div class="capex10-callout">
