@@ -4462,7 +4462,6 @@ def render_inputs_capex_10kw_detail():
         st.info("La hoja Restante piloto 10kw no contiene datos para mostrar.")
         return
 
-    tabla_10kw = df_10kw[["Columna A", "Columna B", "Columna C"]].copy()
     resumen_10kw = (
         df_10kw[df_10kw["Valor C"] > 0]
         .groupby("Columna A", as_index=False)
@@ -4474,102 +4473,208 @@ def render_inputs_capex_10kw_detail():
     resumen_10kw["Pct_total"] = np.where(total_10kw > 0, resumen_10kw["Monto_CLP"] / total_10kw * 100.0, 0.0)
     resumen_10kw["Monto_fmt"] = resumen_10kw["Monto_CLP"].apply(format_clp)
 
-    st.markdown(
-        '<div class="eng-body-title" style="font-size:21px;font-weight:800;color:#0f172a;margin:0 0 14px 0;">Brecha de Inversión – Piloto 10 kW</div>',
-        unsafe_allow_html=True,
-    )
-    st.markdown(
-        '<div style="font-size:13px;font-weight:400;color:#64748b;margin:0 0 14px 0;">Lectura consolidada de la inversión pendiente del piloto 10 kW, con foco en componentes, cronograma y base de ingeniería.</div>',
-        unsafe_allow_html=True,
-    )
-
-    st.markdown(
-        '<div class="eng-body-title" style="font-size:15px;font-weight:600;color:#475569;margin:0 0 10px 0;">Distribución relativa por componente</div>',
-        unsafe_allow_html=True,
-    )
     if resumen_10kw.empty:
         st.info("La columna C no contiene valores numéricos válidos para el gráfico de torta.")
-    else:
-        fig_10kw = px.pie(
-            resumen_10kw,
-            values="Monto_CLP",
-            names="Columna A",
-            hole=0.64,
-            color_discrete_sequence=[
-                "#0F766E", "#1D4ED8", "#F59E0B", "#7C3AED", "#DC2626", "#0891B2",
-                "#65A30D", "#C2410C", "#BE185D", "#4F46E5", "#0EA5E9", "#EAB308",
-                "#10B981", "#64748B", "#2563EB", "#14B8A6", "#9333EA", "#B45309",
-            ],
-        )
-        fig_10kw.update_traces(
-            textposition="inside",
-            textinfo="percent",
-            hovertemplate="<b>%{label}</b><br>Monto: $%{value:,.0f}<br>Participación: %{percent}<extra></extra>",
-            marker=dict(line=dict(color="white", width=2)),
-            sort=False,
-        )
-        fig_10kw.add_annotation(
-            text="CAPEX<br>10kW",
-            x=0.5,
-            y=0.5,
-            showarrow=False,
-            font=dict(size=18, color="#0F172A"),
-        )
-        fig_10kw.update_layout(
-            title=dict(
-                text="",
-                x=0.02,
-            ),
-            margin=dict(l=10, r=10, t=56, b=130),
-            height=560,
-            paper_bgcolor="rgba(0,0,0,0)",
-            plot_bgcolor="rgba(0,0,0,0)",
-            legend=dict(
-                orientation="h",
-                yanchor="top",
-                y=-0.10,
-                xanchor="left",
-                x=0,
-                font=dict(size=11),
-            ),
-        )
-        apply_engineering_chart_typography(fig_10kw, title_size=22, body_size=13, tick_size=12, legend_size=11)
-        resumen_show = resumen_10kw[["Columna A", "Monto_fmt", "Items", "Pct_total"]].rename(
-            columns={
-                "Columna A": "Componente",
-                "Monto_fmt": "Monto CLP",
-                "Items": "Ítems",
-                "Pct_total": "% del total",
-            }
-        )
-        resumen_show["% del total"] = resumen_show["% del total"].map(lambda v: f"{v:.1f}%")
-        pie_col, table_col = st.columns([1.15, 0.85])
-        with pie_col:
-            st.plotly_chart(fig_10kw, use_container_width=True)
-        with table_col:
-            st.markdown(
-                '<div class="eng-body-title" style="font-size:15px;font-weight:600;color:#475569;margin:0 0 10px 0;">Resumen consolidado</div>',
-                unsafe_allow_html=True,
-            )
-            st.dataframe(
-                style_engineering_table(resumen_show, header_color="#0F766E", row_color="#ECFDF5"),
-                hide_index=True,
-                use_container_width=True,
-                height=480,
-            )
+        render_inputs_project_gantt()
+        return
 
-    render_inputs_project_gantt()
+    capex_palette = [
+        "#087f6f", "#1d4ed8", "#f59e0b", "#7c3aed", "#ef2424",
+        "#0891b2", "#65a30d", "#f15a24", "#8e44ad", "#64748b",
+        "#f6a400", "#4f7fcf", "#10b981", "#db56b6", "#a7663f",
+    ]
+    resumen_10kw["_color"] = [capex_palette[idx % len(capex_palette)] for idx in range(len(resumen_10kw))]
+    top_component = resumen_10kw.iloc[0]
+    top_two_pct = float(resumen_10kw["Pct_total"].head(2).sum() or 0.0)
+    total_items = int(resumen_10kw["Items"].sum() or 0)
+    total_components = int(len(resumen_10kw))
 
     st.markdown(
-        '<div class="eng-body-title" style="font-size:15px;font-weight:600;color:#475569;margin:8px 0 10px 0;">Tabla base de ingeniería</div>',
+        """
+        <style>
+        .capex10-shell{border:1px solid #d9e2ee;border-radius:18px;background:#fff;padding:20px 22px 18px 22px;box-shadow:0 18px 42px rgba(15,23,42,.06);margin:0 0 16px 0;}
+        .capex10-breadcrumb{display:flex;align-items:center;gap:12px;color:#0f172a;font-size:14px;font-weight:900;margin:0 0 14px 0;}
+        .capex10-brand{font-size:23px;color:#0f766e;margin-right:8px;}
+        .capex10-sep{color:#64748b;font-weight:800;}
+        .capex10-title{font-size:24px;line-height:1.08;font-weight:900;color:#08122a;margin:0 0 8px 0;}
+        .capex10-sub{font-size:13px;line-height:1.55;color:#274060;margin:0 0 18px 0;max-width:680px;}
+        .capex10-kpis{display:grid;grid-template-columns:1.04fr 1.02fr .92fr .9fr .92fr;gap:14px;margin:0 0 16px 0;}
+        .capex10-kpi{border:1px solid var(--bd);background:linear-gradient(135deg,var(--bg1),#fff 72%);border-radius:10px;padding:16px 16px;display:grid;grid-template-columns:56px 1fr;gap:14px;align-items:center;min-height:88px;}
+        .capex10-ico{width:52px;height:52px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:var(--ico-bg);color:var(--accent);font-size:28px;font-weight:900;}
+        .capex10-k{font-size:10px;letter-spacing:.04em;text-transform:uppercase;color:var(--accent);font-weight:900;margin:0 0 7px 0;}
+        .capex10-v{font-size:22px;line-height:1;font-weight:900;color:#08122a;margin:0 0 8px 0;}
+        .capex10-s{font-size:11px;color:#14284a;margin:0;}
+        .capex10-main{display:grid;grid-template-columns:1.05fr 1fr;gap:16px;margin:0 0 16px 0;}
+        .capex10-panel{border:1px solid #d9e2ee;border-radius:14px;background:#fff;padding:18px 18px 16px 18px;min-height:520px;}
+        .capex10-panel-head{display:flex;align-items:center;justify-content:space-between;margin:0 0 12px 0;}
+        .capex10-panel-title{font-size:15px;font-weight:900;color:#0b1730;margin:0;}
+        .capex10-info{width:16px;height:16px;border-radius:50%;border:1px solid #94a3b8;color:#64748b;display:inline-flex;align-items:center;justify-content:center;font-size:11px;font-weight:900;}
+        .capex10-download{border:1px solid #dce5f0;border-radius:8px;background:#f8fbff;padding:8px 12px;color:#102039;font-size:11px;font-weight:900;}
+        .capex10-legend{display:grid;gap:9px;align-content:center;padding-top:18px;}
+        .capex10-leg-row{display:grid;grid-template-columns:14px 1fr 48px;gap:8px;align-items:center;font-size:11px;color:#102039;font-weight:700;}
+        .capex10-dot{width:10px;height:10px;border-radius:50%;background:var(--c);}
+        .capex10-pct{text-align:right;font-weight:900;color:#102039;}
+        .capex10-callout{display:grid;grid-template-columns:46px 1fr;gap:14px;align-items:center;border:1px solid #d9e5f5;border-radius:12px;background:#fbfdff;margin-top:16px;padding:14px 16px;}
+        .capex10-call-ico{width:38px;height:38px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:#eef5ff;color:#1d4ed8;font-size:24px;}
+        .capex10-call-t{font-size:13px;font-weight:900;color:#1d4ed8;margin:0 0 5px 0;}
+        .capex10-call-s{font-size:11.5px;color:#274060;margin:0;}
+        .capex10-table{width:100%;border-collapse:separate;border-spacing:0;overflow:hidden;border-radius:10px;border:1px solid #e2e8f0;font-size:11px;color:#102039;}
+        .capex10-table th{background:#0b1736;color:#fff;padding:10px 12px;text-align:center;font-weight:900;}
+        .capex10-table th:first-child{text-align:left;padding-left:26px;}
+        .capex10-table td{padding:8px 12px;border-bottom:1px solid #e7edf4;border-right:1px solid #e7edf4;text-align:center;}
+        .capex10-table td:first-child{text-align:left;font-weight:800;}
+        .capex10-table tr:first-child td{background:#e7fbf5;}
+        .capex10-table tr.total td{background:#e8f8f4;color:#087f6f;font-size:13px;font-weight:900;border-bottom:0;}
+        .capex10-name{display:flex;align-items:center;gap:9px;}
+        .capex10-row-dot{width:8px;height:8px;border-radius:50%;background:var(--c);flex:0 0 auto;}
+        .capex10-footer{display:grid;grid-template-columns:1.1fr 1fr 1.2fr 1.25fr 1fr;gap:0;border:1px solid #d9e2ee;border-radius:14px;background:#fbfdff;padding:14px 18px;}
+        .capex10-foot-item{display:grid;grid-template-columns:42px 1fr;gap:10px;align-items:center;border-right:1px solid #d8e2ee;padding:0 18px;}
+        .capex10-foot-item:first-child{padding-left:0;}
+        .capex10-foot-item:last-child{border-right:0;padding-right:0;}
+        .capex10-foot-ico{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:#eef4ff;color:#315d9b;font-size:20px;}
+        .capex10-foot-k{font-size:11px;color:#587093;margin:0 0 4px 0;}
+        .capex10-foot-v{font-size:12px;color:#18345c;margin:0;font-weight:600;}
+        @media (max-width: 1100px){.capex10-kpis,.capex10-main,.capex10-footer{grid-template-columns:1fr}.capex10-foot-item{border-right:0;border-bottom:1px solid #d8e2ee;padding:10px 0}.capex10-foot-item:last-child{border-bottom:0}.capex10-panel{min-height:auto}}
+        </style>
+        """,
         unsafe_allow_html=True,
     )
-    st.dataframe(
-        style_engineering_table(tabla_10kw, header_color="#2C5783", row_color="#EAF6FF"),
-        hide_index=True,
-        use_container_width=True,
-        height=360,
+
+    st.markdown(
+        f"""
+        <div class="capex10-shell">
+          <div class="capex10-breadcrumb"><span class="capex10-brand">✈</span><span>Levantamiento Capital 80kW</span><span class="capex10-sep">›</span><span>Piloto 10 kW</span></div>
+          <h2 class="capex10-title">Brecha de Inversión – Piloto 10 kW</h2>
+          <p class="capex10-sub">Lectura consolidada de la inversión pendiente del piloto 10 kW,<br>con foco en componentes, cronograma y base de ingeniería.</p>
+          <div class="capex10-kpis">
+            <div class="capex10-kpi" style="--accent:#087f6f;--bd:#b7e4dc;--bg1:#edfdfa;--ico-bg:#cff7e9;"><div class="capex10-ico">▣</div><div><p class="capex10-k">CAPEX TOTAL (10 kW)</p><p class="capex10-v">{format_clp(total_10kw)}</p><p class="capex10-s">Monto consolidado pendiente</p></div></div>
+            <div class="capex10-kpi" style="--accent:#1d4ed8;--bd:#c7d8ff;--bg1:#f2f6ff;--ico-bg:#dfe9ff;"><div class="capex10-ico">◔</div><div><p class="capex10-k">COMPONENTES</p><p class="capex10-v">{total_components}</p><p class="capex10-s">Componentes principales</p></div></div>
+            <div class="capex10-kpi" style="--accent:#7c3aed;--bd:#dfccff;--bg1:#faf5ff;--ico-bg:#efe2ff;"><div class="capex10-ico">☷</div><div><p class="capex10-k">ÍTEMS TOTALES</p><p class="capex10-v">{total_items}</p><p class="capex10-s">Ítems considerados</p></div></div>
+            <div class="capex10-kpi" style="--accent:#f97316;--bd:#fed7aa;--bg1:#fff7ed;--ico-bg:#ffedd5;"><div class="capex10-ico">%</div><div><p class="capex10-k">MAYOR COMPONENTE</p><p class="capex10-v">{float(top_component["Pct_total"]):.1f}%</p><p class="capex10-s">{html.escape(str(top_component["Columna A"]))}</p></div></div>
+            <div class="capex10-kpi" style="--accent:#087f6f;--bd:#b7e4dc;--bg1:#f0fdfa;--ico-bg:#d1fae5;"><div class="capex10-ico">▣</div><div><p class="capex10-k">FECHA DE CORTE</p><p class="capex10-v">13 may 2025</p><p class="capex10-s">3:05 p.m.</p></div></div>
+          </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
     )
+
+    fig_10kw = px.pie(
+        resumen_10kw,
+        values="Monto_CLP",
+        names="Columna A",
+        hole=0.52,
+        color="Columna A",
+        color_discrete_map={row["Columna A"]: row["_color"] for _, row in resumen_10kw.iterrows()},
+    )
+    fig_10kw.update_traces(
+        textposition="inside",
+        textinfo="percent",
+        textfont=dict(size=12, color="#ffffff"),
+        hovertemplate="<b>%{label}</b><br>Monto: $%{value:,.0f}<br>Participación: %{percent}<extra></extra>",
+        marker=dict(line=dict(color="white", width=2)),
+        sort=False,
+        showlegend=False,
+    )
+    fig_10kw.add_annotation(
+        text=f"<b>CAPEX<br>10 kW</b><br><span style='color:#087f6f'>{format_clp(total_10kw)}</span>",
+        x=0.5,
+        y=0.5,
+        showarrow=False,
+        font=dict(size=18, color="#0B1730"),
+    )
+    fig_10kw.update_layout(
+        margin=dict(l=0, r=0, t=8, b=8),
+        height=390,
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="rgba(0,0,0,0)",
+    )
+
+    legend_html = "".join(
+        f"""
+        <div class="capex10-leg-row">
+          <span class="capex10-dot" style="--c:{row['_color']};"></span>
+          <span>{html.escape(str(row['Columna A']))}</span>
+          <span class="capex10-pct">{float(row['Pct_total']):.1f}%</span>
+        </div>
+        """
+        for _, row in resumen_10kw.iterrows()
+    )
+
+    table_rows = "".join(
+        f"""
+        <tr>
+          <td><span class="capex10-name"><span class="capex10-row-dot" style="--c:{row['_color']};"></span>{html.escape(str(row['Columna A']))}</span></td>
+          <td>{format_clp(float(row['Monto_CLP']))}</td>
+          <td>{int(row['Items'])}</td>
+          <td>{float(row['Pct_total']):.1f}%</td>
+        </tr>
+        """
+        for _, row in resumen_10kw.iterrows()
+    )
+
+    pie_col, table_col = st.columns([1.04, 1])
+    with pie_col:
+        with st.container(border=True):
+            st.markdown(
+                """
+              <div class="capex10-panel-head">
+                <p class="capex10-panel-title">Distribución relativa por componente</p>
+                <span class="capex10-info">i</span>
+              </div>
+                """,
+                unsafe_allow_html=True,
+            )
+            chart_col, legend_col = st.columns([1.35, 0.8])
+            with chart_col:
+                st.plotly_chart(fig_10kw, use_container_width=True, config={"displayModeBar": False})
+            with legend_col:
+                st.markdown(f'<div class="capex10-legend">{legend_html}</div>', unsafe_allow_html=True)
+            st.markdown(
+                f"""
+              <div class="capex10-callout">
+                <div class="capex10-call-ico">♢</div>
+                <div>
+                  <p class="capex10-call-t">Información clave</p>
+                  <p class="capex10-call-s">Los dos principales componentes concentran el <b style="color:#087f6f;">{top_two_pct:.1f}%</b> del CAPEX total del piloto 10 kW.</p>
+                </div>
+              </div>
+                """,
+                unsafe_allow_html=True,
+            )
+    with table_col:
+        st.markdown(
+            f"""
+            <div class="capex10-panel">
+              <div class="capex10-panel-head">
+                <p class="capex10-panel-title">Resumen consolidado por componente</p>
+                <span class="capex10-download">⇩&nbsp;&nbsp;Descargar</span>
+              </div>
+              <table class="capex10-table">
+                <thead><tr><th>Componente</th><th>Monto CLP.</th><th>Ítems</th><th>% del total</th></tr></thead>
+                <tbody>
+                  {table_rows}
+                  <tr class="total"><td>TOTAL</td><td>{format_clp(total_10kw)}</td><td>{total_items}</td><td>100%</td></tr>
+                </tbody>
+              </table>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+    st.markdown(
+        """
+        <div class="capex10-footer">
+          <div class="capex10-foot-item"><div class="capex10-foot-ico">▣</div><div><p class="capex10-foot-k">Proyecto</p><p class="capex10-foot-v">Levantamiento Capital 80kW</p></div></div>
+          <div class="capex10-foot-item"><div class="capex10-foot-ico">✈</div><div><p class="capex10-foot-k">Piloto</p><p class="capex10-foot-v">Piloto 10 kW</p></div></div>
+          <div class="capex10-foot-item"><div class="capex10-foot-ico">▤</div><div><p class="capex10-foot-k">Base de referencia</p><p class="capex10-foot-v">Ingeniería Conceptual v1.2</p></div></div>
+          <div class="capex10-foot-item"><div class="capex10-foot-ico">◷</div><div><p class="capex10-foot-k">Última actualización</p><p class="capex10-foot-v">13 may 2025 · 3:05 p.m.</p></div></div>
+          <div class="capex10-foot-item"><div class="capex10-foot-ico">♙</div><div><p class="capex10-foot-k">Responsable</p><p class="capex10-foot-v">Equipo Técnico</p></div></div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    render_inputs_project_gantt()
 
 
 def render_inputs_estado_actual_dashboard():
