@@ -3635,7 +3635,12 @@ def render_inputs_gantt_group_legend(color_map: dict[str, str]) -> None:
     )
 
 
-def render_inputs_gantt_custom_chart(df: pd.DataFrame, date_mode: str, legend_color_map: dict[str, str] | None) -> None:
+def render_inputs_gantt_custom_chart(
+    df: pd.DataFrame,
+    date_mode: str,
+    legend_color_map: dict[str, str] | None,
+    title: str = "Cronograma",
+) -> None:
     if df.empty:
         return
 
@@ -3764,7 +3769,7 @@ def render_inputs_gantt_custom_chart(df: pd.DataFrame, date_mode: str, legend_co
             </div>
           </div>
           <div class="gantt-custom-wrap">
-            <div class="gantt-custom-title">Cronograma por frente técnico</div>
+            <div class="gantt-custom-title">{html.escape(title)}</div>
             <div class="gantt-custom-scroll">
               <div class="gantt-grid">
                 <div class="gantt-left-head">Tarea</div>
@@ -4198,7 +4203,13 @@ def render_inputs_project_gantt():
         legend_color_map = build_gantt_phase_color_map(plot_df)
     elif "Línea" in plot_df.columns and linea_sel == "Todas":
         legend_color_map = build_gantt_line_color_map(plot_df)
-    render_inputs_gantt_custom_chart(plot_df, date_mode=date_mode, legend_color_map=legend_color_map)
+    gantt_title = "Cronograma" if fase_sel == "Todas" else f"Cronograma {fase_sel}"
+    render_inputs_gantt_custom_chart(
+        plot_df,
+        date_mode=date_mode,
+        legend_color_map=legend_color_map,
+        title=gantt_title,
+    )
 
 
 def render_inputs_contexto_block():
