@@ -3231,7 +3231,7 @@ def render_inputs_gantt_design_css() -> None:
             display:inline-flex;align-items:center;gap:6px;padding:6px 13px;border-radius:999px;
             background:#fbfdff;border:1px solid rgba(203,213,225,.9);font-size:11px;font-weight:800;color:#102039;
         }
-        .gantt-chip-dot{width:9px;height:9px;border-radius:50%;display:inline-block;background:var(--dot);}
+        .gantt-chip-dot{width:9px;height:9px;border-radius:50%;display:inline-block;background:#94a3b8;flex:0 0 auto;}
         .gantt-range-row{display:flex;align-items:center;justify-content:center;gap:6px;}
         .gantt-range-btn{
             height:22px;padding:0 7px;border-radius:4px;border:1px solid #d7dee9;background:#fff;
@@ -3274,7 +3274,7 @@ def render_inputs_gantt_design_css() -> None:
             min-height:34px;border-right:1px solid #dde6f1;border-bottom:1px solid #e7edf4;
             display:grid;grid-template-columns:16px 1fr;align-items:center;gap:8px;padding:5px 10px 5px 5px;
         }
-        .gantt-task-dot{width:9px;height:9px;border-radius:50%;background:var(--line-color);justify-self:center;}
+        .gantt-task-dot{width:9px;height:9px;border-radius:50%;background:#94a3b8;justify-self:center;}
         .gantt-task-label{font-size:10.5px;line-height:1.25;color:#0f172a;font-weight:500;}
         .gantt-bar-cell{
             min-height:34px;position:relative;border-bottom:1px solid #e7edf4;
@@ -3718,8 +3718,8 @@ def render_inputs_gantt_custom_chart(df: pd.DataFrame, date_mode: str, legend_co
             textwrap.dedent(
                 f"""
                 <div class="gantt-task-row">
-                  <div class="gantt-task-cell" style="--line-color:{line_color};">
-                    <span class="gantt-task-dot"></span>
+                  <div class="gantt-task-cell">
+                    <span class="gantt-task-dot" style="background-color:{line_color};"></span>
                     <div class="gantt-task-label">{task}</div>
                   </div>
                   <div class="gantt-bar-cell">
@@ -3731,14 +3731,14 @@ def render_inputs_gantt_custom_chart(df: pd.DataFrame, date_mode: str, legend_co
             ).strip()
         )
 
-    chip_source = legend_color_map or line_color_map
+    chip_source = line_color_map or legend_color_map
     chips_html = "".join(
-        f'<span class="gantt-chip" style="--dot:{color};"><span class="gantt-chip-dot"></span>{html.escape(label)}</span>'
+        f'<span class="gantt-chip"><span class="gantt-chip-dot" style="background-color:{color};"></span>{html.escape(label)}</span>'
         for label, color in chip_source.items()
     )
     if not chips_html:
         chips_html = "".join(
-            f'<span class="gantt-chip" style="--dot:{color};"><span class="gantt-chip-dot"></span>{html.escape(label)}</span>'
+            f'<span class="gantt-chip"><span class="gantt-chip-dot" style="background-color:{color};"></span>{html.escape(label)}</span>'
             for label, color in line_color_map.items()
         )
 
