@@ -4513,7 +4513,7 @@ def render_inputs_capex_10kw_detail():
         .capex10-download{border:1px solid #dce5f0;border-radius:8px;background:#f8fbff;padding:8px 12px;color:#102039;font-size:11px;font-weight:900;}
         .capex10-legend{display:grid;gap:7px;align-content:start;padding-top:10px;max-height:350px;overflow:auto;padding-right:4px;}
         .capex10-leg-row{display:grid;grid-template-columns:14px 1fr 46px;gap:7px;align-items:center;font-size:10.5px;color:#102039;font-weight:700;}
-        .capex10-dot{width:10px;height:10px;border-radius:50%;background:var(--c);}
+        .capex10-dot{width:10px;height:10px;border-radius:50%;background:#94a3b8;display:inline-block;flex:0 0 auto;}
         .capex10-pct{text-align:right;font-weight:900;color:#102039;}
         .capex10-chart-area{flex:1;min-height:0;}
         .capex10-callout{display:grid;grid-template-columns:46px 1fr;gap:14px;align-items:center;border:1px solid #d9e5f5;border-radius:12px;background:#fbfdff;margin-top:12px;padding:14px 16px;}
@@ -4528,7 +4528,7 @@ def render_inputs_capex_10kw_detail():
         .capex10-table tr:first-child td{background:#e7fbf5;}
         .capex10-table tr.total td{background:#e8f8f4;color:#087f6f;font-size:13px;font-weight:900;border-bottom:0;}
         .capex10-name{display:flex;align-items:center;gap:9px;}
-        .capex10-row-dot{width:8px;height:8px;border-radius:50%;background:var(--c);flex:0 0 auto;}
+        .capex10-row-dot{width:8px;height:8px;border-radius:50%;background:#94a3b8;display:inline-block;flex:0 0 auto;}
         .capex10-table-scroll{flex:1;min-height:0;overflow:auto;border-radius:10px;}
         .capex10-footer{display:grid;grid-template-columns:1.1fr 1fr 1.2fr 1.25fr 1fr;gap:0;border:1px solid #d9e2ee;border-radius:14px;background:#fbfdff;padding:14px 18px;}
         .capex10-foot-item{display:grid;grid-template-columns:42px 1fr;gap:10px;align-items:center;border-right:1px solid #d8e2ee;padding:0 18px;}
@@ -4596,7 +4596,7 @@ def render_inputs_capex_10kw_detail():
         textwrap.dedent(
             f"""
             <div class="capex10-leg-row">
-              <span class="capex10-dot" style="--c:{row['_color']};"></span>
+              <span class="capex10-dot" style="background-color:{row['_color']};"></span>
               <span>{html.escape(str(row['Columna A']))}</span>
               <span class="capex10-pct">{float(row['Pct_total']):.1f}%</span>
             </div>
@@ -4609,7 +4609,7 @@ def render_inputs_capex_10kw_detail():
         textwrap.dedent(
             f"""
             <tr>
-              <td><span class="capex10-name"><span class="capex10-row-dot" style="--c:{row['_color']};"></span>{html.escape(str(row['Columna A']))}</span></td>
+              <td><span class="capex10-name"><span class="capex10-row-dot" style="background-color:{row['_color']};"></span>{html.escape(str(row['Columna A']))}</span></td>
               <td>{format_clp(float(row['Monto_CLP']))}</td>
               <td>{int(row['Items'])}</td>
               <td>{float(row['Pct_total']):.1f}%</td>
