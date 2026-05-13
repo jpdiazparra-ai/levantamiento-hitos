@@ -3244,10 +3244,16 @@ def render_inputs_gantt_design_css() -> None:
             border:1px solid #dde6f1;border-radius:13px;background:#fff;overflow:hidden;
             padding:16px 18px 22px 18px;
         }
+        .gantt-custom-scroll{
+            overflow-x:auto;
+            overflow-y:visible;
+            padding-bottom:2px;
+        }
         .gantt-custom-title{font-size:15px;font-weight:900;color:#0f172a;margin:0 0 10px 0;}
         .gantt-grid{
             display:grid;grid-template-columns:420px minmax(760px, 1fr);position:relative;
             border-top:1px solid #dde6f1;
+            min-width:1180px;
         }
         .gantt-left-head{
             height:58px;border-right:1px solid #dde6f1;border-bottom:1px solid #dde6f1;
@@ -3310,7 +3316,7 @@ def render_inputs_gantt_design_css() -> None:
             .gantt-title{font-size:24px;}
             .gantt-toolbar{grid-template-columns:1fr;}
             .gantt-custom-legend{justify-content:flex-start;}
-            .gantt-grid{grid-template-columns:330px minmax(700px,1fr);overflow-x:auto;}
+            .gantt-grid{grid-template-columns:330px minmax(700px,1fr);}
         }
         </style>
         """,
@@ -3661,7 +3667,7 @@ def render_inputs_gantt_custom_chart(df: pd.DataFrame, date_mode: str, legend_co
         visible_df = visible_df.sort_values(["ID", "_start", "_end"], ascending=[True, True, True])
     else:
         visible_df = visible_df.sort_values(["_start", "_end"], ascending=[True, True])
-    dfc = visible_df.head(7).copy()
+    dfc = visible_df.copy()
 
     def pct(date_value: pd.Timestamp) -> float:
         return max(0.0, min(100.0, ((date_value - window_start).days / window_days) * 100.0))
@@ -3761,12 +3767,14 @@ def render_inputs_gantt_custom_chart(df: pd.DataFrame, date_mode: str, legend_co
           </div>
           <div class="gantt-custom-wrap">
             <div class="gantt-custom-title">Cronograma por frente técnico</div>
-            <div class="gantt-grid">
-              <div class="gantt-left-head">Tarea</div>
-              <div class="gantt-time-head">{''.join(month_labels)}{week_labels}</div>
-              <div class="gantt-today-label" style="left:calc(420px + (100% - 420px) * {today_left / 100:.6f});">Hoy</div>
-              <div class="gantt-today-line" style="left:calc(420px + (100% - 420px) * {today_left / 100:.6f});"></div>
+            <div class="gantt-custom-scroll">
+              <div class="gantt-grid">
+                <div class="gantt-left-head">Tarea</div>
+                <div class="gantt-time-head">{''.join(month_labels)}{week_labels}</div>
+                <div class="gantt-today-label" style="left:calc(420px + (100% - 420px) * {today_left / 100:.6f});">Hoy</div>
+                <div class="gantt-today-line" style="left:calc(420px + (100% - 420px) * {today_left / 100:.6f});"></div>
         {rows_fragment}
+              </div>
             </div>
           </div>
         </div>
