@@ -3155,7 +3155,7 @@ def render_inputs_gantt_design_css() -> None:
         }
         .gantt-shell{
             padding:14px 15px 13px 15px;
-            margin:2px 0 13px 0;
+            margin:8px 0 18px 0;
             display:flex;
             align-items:center;
             justify-content:space-between;
@@ -3204,7 +3204,7 @@ def render_inputs_gantt_design_css() -> None:
         div[data-testid="stVerticalBlockBorderWrapper"]:has(.gantt-filter-marker){
             padding:8px 12px 9px 12px!important;
             border-radius:13px!important;
-            margin-bottom:10px!important;
+            margin-bottom:20px!important;
         }
         div[data-testid="stVerticalBlockBorderWrapper"]:has(.gantt-filter-marker) div[data-testid="stVerticalBlock"]{
             gap:.35rem!important;
@@ -4561,7 +4561,7 @@ def render_inputs_capex_10kw_detail():
         .capex10-name{display:flex;align-items:center;gap:9px;}
         .capex10-row-dot{width:8px;height:8px;border-radius:50%;background:#94a3b8;display:inline-block;flex:0 0 auto;}
         .capex10-table-scroll{flex:1;min-height:0;overflow:auto;border-radius:10px;}
-        .capex10-footer{display:grid;grid-template-columns:1.1fr 1fr 1.2fr 1.25fr 1fr;gap:0;border:1px solid #d9e2ee;border-radius:14px;background:#fbfdff;padding:14px 18px;}
+        .capex10-footer{display:grid;grid-template-columns:1.1fr 1fr 1.2fr 1.25fr 1fr;gap:0;border:1px solid #d9e2ee;border-radius:14px;background:#fbfdff;padding:14px 18px;margin:0 0 28px 0;}
         .capex10-foot-item{display:grid;grid-template-columns:42px 1fr;gap:10px;align-items:center;border-right:1px solid #d8e2ee;padding:0 18px;}
         .capex10-foot-item:first-child{padding-left:0;}
         .capex10-foot-item:last-child{border-right:0;padding-right:0;}
