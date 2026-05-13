@@ -3058,9 +3058,22 @@ def format_gantt_task_label(label: str, max_chars: int = 42, max_lines: int = 2)
     return "<br>".join(html.escape(part) for part in clipped)
 
 
-def render_inputs_gantt_kpis(df: pd.DataFrame, date_mode: str = "Real") -> None:
-    if df.empty:
-        return
+def _gantt_status_color(status: str) -> str:
+    status_l = str(status or "").strip().lower()
+    if "curso" in status_l:
+        return "#ef3b2d"
+    if "complet" in status_l:
+        return "#45a16a"
+    if "plan" in status_l:
+        return "#a7b1bd"
+    if "pend" in status_l:
+        return "#f5a623"
+    if "recurrente" in status_l:
+        return "#0b3358"
+    return "#64748b"
+
+
+def _gantt_summary(df: pd.DataFrame, date_mode: str = "Real") -> dict[str, object]:
     dfk = df.copy()
     dfk["_start"] = pd.to_datetime(dfk.get(GANTT_DATE_COL_START), errors="coerce")
     dfk["_end_plan"] = pd.to_datetime(dfk.get(GANTT_DATE_COL_END_PLAN), errors="coerce")
@@ -3071,70 +3084,227 @@ def render_inputs_gantt_kpis(df: pd.DataFrame, date_mode: str = "Real") -> None:
     bad = dfk["_end"] <= dfk["_start"]
     dfk.loc[bad, "_end"] = dfk.loc[bad, "_start"] + pd.Timedelta(days=1)
     dfk = dfk[dfk["_start"].notna() & dfk["_end"].notna()].copy()
+
     if dfk.empty:
-        return
+        return {
+            "total_tasks": 0,
+            "completed_tasks": 0,
+            "in_progress_tasks": 0,
+            "overdue_tasks": 0,
+            "due_soon_tasks": 0,
+            "active_lines": 0,
+            "avg_duration": 0,
+            "progress_pct": 0,
+            "delay_value": "0 d",
+            "delay_note": "Sin brecha positiva entre fin plan y fin real",
+        }
 
     today_ts = pd.Timestamp.today().normalize()
+    estado = dfk["Estado"].astype(str) if "Estado" in dfk.columns else pd.Series("", index=dfk.index)
+    completed_mask = estado.str.contains("complet", case=False, na=False)
+    completed_tasks = int(completed_mask.sum())
+    in_progress_tasks = int(estado.str.contains("curso", case=False, na=False).sum())
+    overdue_tasks = int(((dfk["_end"] < today_ts) & ~completed_mask).sum())
+    due_soon_tasks = int(((dfk["_end"] >= today_ts) & (dfk["_end"] <= today_ts + pd.Timedelta(days=5)) & ~completed_mask).sum())
+    active_lines = int(
+        dfk["Línea"].astype(str).str.strip().replace({"nan": np.nan, "None": np.nan, "": np.nan}).dropna().nunique()
+    ) if "Línea" in dfk.columns else 0
+    avg_duration = int(round(((dfk["_end"] - dfk["_start"]).dt.days.clip(lower=1)).mean()))
     total_tasks = int(len(dfk))
-    completed_tasks = int(dfk["Estado"].astype(str).str.contains("complet", case=False, na=False).sum()) if "Estado" in dfk.columns else 0
-    in_progress_tasks = int(dfk["Estado"].astype(str).str.contains("curso", case=False, na=False).sum()) if "Estado" in dfk.columns else 0
-    overdue_tasks = int(((dfk["_end"] < today_ts) & ~dfk["Estado"].astype(str).str.contains("complet", case=False, na=False)).sum()) if "Estado" in dfk.columns else 0
-    due_soon_tasks = int(
-        (
-            (dfk["_end"] >= today_ts)
-            & (dfk["_end"] <= today_ts + pd.Timedelta(days=5))
-            & ~dfk["Estado"].astype(str).str.contains("complet", case=False, na=False)
-        ).sum()
-    ) if "Estado" in dfk.columns else 0
-    active_lines = int(dfk["Línea"].astype(str).str.strip().replace({"nan": np.nan, "None": np.nan, "": np.nan}).dropna().nunique()) if "Línea" in dfk.columns else 0
-    avg_duration = int(round(((dfk["_end"] - dfk["_start"]).dt.days.clip(lower=1)).mean())) if not dfk.empty else 0
     progress_pct = int(round(100 * completed_tasks / total_tasks)) if total_tasks else 0
     dfk["_delay_days"] = (dfk["_end_real"] - dfk["_end_plan"]).dt.days
-    atraso_task_label = "Sin atraso"
-    atraso_task_note = "Sin brecha positiva entre fin plan y fin real"
-    atraso_task_value = "0 d"
-    if dfk["_delay_days"].notna().any():
-        atraso_df = dfk[dfk["_delay_days"].fillna(0) > 0].copy()
-        if not atraso_df.empty:
-            atraso_row = atraso_df.sort_values(["_delay_days", "_end_real"], ascending=[False, False]).iloc[0]
-            atraso_task_value = f"{int(atraso_row['_delay_days'])} d"
-            atraso_task_label = str(atraso_row.get("Tarea / Entregable", "")).strip() or "Tarea sin nombre"
-            atraso_task_note = f"Mayor atraso vs plan: {atraso_task_label[:58]}"
+    delay_value = "0 d"
+    delay_note = "Sin brecha positiva entre fin plan y fin real"
+    atraso_df = dfk[dfk["_delay_days"].fillna(0) > 0].copy()
+    if not atraso_df.empty:
+        atraso_row = atraso_df.sort_values(["_delay_days", "_end_real"], ascending=[False, False]).iloc[0]
+        delay_value = f"{int(atraso_row['_delay_days'])} d"
+        atraso_task_label = str(atraso_row.get("Tarea / Entregable", "")).strip() or "Tarea sin nombre"
+        delay_note = f"Mayor atraso vs plan: {atraso_task_label[:58]}"
+
+    return {
+        "total_tasks": total_tasks,
+        "completed_tasks": completed_tasks,
+        "in_progress_tasks": in_progress_tasks,
+        "overdue_tasks": overdue_tasks,
+        "due_soon_tasks": due_soon_tasks,
+        "active_lines": active_lines,
+        "avg_duration": avg_duration,
+        "progress_pct": progress_pct,
+        "delay_value": delay_value,
+        "delay_note": delay_note,
+    }
+
+
+def render_inputs_gantt_design_css() -> None:
+    st.markdown(
+        """
+        <style>
+        .gantt-shell, .gantt-panel, .gantt-chart-card{
+            border:1px solid rgba(226,232,240,.95);
+            border-radius:18px;
+            background:rgba(255,255,255,.96);
+            box-shadow:0 12px 30px rgba(15,23,42,.07);
+        }
+        .gantt-shell{
+            padding:18px 18px 16px 18px;
+            margin:2px 0 16px 0;
+            display:flex;
+            align-items:center;
+            justify-content:space-between;
+            gap:18px;
+        }
+        .gantt-title-wrap{display:flex;align-items:center;gap:18px;min-width:0;}
+        .gantt-title-icon{
+            width:62px;height:62px;border-radius:18px;
+            display:flex;align-items:center;justify-content:center;
+            border:1px solid rgba(203,213,225,.78);
+            color:#0b1328;background:#fbfdff;flex:0 0 auto;
+        }
+        .gantt-title{
+            margin:0;color:#091329;font-size:30px;line-height:1.08;
+            font-weight:900;letter-spacing:0;
+        }
+        .gantt-subtitle{margin:8px 0 0 0;color:#748198;font-size:14.5px;line-height:1.45;}
+        .gantt-progress{
+            min-width:332px;border:1px solid rgba(226,232,240,.95);border-radius:18px;
+            padding:14px 16px;display:grid;grid-template-columns:58px 1fr 1px 1.1fr;
+            gap:14px;align-items:center;background:#fff;
+        }
+        .gantt-donut{
+            width:50px;height:50px;border-radius:50%;
+            background:conic-gradient(#0f9d8a var(--pct), #e5e9ee 0);
+            position:relative;
+        }
+        .gantt-donut::after{
+            content:"";position:absolute;inset:7px;border-radius:50%;background:#fff;
+        }
+        .gantt-progress-k{font-size:12px;color:#0f172a;margin-bottom:4px;}
+        .gantt-progress-v{font-size:30px;line-height:1;font-weight:900;color:#0f9485;}
+        .gantt-divider{height:48px;background:#e5e7eb;}
+        .gantt-alert{display:flex;align-items:center;gap:8px;color:#0f172a;font-size:12px;margin:4px 0;}
+        .gantt-alert-dot{
+            width:14px;height:14px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;
+            color:white;font-size:10px;font-weight:900;background:#ef3b2d;
+        }
+        .gantt-alert-dot.soon{background:#ff7a1a;}
+        .gantt-panel{padding:16px 20px 18px 20px;margin:0 0 18px 0;}
+        .gantt-panel-title{
+            color:#52657f;font-size:13px;font-weight:900;letter-spacing:.04em;text-transform:uppercase;
+            margin:0 0 12px 0;
+        }
+        .gantt-kpi{
+            border-radius:16px;padding:20px 16px 16px 16px;min-height:150px;
+            background:linear-gradient(180deg,#ffffff 0%,#fbfcfe 100%);
+            border:1px solid rgba(226,232,240,.95);
+            box-shadow:0 10px 22px rgba(15,23,42,.06);
+            border-top:4px solid var(--accent);
+        }
+        .gantt-kpi-top{display:flex;gap:14px;align-items:flex-start;margin-bottom:14px;}
+        .gantt-kpi-ico{
+            width:50px;height:50px;border-radius:14px;display:flex;align-items:center;justify-content:center;
+            background:color-mix(in srgb, var(--accent) 14%, #ffffff);
+            color:var(--accent);font-size:28px;font-weight:800;flex:0 0 auto;
+        }
+        .gantt-kpi-label{font-size:10px;font-weight:900;letter-spacing:.04em;text-transform:uppercase;color:#16213a;margin-bottom:8px;}
+        .gantt-kpi-value{font-size:27px;font-weight:900;line-height:1;color:#071125;}
+        .gantt-kpi-note{font-size:13px;line-height:1.38;color:#0f172a;margin-top:10px;}
+        .gantt-chart-card{padding:12px 14px 14px 14px;margin-top:16px;}
+        .gantt-chart-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:0 0 8px 0;}
+        .gantt-chart-title{font-size:15px;font-weight:900;color:#0f172a;margin:0;}
+        .gantt-mini-legend{display:flex;gap:18px;align-items:center;justify-content:flex-end;flex-wrap:wrap;font-size:12px;color:#0f172a;}
+        .gantt-mini-legend span{display:inline-flex;align-items:center;gap:7px;}
+        .gantt-swatch{width:17px;height:9px;border-radius:2px;display:inline-block;}
+        .gantt-chip-row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:0 0 10px 0;}
+        .gantt-chip{
+            display:inline-flex;align-items:center;gap:8px;padding:8px 16px;border-radius:999px;
+            background:#fbfdff;border:1px solid rgba(203,213,225,.9);font-size:13px;font-weight:800;color:#102039;
+        }
+        .gantt-chip-dot{width:11px;height:11px;border-radius:50%;display:inline-block;background:var(--dot);}
+        div[data-testid="stSelectbox"] label p, div[data-testid="stRadio"] label p{
+            font-size:13px!important;color:#0f172a!important;font-weight:700!important;
+        }
+        div[data-testid="stSelectbox"] div[data-baseweb="select"] > div{
+            min-height:46px;border-radius:7px;border-color:#d5dde8;background:#fbfdff;
+        }
+        div[role="radiogroup"]{gap:18px;}
+        @media (max-width: 980px){
+            .gantt-shell{align-items:flex-start;flex-direction:column;}
+            .gantt-progress{min-width:0;width:100%;grid-template-columns:58px 1fr;}
+            .gantt-divider{display:none;}
+            .gantt-title{font-size:24px;}
+        }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def render_inputs_gantt_header(df: pd.DataFrame, date_mode: str = "Real") -> None:
+    summary = _gantt_summary(df, date_mode=date_mode)
+    progress = int(summary["progress_pct"])
+    st.markdown(
+        f"""
+        <div class="gantt-shell">
+          <div class="gantt-title-wrap">
+            <div class="gantt-title-icon">
+              <svg width="31" height="31" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M8 2v4M16 2v4M3 10h18M5 4h14a2 2 0 0 1 2 2v13a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Z"/>
+              </svg>
+            </div>
+            <div>
+              <h2 class="gantt-title">Cronograma de Ejecución y Validación</h2>
+              <p class="gantt-subtitle">Vista integrada del cronograma del proyecto antes del análisis financiero por categorías.</p>
+            </div>
+          </div>
+          <div class="gantt-progress">
+            <div class="gantt-donut" style="--pct:{progress}%;"></div>
+            <div>
+              <div class="gantt-progress-k">Avance del bloque</div>
+              <div class="gantt-progress-v">{progress}%</div>
+            </div>
+            <div class="gantt-divider"></div>
+            <div>
+              <div class="gantt-alert"><span class="gantt-alert-dot">!</span><b>{int(summary["overdue_tasks"])}</b> tareas atrasadas</div>
+              <div class="gantt-alert"><span class="gantt-alert-dot soon">!</span><b>{int(summary["due_soon_tasks"])}</b> vence pronto</div>
+            </div>
+          </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def render_inputs_gantt_kpis(df: pd.DataFrame, date_mode: str = "Real") -> None:
+    if df.empty:
+        return
+    summary = _gantt_summary(df, date_mode=date_mode)
 
     cards = [
-        ("Tareas en fase", str(total_tasks), "Filas visibles en el cronograma", "#0f766e"),
-        ("Completadas", f"{completed_tasks} · {progress_pct}%", "Cierre del bloque filtrado", "#15803d"),
-        ("Atrasadas", str(overdue_tasks), "No completadas con fecha vencida", "#b45309"),
-        ("Vencen < 5 Dias", str(due_soon_tasks), "Tareas próximas a vencimiento", "#7c3aed"),
-        ("Mayor atraso", atraso_task_value, atraso_task_note, "#be123c"),
-        ("Duración media", f"{avg_duration} d", "Duración promedio por tarea", "#1d4ed8"),
+        ("ACTIVIDADES DEL BLOQUE", str(summary["total_tasks"]), "Filas visibles en el cronograma", "#0f9d8a", "☷"),
+        ("AVANCE REAL", f'{summary["completed_tasks"]} · {summary["progress_pct"]}%', "Cierre del bloque filtrado", "#16a34a", "◔"),
+        ("ACTIVIDADES CRÍTICAS", str(summary["overdue_tasks"]), "No completadas con fecha vencida", "#f97316", "◷"),
+        ("PRÓXIMOS HITOS", str(summary["due_soon_tasks"]), "Tareas próximas a vencer (< 5 días)", "#8b3ff4", "▣"),
+        ("BRECHA CRÍTICA", str(summary["delay_value"]), str(summary["delay_note"]), "#ef2424", "△"),
+        ("PLAZO PROMEDIO", f'{summary["avg_duration"]} d', "Duración promedio por tarea", "#1267d8", "◔"),
     ]
-    if active_lines:
-        cards.append(("Líneas", str(active_lines), "Subfrentes activos del bloque", "#475569"))
+    if summary["active_lines"]:
+        cards.append(("FRENTES ACTIVOS", str(summary["active_lines"]), "Subfrentes activos del bloque", "#475569", "⌘"))
 
     cols = st.columns(len(cards))
-    for col, (label, value, note, accent) in zip(cols, cards):
+    for col, (label, value, note, accent, icon) in zip(cols, cards):
         with col:
             st.markdown(
                 f"""
-                <div style="
-                    border-radius:18px;
-                    padding:14px 16px 12px 16px;
-                    background:linear-gradient(180deg,#ffffff 0%,#f8fafc 100%);
-                    border:1px solid rgba(148,163,184,.22);
-                    box-shadow:0 10px 24px rgba(15,23,42,.05);
-                    border-top:4px solid {accent};
-                    min-height:96px;
-                ">
-                    <div style="font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#64748b;margin-bottom:8px;">
-                        {html.escape(label)}
+                <div class="gantt-kpi" style="--accent:{accent};">
+                    <div class="gantt-kpi-top">
+                        <div class="gantt-kpi-ico">{html.escape(icon)}</div>
+                        <div>
+                            <div class="gantt-kpi-label">{html.escape(label)}</div>
+                            <div class="gantt-kpi-value">{html.escape(value)}</div>
+                        </div>
                     </div>
-                    <div style="font-size:28px;font-weight:900;line-height:1;color:#0f172a;margin-bottom:8px;">
-                        {html.escape(value)}
-                    </div>
-                    <div style="font-size:12px;line-height:1.4;color:#475569;">
-                        {html.escape(note)}
-                    </div>
+                    <div class="gantt-kpi-note">{html.escape(note)}</div>
                 </div>
                 """,
                 unsafe_allow_html=True,
@@ -3172,33 +3342,10 @@ def build_inputs_gantt_figure(
     # Altura realmente responsiva para que al filtrar estados no queden huecos verticales.
     height_px = min(max(260, 110 + 36 * rows), 1200)
 
-    apple = {
-        "Planificado": "#D9A766",
-        "En curso": "#D7605E",
-        "Completado": "#7FA8A4",
-        "Pendiente": "#A9A7A4",
-        "Recurrente": "#4F5D6F",
-        "default": "#7B8794",
-    }
-
-    def color_estado(s):
-        s = (s or "").strip().lower()
-        if "plan" in s:
-            return apple["Planificado"]
-        if "curso" in s:
-            return apple["En curso"]
-        if "complet" in s:
-            return apple["Completado"]
-        if "pend" in s:
-            return apple["Pendiente"]
-        if "recurrente" in s:
-            return apple["Recurrente"]
-        return apple["default"]
-
     color_arg = color_by if color_by in dfp.columns else "Estado"
     color_map = None
     if color_by == "Estado" and "Estado" in dfp.columns:
-        color_map = {val: color_estado(val) for val in dfp["Estado"].dropna().unique()}
+        color_map = {val: _gantt_status_color(val) for val in dfp["Estado"].dropna().unique()}
     elif color_by == "Línea" and "Línea" in dfp.columns:
         color_map = build_gantt_line_color_map(dfp)
     elif color_by == "Piloto" and "Piloto" in dfp.columns:
@@ -3214,8 +3361,8 @@ def build_inputs_gantt_figure(
     for idx, row in dfp.iterrows():
         legend_name = str(row.get(color_arg, "")) if color_arg in row.index else ""
         legend_name = legend_name.strip() or "Sin categoría"
-        color_value = color_map.get(legend_name, apple["default"]) if color_map else apple["default"]
-        estado_color_value = color_estado(str(row.get("Estado", ""))) if "Estado" in row.index else apple["default"]
+        color_value = color_map.get(legend_name, "#64748b") if color_map else "#64748b"
+        estado_color_value = _gantt_status_color(str(row.get("Estado", ""))) if "Estado" in row.index else "#64748b"
         duration_days = max(int((row["_end"] - row["_start"]).days), 1)
         completion_pct = float(safe_pct.loc[idx]) if idx in safe_pct.index else 0.0
         task_name = str(row.get("Tarea / Entregable", ""))
@@ -3234,9 +3381,9 @@ def build_inputs_gantt_figure(
                 name=legend_name,
                 legendgroup=legend_name,
                 showlegend=legend_name not in shown_legends,
-                line=dict(color=color_value, width=12),
+                line=dict(color=color_value, width=10),
                 marker=dict(
-                    size=[9, 14],
+                    size=[7, 12],
                     color=[color_value, color_value],
                     symbol=["circle", "diamond"],
                     line=dict(color=estado_color_value if color_by == "Línea" else "white", width=1.6 if color_by == "Línea" else 1.4),
@@ -3261,10 +3408,11 @@ def build_inputs_gantt_figure(
         line=dict(dash="dot", width=2, color="#1C1C1E"),
     )
     fig.add_annotation(
-        x=today_iso, y=1.02, xref="x", yref="paper",
+        x=today_iso, y=1.045, xref="x", yref="paper",
         text="Hoy", showarrow=False,
-        font=dict(size=12, color="#1C1C1E"),
-        bgcolor="rgba(255,255,255,0.7)",
+        font=dict(size=12, color="#ffffff"),
+        bgcolor="#374151",
+        borderpad=5,
     )
 
     if "Hito (S/N)" in dfp.columns:
@@ -3284,6 +3432,13 @@ def build_inputs_gantt_figure(
 
     fig.update_xaxes(
         rangeselector=dict(
+            x=0.38,
+            y=1.16,
+            bgcolor="rgba(255,255,255,.96)",
+            activecolor="#dff7f3",
+            bordercolor="#d7dee9",
+            borderwidth=1,
+            font=dict(size=12, color="#52657f"),
             buttons=list([
                 dict(count=1, label="1m", step="month", stepmode="backward"),
                 dict(count=3, label="3m", step="month", stepmode="backward"),
@@ -3295,9 +3450,18 @@ def build_inputs_gantt_figure(
         ),
         rangeslider=dict(visible=False),
         showgrid=True,
-        gridcolor="rgba(60,60,67,0.08)",
+        gridcolor="rgba(203,213,225,0.55)",
+        linecolor="rgba(203,213,225,0.85)",
+        tickfont=dict(size=12, color="#0f172a"),
     )
-    fig.update_yaxes(autorange="reversed", automargin=True, showticklabels=True)
+    fig.update_yaxes(
+        autorange="reversed",
+        automargin=True,
+        showticklabels=True,
+        gridcolor="rgba(226,232,240,0.95)",
+        linecolor="rgba(203,213,225,0.85)",
+        tickfont=dict(size=11.5, color="#0f172a"),
+    )
     label_color_field = None
     label_color_map = None
     if color_y_labels_by_phase and "Fase" in dfp.columns:
@@ -3333,20 +3497,22 @@ def build_inputs_gantt_figure(
             )
     fig.update_layout(
         height=height_px,
-        margin=dict(l=left_margin, r=32, t=36, b=18),
-        plot_bgcolor="#FBFBFD",
-        paper_bgcolor="#FFFFFF",
+        margin=dict(l=left_margin, r=22, t=54, b=18),
+        plot_bgcolor="#FFFFFF",
+        paper_bgcolor="rgba(0,0,0,0)",
         legend=dict(
             orientation="h",
             yanchor="bottom",
-            y=1.02,
+            y=1.15,
             xanchor="right",
             x=1,
-            bgcolor="rgba(255,255,255,0.6)",
+            bgcolor="rgba(255,255,255,0)",
             borderwidth=0,
+            font=dict(size=12, color="#0f172a"),
         ),
         xaxis_title=None,
         yaxis_title=None,
+        hoverlabel=dict(bgcolor="#0f172a", font_size=12, font_color="#ffffff"),
     )
     return fig
 
@@ -3359,7 +3525,7 @@ def render_inputs_gantt_group_legend(color_map: dict[str, str]) -> None:
         chips.append(
             (
                 f"<span style='display:inline-flex;align-items:center;gap:8px;padding:6px 10px;"
-                f"border-radius:999px;background:rgba(248,250,252,.96);"
+                f"border-radius:999px;background:#fbfdff;"
                 f"border:1px solid rgba(148,163,184,.22);color:#334155;font-weight:700;'>"
                 f"<span style='width:10px;height:10px;border-radius:999px;background:{color};"
                 f"display:inline-block;box-shadow:0 0 0 2px rgba(255,255,255,.95);'></span>"
@@ -3677,98 +3843,101 @@ def render_inputs_project_gantt():
     if df_gantt.empty or "Tarea / Entregable" not in df_gantt.columns:
         return
 
-    st.markdown("### Cronograma de Ejecución y Validación")
-    st.caption("Vista integrada del cronograma del proyecto antes del análisis financiero por categorías.")
+    render_inputs_gantt_design_css()
+    header_mode = st.session_state.get("inputs_gantt_mode", "Real")
+    render_inputs_gantt_header(df_gantt, date_mode=header_mode)
 
     has_linea = "Línea" in df_gantt.columns
-    if has_linea:
-        c1, c2, c3, c4, c5 = st.columns([3.2, 2.6, 2.1, 1.7, 1.7])
-    else:
-        c1, c3, c4, c5 = st.columns([4, 2.2, 1.8, 1.8])
-    with c1:
-        fases = sorted(
-            df_gantt["Fase"].astype(str).str.strip().replace({"nan": np.nan, "None": np.nan, "": np.nan}).dropna().unique().tolist()
-        ) if "Fase" in df_gantt.columns else []
-        fase_options = ["Todas", ASPAS_FRP_GANTT_PHASE_OPTION] + [
-            fase for fase in fases
-            if fase != ASPAS_FRP_GANTT_PHASE_OPTION
-        ]
-        fase_default = "Instalación Turbina" if "Instalación Turbina" in fases else "Todas"
-        fase_saved = st.session_state.pop("inputs_gantt_fase__sticky", None)
-        if fase_saved in fase_options:
-            st.session_state["inputs_gantt_fase"] = fase_saved
-        elif "inputs_gantt_fase" not in st.session_state:
-            st.session_state["inputs_gantt_fase"] = fase_default
-        elif st.session_state["inputs_gantt_fase"] not in fase_options:
-            st.session_state["inputs_gantt_fase"] = fase_default
-        fase_sel = st.selectbox(
-            "Fase",
-            fase_options,
-            key="inputs_gantt_fase",
-        )
-    linea_sel = "Todas"
-    if has_linea:
-        with c2:
-            lineas_df = df_gantt.copy()
-            if fase_sel != "Todas" and "Fase" in lineas_df.columns:
-                lineas_df = lineas_df[lineas_df["Fase"].astype(str).str.strip() == fase_sel].copy()
-            lineas = sorted(
-                lineas_df["Línea"].astype(str).str.strip().replace({"nan": np.nan, "None": np.nan, "": np.nan}).dropna().unique().tolist()
+    with st.container(border=True):
+        st.markdown('<div class="gantt-panel-title">Filtros de análisis</div>', unsafe_allow_html=True)
+        if has_linea:
+            c1, c2, c3, c4, c5 = st.columns([3.2, 2.6, 2.1, 1.7, 1.9])
+        else:
+            c1, c3, c4, c5 = st.columns([4, 2.2, 1.8, 1.8])
+        with c1:
+            fases = sorted(
+                df_gantt["Fase"].astype(str).str.strip().replace({"nan": np.nan, "None": np.nan, "": np.nan}).dropna().unique().tolist()
+            ) if "Fase" in df_gantt.columns else []
+            fase_options = ["Todas", ASPAS_FRP_GANTT_PHASE_OPTION] + [
+                fase for fase in fases
+                if fase != ASPAS_FRP_GANTT_PHASE_OPTION
+            ]
+            fase_default = "Instalación Turbina" if "Instalación Turbina" in fases else "Todas"
+            fase_saved = st.session_state.pop("inputs_gantt_fase__sticky", None)
+            if fase_saved in fase_options:
+                st.session_state["inputs_gantt_fase"] = fase_saved
+            elif "inputs_gantt_fase" not in st.session_state:
+                st.session_state["inputs_gantt_fase"] = fase_default
+            elif st.session_state["inputs_gantt_fase"] not in fase_options:
+                st.session_state["inputs_gantt_fase"] = fase_default
+            fase_sel = st.selectbox(
+                "Fase",
+                fase_options,
+                key="inputs_gantt_fase",
             )
-            linea_options = ["Todas"] + lineas
-            linea_saved = st.session_state.pop("inputs_gantt_linea__sticky", None)
-            if linea_saved in linea_options:
-                st.session_state["inputs_gantt_linea"] = linea_saved
-            linea_default = st.session_state.get("inputs_gantt_linea", "Todas")
-            if linea_default not in linea_options:
-                linea_default = "Todas"
-                st.session_state["inputs_gantt_linea"] = linea_default
-            linea_sel = st.selectbox(
-                "Línea",
-                linea_options,
-                index=linea_options.index(linea_default),
-                key="inputs_gantt_linea",
+        linea_sel = "Todas"
+        if has_linea:
+            with c2:
+                lineas_df = df_gantt.copy()
+                if fase_sel != "Todas" and "Fase" in lineas_df.columns:
+                    lineas_df = lineas_df[lineas_df["Fase"].astype(str).str.strip() == fase_sel].copy()
+                lineas = sorted(
+                    lineas_df["Línea"].astype(str).str.strip().replace({"nan": np.nan, "None": np.nan, "": np.nan}).dropna().unique().tolist()
+                )
+                linea_options = ["Todas"] + lineas
+                linea_saved = st.session_state.pop("inputs_gantt_linea__sticky", None)
+                if linea_saved in linea_options:
+                    st.session_state["inputs_gantt_linea"] = linea_saved
+                linea_default = st.session_state.get("inputs_gantt_linea", "Todas")
+                if linea_default not in linea_options:
+                    linea_default = "Todas"
+                    st.session_state["inputs_gantt_linea"] = linea_default
+                linea_sel = st.selectbox(
+                    "Línea",
+                    linea_options,
+                    index=linea_options.index(linea_default),
+                    key="inputs_gantt_linea",
+                )
+        with c3:
+            estados = sorted(
+                df_gantt["Estado"].astype(str).str.strip().replace({"nan": np.nan, "None": np.nan, "": np.nan}).dropna().unique().tolist()
+            ) if "Estado" in df_gantt.columns else []
+            estado_options = ["Todos"] + estados
+            estado_saved = st.session_state.pop("inputs_gantt_estado__sticky", None)
+            if estado_saved in estado_options:
+                st.session_state["inputs_gantt_estado"] = estado_saved
+            estado_default = st.session_state.get("inputs_gantt_estado", "Todos")
+            if estado_default not in estado_options:
+                estado_default = "Todos"
+                st.session_state["inputs_gantt_estado"] = estado_default
+            estado_sel = st.selectbox(
+                "Estado",
+                estado_options,
+                index=estado_options.index(estado_default),
+                key="inputs_gantt_estado",
             )
-    with c3:
-        estados = sorted(
-            df_gantt["Estado"].astype(str).str.strip().replace({"nan": np.nan, "None": np.nan, "": np.nan}).dropna().unique().tolist()
-        ) if "Estado" in df_gantt.columns else []
-        estado_options = ["Todos"] + estados
-        estado_saved = st.session_state.pop("inputs_gantt_estado__sticky", None)
-        if estado_saved in estado_options:
-            st.session_state["inputs_gantt_estado"] = estado_saved
-        estado_default = st.session_state.get("inputs_gantt_estado", "Todos")
-        if estado_default not in estado_options:
-            estado_default = "Todos"
-            st.session_state["inputs_gantt_estado"] = estado_default
-        estado_sel = st.selectbox(
-            "Estado",
-            estado_options,
-            index=estado_options.index(estado_default),
-            key="inputs_gantt_estado",
-        )
-    with c4:
-        mode_saved = st.session_state.pop("inputs_gantt_mode__sticky", None)
-        if mode_saved in ("Plan", "Real"):
-            st.session_state["inputs_gantt_mode"] = mode_saved
-        date_mode = st.radio(
-            "Fechas",
-            ["Plan", "Real"],
-            index=1,
-            horizontal=True,
-            key="inputs_gantt_mode",
-        )
-    with c5:
-        color_saved = st.session_state.pop("inputs_gantt_color__sticky", None)
-        color_options = ["Estado", "Línea", "Piloto"] if has_linea else ["Estado", "Piloto"]
-        if color_saved in color_options:
-            st.session_state["inputs_gantt_color"] = color_saved
-        color_by = st.radio(
-            "Color por",
-            color_options,
-            horizontal=True,
-            key="inputs_gantt_color",
-        )
+        with c4:
+            mode_saved = st.session_state.pop("inputs_gantt_mode__sticky", None)
+            if mode_saved in ("Plan", "Real"):
+                st.session_state["inputs_gantt_mode"] = mode_saved
+            date_mode = st.radio(
+                "Fechas",
+                ["Plan", "Real"],
+                index=1,
+                horizontal=True,
+                key="inputs_gantt_mode",
+            )
+        with c5:
+            color_saved = st.session_state.pop("inputs_gantt_color__sticky", None)
+            color_options = ["Estado", "Línea", "Piloto"] if has_linea else ["Estado", "Piloto"]
+            if color_saved in color_options:
+                st.session_state["inputs_gantt_color"] = color_saved
+            color_by = st.radio(
+                "Color por",
+                color_options,
+                horizontal=True,
+                key="inputs_gantt_color",
+            )
 
     if fase_sel == ASPAS_FRP_GANTT_PHASE_OPTION:
         render_inputs_aspas_frp_schedule_chart()
@@ -3785,7 +3954,6 @@ def render_inputs_project_gantt():
         st.info("No hay tareas para los filtros seleccionados.")
         return
 
-    st.caption(f"{len(plot_df)} tareas visibles para los filtros seleccionados.")
     render_inputs_gantt_kpis(plot_df, date_mode=date_mode)
 
     legend_color_map = None
@@ -3793,9 +3961,6 @@ def render_inputs_project_gantt():
         legend_color_map = build_gantt_phase_color_map(plot_df)
     elif "Línea" in plot_df.columns and linea_sel == "Todas":
         legend_color_map = build_gantt_line_color_map(plot_df)
-    if legend_color_map:
-        render_inputs_gantt_group_legend(legend_color_map)
-
     fig_gantt = build_inputs_gantt_figure(
         plot_df,
         date_mode=date_mode,
@@ -3803,7 +3968,27 @@ def render_inputs_project_gantt():
         color_y_labels_by_phase=(fase_sel == "Todas"),
         color_y_labels_by_line=(fase_sel != "Todas" and linea_sel == "Todas" and "Línea" in plot_df.columns),
     )
-    st.plotly_chart(fig_gantt, use_container_width=True, key="inputs_estado_actual_gantt")
+    with st.container(border=True):
+        if legend_color_map:
+            chip_html = "".join(
+                f'<span class="gantt-chip" style="--dot:{color};"><span class="gantt-chip-dot"></span>{html.escape(label)}</span>'
+                for label, color in legend_color_map.items()
+            )
+            st.markdown(f'<div class="gantt-chip-row">{chip_html}</div>', unsafe_allow_html=True)
+        st.markdown(
+            """
+            <div class="gantt-chart-head">
+              <p class="gantt-chart-title">Cronograma por frente técnico</p>
+              <div class="gantt-mini-legend">
+                <span><i class="gantt-swatch" style="background:#ef3b2d;"></i>En curso</span>
+                <span><i class="gantt-swatch" style="background:#45a16a;"></i>Completado</span>
+                <span><i class="gantt-swatch" style="background:#a7b1bd;"></i>Plan</span>
+              </div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+        st.plotly_chart(fig_gantt, use_container_width=True, key="inputs_estado_actual_gantt")
 
 
 def render_inputs_contexto_block():
