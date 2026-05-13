@@ -3700,7 +3700,6 @@ def render_inputs_gantt_custom_chart(df: pd.DataFrame, date_mode: str, legend_co
     )
 
     line_color_map = build_gantt_line_color_map(dfc)
-    phase_color_map = build_gantt_phase_color_map(dfc)
     rows_html = []
     for _, row in dfc.iterrows():
         start = max(pd.Timestamp(row["_start"]).normalize(), window_start)
@@ -3713,8 +3712,7 @@ def render_inputs_gantt_custom_chart(df: pd.DataFrame, date_mode: str, legend_co
         task = format_gantt_task_label(str(row.get("Tarea / Entregable", "")), max_chars=43, max_lines=2)
         line_name = str(row.get("Línea", "")).strip()
         line_color = line_color_map.get(line_name, "#64748b")
-        phase_name = str(row.get("Fase", "")).strip()
-        bar_color = phase_color_map.get(phase_name) or line_color or _gantt_status_color(str(row.get("Estado", "")))
+        bar_color = _gantt_status_color(str(row.get("Estado", "")))
         date_left = min(97.0, left + width + 1.0)
         rows_html.append(
             textwrap.dedent(
