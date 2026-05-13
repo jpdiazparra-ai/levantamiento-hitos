@@ -4504,8 +4504,8 @@ def render_inputs_capex_10kw_detail():
         """
         <style>
         .capex10-shell{border:1px solid #d9e2ee;border-radius:18px;background:#fff;padding:20px 22px 18px 22px;box-shadow:0 18px 42px rgba(15,23,42,.06);margin:0 0 16px 0;}
-        .capex10-breadcrumb{display:flex;align-items:center;gap:12px;color:#0f172a;font-size:14px;font-weight:900;margin:0 0 14px 0;}
-        .capex10-brand{font-size:23px;color:#0f766e;margin-right:8px;}
+        .capex10-breadcrumb{display:flex;align-items:center;gap:8px;color:#0f172a;font-size:10px;font-weight:900;margin:0 0 10px 0;}
+        .capex10-brand{font-size:16px;color:#0f766e;margin-right:6px;}
         .capex10-sep{color:#64748b;font-weight:800;}
         .capex10-title{font-size:24px;line-height:1.08;font-weight:900;color:#08122a;margin:0 0 8px 0;}
         .capex10-sub{font-size:13px;line-height:1.55;color:#274060;margin:0 0 18px 0;max-width:680px;}
