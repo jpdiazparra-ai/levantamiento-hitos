@@ -3036,6 +3036,12 @@ def build_gantt_phase_color_map(df: pd.DataFrame) -> dict[str, str]:
 def build_gantt_line_color_map(df: pd.DataFrame) -> dict[str, str]:
     if "Línea" not in df.columns:
         return {}
+    preferred_colors = {
+        "Acople Central": "#4fb5ad",
+        "Acople Externo": "#0b3358",
+        "Freno Mecánico": "#f5a623",
+        "Freno Mecanico": "#f5a623",
+    }
     lineas = sorted(
         {
             str(val).strip()
@@ -3043,7 +3049,8 @@ def build_gantt_line_color_map(df: pd.DataFrame) -> dict[str, str]:
             if str(val).strip() and str(val).strip().lower() not in {"nan", "none"}
         }
     )
-    return {linea: PX_COLORS[idx % len(PX_COLORS)] for idx, linea in enumerate(lineas)}
+    fallback = ["#4fb5ad", "#0b3358", "#f5a623", "#ef3b2d", "#45a16a", "#8b3ff4", "#64748b"]
+    return {linea: preferred_colors.get(linea, fallback[idx % len(fallback)]) for idx, linea in enumerate(lineas)}
 
 
 def format_gantt_task_label(label: str, max_chars: int = 42, max_lines: int = 2) -> str:
@@ -3215,12 +3222,76 @@ def render_inputs_gantt_design_css() -> None:
         .gantt-mini-legend{display:flex;gap:18px;align-items:center;justify-content:flex-end;flex-wrap:wrap;font-size:12px;color:#0f172a;}
         .gantt-mini-legend span{display:inline-flex;align-items:center;gap:7px;}
         .gantt-swatch{width:17px;height:9px;border-radius:2px;display:inline-block;}
-        .gantt-chip-row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:0 0 10px 0;}
+        .gantt-toolbar{
+            display:grid;grid-template-columns:1.4fr 1fr 1.4fr;align-items:center;gap:12px;
+            margin:0 0 12px 0;
+        }
+        .gantt-chip-row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:0;}
         .gantt-chip{
             display:inline-flex;align-items:center;gap:8px;padding:8px 16px;border-radius:999px;
             background:#fbfdff;border:1px solid rgba(203,213,225,.9);font-size:13px;font-weight:800;color:#102039;
         }
         .gantt-chip-dot{width:11px;height:11px;border-radius:50%;display:inline-block;background:var(--dot);}
+        .gantt-range-row{display:flex;align-items:center;justify-content:center;gap:8px;}
+        .gantt-range-btn{
+            height:27px;padding:0 9px;border-radius:5px;border:1px solid #d7dee9;background:#fff;
+            color:#52657f;font-size:12px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;
+        }
+        .gantt-range-btn.active{border-color:#38b2a6;color:#0f9485;background:#ecfffc;}
+        .gantt-custom-legend{display:flex;gap:26px;align-items:center;justify-content:flex-end;font-size:12px;color:#0f172a;}
+        .gantt-custom-legend span{display:inline-flex;align-items:center;gap:7px;white-space:nowrap;}
+        .gantt-custom-wrap{
+            border:1px solid #dde6f1;border-radius:13px;background:#fff;overflow:hidden;
+            padding:16px 18px 22px 18px;
+        }
+        .gantt-custom-title{font-size:15px;font-weight:900;color:#0f172a;margin:0 0 10px 0;}
+        .gantt-grid{
+            display:grid;grid-template-columns:420px minmax(760px, 1fr);position:relative;
+            border-top:1px solid #dde6f1;
+        }
+        .gantt-left-head{
+            height:48px;border-right:1px solid #dde6f1;border-bottom:1px solid #dde6f1;
+            display:flex;align-items:center;color:#71819a;font-size:12px;font-weight:900;text-transform:uppercase;
+        }
+        .gantt-time-head{
+            height:48px;position:relative;border-bottom:1px solid #dde6f1;
+            background:repeating-linear-gradient(to right, transparent 0, transparent calc(12.5% - 1px), #e5ebf3 calc(12.5% - 1px), #e5ebf3 12.5%);
+        }
+        .gantt-month-label{position:absolute;top:0;height:18px;text-align:center;color:#71819a;font-size:12px;font-weight:900;text-transform:uppercase;}
+        .gantt-week-label{position:absolute;bottom:10px;transform:translateX(-50%);color:#0f172a;font-size:12px;font-weight:700;}
+        .gantt-task-row{display:contents;}
+        .gantt-task-cell{
+            min-height:43px;border-right:1px solid #dde6f1;border-bottom:1px solid #e7edf4;
+            display:grid;grid-template-columns:20px 1fr;align-items:center;gap:10px;padding:6px 12px 6px 6px;
+        }
+        .gantt-task-dot{width:11px;height:11px;border-radius:50%;background:var(--line-color);justify-self:center;}
+        .gantt-task-label{font-size:13px;line-height:1.25;color:#0f172a;font-weight:500;}
+        .gantt-bar-cell{
+            min-height:43px;position:relative;border-bottom:1px solid #e7edf4;
+            background:repeating-linear-gradient(to right, transparent 0, transparent calc(12.5% - 1px), #e5ebf3 calc(12.5% - 1px), #e5ebf3 12.5%);
+        }
+        .gantt-bar{
+            position:absolute;height:11px;top:50%;transform:translateY(-50%);border-radius:999px;
+            background:var(--bar-color);box-shadow:inset 0 -1px 0 rgba(15,23,42,.10);
+        }
+        .gantt-bar::before{
+            content:"";position:absolute;left:-2px;top:50%;width:8px;height:8px;border-radius:50%;
+            transform:translateY(-50%);background:var(--bar-color);border:2px solid #fff;
+        }
+        .gantt-bar::after{
+            content:"";position:absolute;right:-6px;top:50%;width:11px;height:11px;
+            transform:translateY(-50%) rotate(45deg);background:var(--bar-color);border:1px solid #fff;
+        }
+        .gantt-end-date{
+            position:absolute;top:50%;transform:translateY(-50%);font-size:12px;color:#334155;font-weight:500;white-space:nowrap;
+        }
+        .gantt-today-line{
+            position:absolute;top:48px;bottom:0;width:0;border-left:1.5px dashed #111827;z-index:3;
+        }
+        .gantt-today-label{
+            position:absolute;top:38px;transform:translateX(-50%);z-index:4;
+            background:#374151;color:#fff;border-radius:4px;padding:6px 9px;font-size:12px;font-weight:800;
+        }
         div[data-testid="stSelectbox"] label p, div[data-testid="stRadio"] label p{
             font-size:13px!important;color:#0f172a!important;font-weight:700!important;
         }
@@ -3233,6 +3304,9 @@ def render_inputs_gantt_design_css() -> None:
             .gantt-progress{min-width:0;width:100%;grid-template-columns:58px 1fr;}
             .gantt-divider{display:none;}
             .gantt-title{font-size:24px;}
+            .gantt-toolbar{grid-template-columns:1fr;}
+            .gantt-custom-legend{justify-content:flex-start;}
+            .gantt-grid{grid-template-columns:330px minmax(700px,1fr);overflow-x:auto;}
         }
         </style>
         """,
@@ -3551,6 +3625,138 @@ def render_inputs_gantt_group_legend(color_map: dict[str, str]) -> None:
     )
 
 
+def render_inputs_gantt_custom_chart(df: pd.DataFrame, date_mode: str, legend_color_map: dict[str, str] | None) -> None:
+    if df.empty:
+        return
+
+    dfc = df.copy()
+    dfc["_start"] = pd.to_datetime(dfc.get(GANTT_DATE_COL_START), errors="coerce")
+    dfc["_end_plan"] = pd.to_datetime(dfc.get(GANTT_DATE_COL_END_PLAN), errors="coerce")
+    dfc["_end_real"] = pd.to_datetime(dfc.get(GANTT_DATE_COL_END_REAL), errors="coerce")
+    dfc["_start"] = dfc["_start"].fillna(dfc["_end_real"]).fillna(dfc["_end_plan"])
+    dfc["_end"] = dfc["_end_real"] if date_mode == "Real" else dfc["_end_plan"]
+    dfc["_end"] = dfc["_end"].fillna(dfc["_end_plan"]).fillna(dfc["_end_real"]).fillna(dfc["_start"])
+    bad = dfc["_end"] <= dfc["_start"]
+    dfc.loc[bad, "_end"] = dfc.loc[bad, "_start"] + pd.Timedelta(days=1)
+    dfc = dfc[dfc["_start"].notna() & dfc["_end"].notna()].copy()
+    if dfc.empty:
+        return
+
+    if "ID" in dfc.columns:
+        dfc = dfc.sort_values(["ID", "_start", "_end"], ascending=[True, True, True])
+    else:
+        dfc = dfc.sort_values(["_start", "_end"], ascending=[True, True])
+    dfc = dfc.head(7).copy()
+
+    today_ts = pd.Timestamp.today().normalize()
+    days_since_tuesday = (today_ts.weekday() - 1) % 7
+    tick_start = today_ts - pd.Timedelta(days=days_since_tuesday + 35)
+    ticks = [tick_start + pd.Timedelta(days=7 * i) for i in range(9)]
+    window_start = ticks[0]
+    window_end = ticks[-1]
+    window_days = max((window_end - window_start).days, 1)
+
+    def pct(date_value: pd.Timestamp) -> float:
+        return max(0.0, min(100.0, ((date_value - window_start).days / window_days) * 100.0))
+
+    month_names = {
+        1: "ENERO", 2: "FEBRERO", 3: "MARZO", 4: "ABRIL", 5: "MAYO", 6: "JUNIO",
+        7: "JULIO", 8: "AGOSTO", 9: "SEPTIEMBRE", 10: "OCTUBRE", 11: "NOVIEMBRE", 12: "DICIEMBRE",
+    }
+    month_labels = []
+    cursor = pd.Timestamp(window_start.year, window_start.month, 1)
+    while cursor <= window_end:
+        next_month = cursor + pd.DateOffset(months=1)
+        span_start = max(cursor, window_start)
+        span_end = min(next_month, window_end + pd.Timedelta(days=1))
+        if span_end > span_start:
+            left = pct(span_start)
+            width = max(0.0, pct(span_end) - left)
+            month_labels.append(
+                f'<div class="gantt-month-label" style="left:{left:.4f}%;width:{width:.4f}%;">{month_names.get(cursor.month, "")} {cursor.year}</div>'
+            )
+        cursor = next_month
+
+    week_labels = "".join(
+        f'<div class="gantt-week-label" style="left:{pct(tick):.4f}%;">{tick.day:02d}</div>'
+        for tick in ticks
+    )
+
+    line_color_map = build_gantt_line_color_map(dfc)
+    rows_html = []
+    for _, row in dfc.iterrows():
+        start = max(pd.Timestamp(row["_start"]).normalize(), window_start)
+        end = min(pd.Timestamp(row["_end"]).normalize(), window_end)
+        if end <= start:
+            end = start + pd.Timedelta(days=1)
+        left = pct(start)
+        width = max(1.5, pct(end) - left)
+        end_label = pd.Timestamp(row["_end"]).strftime("%d-%m-%Y")
+        task = format_gantt_task_label(str(row.get("Tarea / Entregable", "")), max_chars=43, max_lines=2)
+        line_name = str(row.get("Línea", "")).strip()
+        line_color = line_color_map.get(line_name, "#64748b")
+        bar_color = _gantt_status_color(str(row.get("Estado", "")))
+        date_left = min(97.0, left + width + 1.0)
+        rows_html.append(
+            f"""
+            <div class="gantt-task-row">
+              <div class="gantt-task-cell" style="--line-color:{line_color};">
+                <span class="gantt-task-dot"></span>
+                <div class="gantt-task-label">{task}</div>
+              </div>
+              <div class="gantt-bar-cell">
+                <span class="gantt-bar" style="--bar-color:{bar_color};left:{left:.4f}%;width:{width:.4f}%;"></span>
+                <span class="gantt-end-date" style="left:{date_left:.4f}%;">{html.escape(end_label)}</span>
+              </div>
+            </div>
+            """
+        )
+
+    chip_source = legend_color_map or line_color_map
+    chips_html = "".join(
+        f'<span class="gantt-chip" style="--dot:{color};"><span class="gantt-chip-dot"></span>{html.escape(label)}</span>'
+        for label, color in chip_source.items()
+    )
+    if not chips_html:
+        chips_html = "".join(
+            f'<span class="gantt-chip" style="--dot:{color};"><span class="gantt-chip-dot"></span>{html.escape(label)}</span>'
+            for label, color in line_color_map.items()
+        )
+
+    today_left = pct(today_ts)
+    chart_html = f"""
+    <div class="gantt-chart-card">
+      <div class="gantt-toolbar">
+        <div class="gantt-chip-row">{chips_html}</div>
+        <div class="gantt-range-row">
+          <span class="gantt-range-btn">1m</span>
+          <span class="gantt-range-btn">3m</span>
+          <span class="gantt-range-btn">6m</span>
+          <span class="gantt-range-btn">YTD</span>
+          <span class="gantt-range-btn">1y</span>
+          <span class="gantt-range-btn active">All</span>
+        </div>
+        <div class="gantt-custom-legend">
+          <span><i class="gantt-swatch" style="background:#ef3b2d;"></i>En curso</span>
+          <span><i class="gantt-swatch" style="background:#45a16a;"></i>Completado</span>
+          <span><i class="gantt-swatch" style="background:#a7b1bd;"></i>Plan</span>
+        </div>
+      </div>
+      <div class="gantt-custom-wrap">
+        <div class="gantt-custom-title">Cronograma por frente técnico</div>
+        <div class="gantt-grid">
+          <div class="gantt-left-head">Tarea</div>
+          <div class="gantt-time-head">{''.join(month_labels)}{week_labels}</div>
+          <div class="gantt-today-label" style="left:calc(420px + (100% - 420px) * {today_left / 100:.6f});">Hoy</div>
+          <div class="gantt-today-line" style="left:calc(420px + (100% - 420px) * {today_left / 100:.6f});"></div>
+          {''.join(rows_html)}
+        </div>
+      </div>
+    </div>
+    """
+    st.markdown(chart_html, unsafe_allow_html=True)
+
+
 def render_inputs_aspas_frp_schedule_chart() -> None:
     try:
         df_ing_schedule = build_ingenieria_piloto_10kw_schedule(
@@ -3862,7 +4068,14 @@ def render_inputs_project_gantt():
                 fase for fase in fases
                 if fase != ASPAS_FRP_GANTT_PHASE_OPTION
             ]
-            fase_default = "Instalación Turbina" if "Instalación Turbina" in fases else "Todas"
+            target_phase = next(
+                (
+                    fase for fase in fases
+                    if str(fase).strip().casefold() == "suministro y equipamiento mecanico"
+                ),
+                None,
+            )
+            fase_default = target_phase or ("Instalación Turbina" if "Instalación Turbina" in fases else "Todas")
             fase_saved = st.session_state.pop("inputs_gantt_fase__sticky", None)
             if fase_saved in fase_options:
                 st.session_state["inputs_gantt_fase"] = fase_saved
@@ -3961,34 +4174,7 @@ def render_inputs_project_gantt():
         legend_color_map = build_gantt_phase_color_map(plot_df)
     elif "Línea" in plot_df.columns and linea_sel == "Todas":
         legend_color_map = build_gantt_line_color_map(plot_df)
-    fig_gantt = build_inputs_gantt_figure(
-        plot_df,
-        date_mode=date_mode,
-        color_by=color_by,
-        color_y_labels_by_phase=(fase_sel == "Todas"),
-        color_y_labels_by_line=(fase_sel != "Todas" and linea_sel == "Todas" and "Línea" in plot_df.columns),
-    )
-    with st.container(border=True):
-        if legend_color_map:
-            chip_html = "".join(
-                f'<span class="gantt-chip" style="--dot:{color};"><span class="gantt-chip-dot"></span>{html.escape(label)}</span>'
-                for label, color in legend_color_map.items()
-            )
-            st.markdown(f'<div class="gantt-chip-row">{chip_html}</div>', unsafe_allow_html=True)
-        st.markdown(
-            """
-            <div class="gantt-chart-head">
-              <p class="gantt-chart-title">Cronograma por frente técnico</p>
-              <div class="gantt-mini-legend">
-                <span><i class="gantt-swatch" style="background:#ef3b2d;"></i>En curso</span>
-                <span><i class="gantt-swatch" style="background:#45a16a;"></i>Completado</span>
-                <span><i class="gantt-swatch" style="background:#a7b1bd;"></i>Plan</span>
-              </div>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
-        st.plotly_chart(fig_gantt, use_container_width=True, key="inputs_estado_actual_gantt")
+    render_inputs_gantt_custom_chart(plot_df, date_mode=date_mode, legend_color_map=legend_color_map)
 
 
 def render_inputs_contexto_block():
