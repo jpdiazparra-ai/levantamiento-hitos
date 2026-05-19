@@ -1909,9 +1909,10 @@ def render_hitos_financial_view(df: pd.DataFrame, hito_summary: pd.DataFrame) ->
         "Se recomienda priorizar la liberación inicial del hito actual y asegurar fondos de avance para evitar desaceleración en ingeniería, fabricación e integración."
     )
 
-    st.markdown(
-        f"""
+    html_doc = f"""
         <style>
+        *{{box-sizing:border-box;}}
+        body{{margin:0;background:transparent;}}
         .ref-wrap{{background:#F6F8FB;border:1px solid #D9E2EC;border-radius:4px;padding:20px 22px 22px 22px;color:#0B1633;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;}}
         .ref-top{{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px;}}
         .ref-title{{font-size:28px;font-weight:900;color:#0B1633;line-height:1.05;margin:0;}}
@@ -2036,12 +2037,18 @@ def render_hitos_financial_view(df: pd.DataFrame, hito_summary: pd.DataFrame) ->
                 <div class="ref-decision"><div class="ref-icon" style="background:#FB7185;">!</div><div><b>Riesgo si no se libera financiamiento</b><p>Riesgo de desaceleración, aumento de costos y retraso en puesta en marcha.</p></div></div>
               </div>
             </div>
-            <div>
-        """,
-        unsafe_allow_html=True,
-    )
+            <div class="ref-panel">
+              <div class="ref-panel-title">Matriz PMO de hitos</div>
+              <div style="font-size:13px;line-height:1.55;color:#334155;">
+                La matriz detallada se muestra bajo este panel para mantener lectura ejecutiva limpia y tabla interactiva.
+              </div>
+            </div>
+          </div>
+        </div>
+        """
+    components.html(html_doc, height=980, scrolling=True)
+    st.markdown("#### Matriz PMO de hitos")
     render_hitos_table(df, hito_summary)
-    st.markdown("</div></div></div>", unsafe_allow_html=True)
 
 
 def executive_reading(df: pd.DataFrame, hito_summary: pd.DataFrame) -> dict[str, list[str] | str]:
