@@ -2024,18 +2024,42 @@ def render_hitos_financial_view(
         """
 
     timeline_items = []
-    status_label = {"Ejecutado": "EJECUTADO", "En curso": "EN CURSO", "Pendiente": "PENDIENTE"}
+    critical_hitos = {"H1", "H4", "H8"}
+    status_label = {"Ejecutado": "Ejecutado", "En curso": "En curso", "Pendiente": "Pendiente"}
     status_color = {"Ejecutado": "#10B981", "En curso": "#2F80ED", "Pendiente": "#94A3B8"}
-    for _, row in matrix.sort_values("Hito Orden").iterrows():
+    timeline_matrix = matrix.sort_values("Hito Orden").copy()
+    timeline_start = timeline_matrix["_Inicio"].dropna().min() if "_Inicio" in timeline_matrix else pd.NaT
+    timeline_end = timeline_matrix["_Termino"].dropna().max() if "_Termino" in timeline_matrix else pd.NaT
+    today_dt = pd.Timestamp("today").normalize()
+    today_pos = 0.0
+    if pd.notna(timeline_start) and pd.notna(timeline_end) and timeline_end > timeline_start:
+        today_pos = float((today_dt - timeline_start).days / max((timeline_end - timeline_start).days, 1))
+        today_pos = min(max(today_pos, 0.0), 1.0) * 100
+    progress_width = min(max(technical_pct * 100, 2), 100)
+    previous_hito = ""
+    for _, row in timeline_matrix.iterrows():
         crit = str(row.get("Criticidad", "Media"))
         stt = str(row.get("Estado", "Pendiente"))
-        dot_color = "#EF4444" if crit == "Alta" and stt != "Ejecutado" else status_color.get(stt, "#94A3B8")
+        hito_code = str(row.get("Hito", "-"))
+        is_critical = hito_code in critical_hitos
+        dot_color = "#EF4444" if is_critical else status_color.get(stt, "#94A3B8")
+        dependency = "Inicio del programa" if not previous_hito else f"Depende de cierre técnico y financiero de {previous_hito}"
+        previous_hito = hito_code
+        tooltip = f"""
+          <div class="decision-tooltip">
+            <b>{html.escape(hito_code)} · {html.escape(str(row.get("Hito Corto", "-")))}</b>
+            <span>CAPEX asociado: {html.escape(str(row.get("Monto total", "-")))}</span>
+            <span>Riesgo: {'Crítico' if is_critical else html.escape(crit)}</span>
+            <span>Dependencia: {html.escape(dependency)}</span>
+            <span>Fondos requeridos: {html.escape(str(row.get("Total Liberación", "-")))}</span>
+          </div>
+        """
         timeline_items.append(
             f"""
-            <div class="ref-mile">
-              <div class="ref-node" style="background:{dot_color};">{html.escape(str(row['Hito']))}</div>
+            <div class="ref-mile {'critical' if is_critical else ''}">
+              <div class="ref-node" style="background:{dot_color};">{html.escape(hito_code)}</div>
+              {tooltip}
               <div class="ref-mile-title">{html.escape(str(row['Hito Corto']))}</div>
-              <div class="ref-mile-date">{html.escape(str(row['Inicio']))}<br>{html.escape(str(row['Termino']))}</div>
               <div class="ref-mile-status" style="color:{dot_color};background:{dot_color}18;">{html.escape(status_label.get(stt, stt).upper())}</div>
             </div>
             """
@@ -2184,18 +2208,29 @@ def render_hitos_financial_view(
         .scenario-body em{{font-style:normal;display:block;font-size:10px;color:#64748B;margin-top:6px;}}
         .scenario-body p{{font-size:11px;line-height:1.42;color:#25364F;margin:0;}}
         .scenario-risk{{font-size:12px;font-weight:900;margin-top:12px;}}
-        .ref-timeline{{background:#FFFFFF;border:1px solid #E2E8F0;border-radius:12px;padding:14px 18px 18px 18px;margin-bottom:12px;box-shadow:0 12px 24px rgba(15,23,42,.05);}}
+        .ref-timeline{{background:#FFFFFF;border:1px solid #E2E8F0;border-radius:12px;padding:16px 18px 18px 18px;margin-bottom:12px;box-shadow:0 12px 24px rgba(15,23,42,.05);overflow:visible;}}
         .timeline-head{{display:flex;justify-content:space-between;gap:20px;align-items:center;}}
         .timeline-legend{{display:flex;gap:22px;align-items:center;font-size:11px;color:#334155;}}
         .legend-dot{{display:inline-block;width:12px;height:12px;border-radius:999px;margin-right:6px;vertical-align:-1px;}}
-        .ref-stage{{display:grid;grid-template-columns:1.9fr 4.1fr 1.6fr;gap:12px;margin:8px 0 18px 0;}}
-        .ref-stage div{{height:24px;border-radius:3px;font-size:10px;font-weight:900;display:flex;align-items:center;justify-content:center;color:#334155;}}
-        .ref-line{{position:relative;display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:8px;border-top:4px solid #CBD5E1;padding-top:0;margin-top:24px;}}
-        .ref-mile{{text-align:center;position:relative;min-height:118px;}}
-        .ref-node{{width:38px;height:38px;border-radius:999px;color:#FFFFFF;font-weight:900;display:flex;align-items:center;justify-content:center;margin:-21px auto 8px auto;box-shadow:0 7px 14px rgba(15,23,42,.18);}}
-        .ref-mile-title{{font-size:11px;color:#243B53;line-height:1.2;min-height:35px;}}
-        .ref-mile-date{{font-size:10px;color:#64748B;line-height:1.35;margin-top:6px;}}
-        .ref-mile-status{{display:inline-flex;border-radius:4px;padding:4px 8px;font-size:9px;font-weight:900;margin-top:8px;}}
+        .ref-stage{{display:grid;grid-template-columns:1.45fr 3.2fr 2.1fr;gap:10px;margin:10px 0 22px 0;}}
+        .ref-stage div{{height:28px;border-radius:8px;font-size:11px;font-weight:850;display:flex;align-items:center;justify-content:center;color:#334155;}}
+        .decision-roadmap{{position:relative;padding:22px 6px 8px 6px;overflow:visible;}}
+        .today-line{{position:absolute;top:2px;bottom:16px;left:var(--today);width:2px;background:#EF4444;z-index:5;box-shadow:0 0 0 4px rgba(239,68,68,.10);}}
+        .today-line span{{position:absolute;top:-22px;left:50%;transform:translateX(-50%);background:#EF4444;color:#FFFFFF;border-radius:999px;padding:4px 8px;font-size:10px;font-weight:900;white-space:nowrap;}}
+        .decision-track{{position:absolute;left:18px;right:18px;top:44px;height:6px;border-radius:999px;background:#E2E8F0;box-shadow:inset 0 1px 2px rgba(15,23,42,.06);}}
+        .decision-progress{{height:100%;width:var(--progress);border-radius:999px;background:linear-gradient(90deg,#0F766E,#2F80ED);box-shadow:0 6px 14px rgba(47,128,237,.18);}}
+        .ref-line{{position:relative;display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:8px;padding-top:0;margin-top:22px;z-index:10;}}
+        .ref-mile{{text-align:center;position:relative;min-height:96px;overflow:visible;}}
+        .ref-node{{width:38px;height:38px;border-radius:999px;color:#FFFFFF;font-weight:900;display:flex;align-items:center;justify-content:center;margin:0 auto 10px auto;box-shadow:0 7px 14px rgba(15,23,42,.18);position:relative;z-index:3;}}
+        .ref-mile.critical .ref-node{{width:46px;height:46px;margin-top:-4px;margin-bottom:6px;box-shadow:0 0 0 8px rgba(239,68,68,.12),0 15px 30px rgba(239,68,68,.24);}}
+        .ref-mile.critical .ref-node::after{{content:"";position:absolute;inset:-11px;border-radius:999px;border:1px solid rgba(239,68,68,.32);}}
+        .ref-mile-title{{font-size:11px;color:#243B53;line-height:1.22;min-height:30px;max-width:118px;margin:0 auto;font-weight:750;}}
+        .ref-mile-status{{display:inline-flex;border-radius:999px;padding:4px 8px;font-size:9px;font-weight:900;margin-top:7px;}}
+        .decision-tooltip{{position:absolute;z-index:40;left:50%;bottom:92px;transform:translateX(-50%) translateY(6px);width:230px;background:#08253B;color:#FFFFFF;border-radius:10px;padding:12px 13px;text-align:left;box-shadow:0 18px 38px rgba(8,37,59,.28);opacity:0;pointer-events:none;transition:opacity .16s ease,transform .16s ease;}}
+        .decision-tooltip::after{{content:"";position:absolute;left:50%;bottom:-7px;transform:translateX(-50%);border-left:7px solid transparent;border-right:7px solid transparent;border-top:7px solid #08253B;}}
+        .decision-tooltip b{{display:block;font-size:12px;margin-bottom:8px;color:#FFFFFF;}}
+        .decision-tooltip span{{display:block;font-size:11px;line-height:1.35;color:#DDE8F3;margin-top:4px;}}
+        .ref-mile:hover .decision-tooltip{{opacity:1;transform:translateX(-50%) translateY(0);}}
         .ref-bottom{{display:grid;grid-template-columns:270px 1fr;gap:16px;align-items:start;}}
         .ref-decisions{{display:grid;gap:10px;}}
         .ref-decision{{background:#FFFFFF;border:1px solid #F3B4B4;border-radius:10px;padding:13px 14px;display:grid;grid-template-columns:34px 1fr;gap:10px;}}
@@ -2282,7 +2317,7 @@ def render_hitos_financial_view(
           </div>
           <div class="ref-timeline">
             <div class="timeline-head">
-              <div class="ref-panel-title">Línea de tiempo ejecutiva H1 → H8</div>
+              <div class="ref-panel-title">Roadmap de decisión H1 → H8</div>
               <div class="timeline-legend">
                 <span><i class="legend-dot" style="background:#10B981;"></i>Ejecutado</span>
                 <span><i class="legend-dot" style="background:#2F80ED;"></i>En curso</span>
@@ -2290,8 +2325,12 @@ def render_hitos_financial_view(
                 <span><i class="legend-dot" style="background:#EF4444;"></i>Crítico</span>
               </div>
             </div>
-            <div class="ref-stage"><div style="background:#DDF3F7;">LIBERACIÓN INICIAL</div><div style="background:#FBF0D5;">AVANCE</div><div style="background:#DDF4EA;">CIERRE</div></div>
-            <div class="ref-line">{''.join(timeline_items)}</div>
+            <div class="ref-stage"><div style="background:#DDF3F7;">Liberación inicial</div><div style="background:#FBF0D5;">Ingeniería y fabricación</div><div style="background:#DDF4EA;">Integración y cierre</div></div>
+            <div class="decision-roadmap" style="--today:{today_pos:.2f}%;--progress:{progress_width:.2f}%;">
+              <div class="today-line"><span>HOY</span></div>
+              <div class="decision-track"><div class="decision-progress"></div></div>
+              <div class="ref-line">{''.join(timeline_items)}</div>
+            </div>
           </div>
           <div class="ref-bottom">
             <div class="ref-panel">
