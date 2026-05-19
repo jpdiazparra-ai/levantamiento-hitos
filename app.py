@@ -1836,24 +1836,212 @@ def hitos_executive_reading(df: pd.DataFrame, hito_summary: pd.DataFrame) -> str
 
 
 def render_hitos_financial_view(df: pd.DataFrame, hito_summary: pd.DataFrame) -> None:
-    metrics = render_hitos_header(df, hito_summary)
-    render_hitos_kpis(metrics)
-    render_period_reading(df, hito_summary, metrics)
-    render_required_decisions(metrics)
-    render_funding_scenarios(metrics)
-    st.plotly_chart(build_hitos_timeline(hito_summary, metrics["matrix"]), use_container_width=True)
-    st.plotly_chart(build_funding_roadmap(hito_summary), use_container_width=True)
-    st.markdown("#### Matriz PMO de hitos")
-    render_hitos_table(df, hito_summary)
-    fig_capex, fig_progress = build_hitos_financial_charts(df, hito_summary)
-    c1, c2 = st.columns(2)
-    c1.plotly_chart(fig_capex, use_container_width=True)
-    c2.plotly_chart(fig_progress, use_container_width=True)
-    st.markdown("#### Lectura Ejecutiva PMO")
+    metrics = pmo_financial_metrics(df, hito_summary)
+    matrix = metrics["matrix"].copy()
+    current = metrics["current_row"]
+    next_row = metrics["next_row"]
+    total = float(metrics["total_capex"])
+    current_total = float(current.get("Total_Liberacion", 0) or 0)
+    cons = float(current.get("Liberacion_Inicial", 0) or 0)
+    base = cons + float(current.get("Liberacion_Avance", 0) or 0)
+    close = current_total
+    today_label = pd.Timestamp("today").strftime("%d-%m-%Y %H:%M")
+    concentration = hito_summary.sort_values("Monto_CLP", ascending=False).head(2)
+    concentration_txt = " y ".join(concentration["Hito"].astype(str).tolist()) if not concentration.empty else "-"
+    current_hito_label = str(current.get("Hito", "H1"))
+    next_hito_label = str(next_row.get("Hito", "H2"))
+    launch_date = metrics["launch_date"]
+    risk = str(metrics["risk"]).upper()
+    risk_color = {"ALTO": "#E11D48", "MEDIO": "#F59E0B", "BAJO": "#10B981"}.get(risk, "#F59E0B")
+    technical_pct = float(metrics["technical_progress"])
+
+    def card(label: str, value: str, note: str, icon: str, accent: str = "#0F766E") -> str:
+        return f"""
+        <div class="ref-kpi">
+          <div class="ref-icon" style="background:{accent};">{html.escape(icon)}</div>
+          <div>
+            <div class="ref-kpi-label">{html.escape(label)}</div>
+            <div class="ref-kpi-value">{html.escape(value)} <span>{'CLP' if '$' in value else ''}</span></div>
+            <div class="ref-kpi-note">{html.escape(note)}</div>
+          </div>
+        </div>
+        """
+
+    def scenario(title: str, subtitle: str, amount: float, pct: float, impact: str, risk_label: str, color: str, featured: bool = False) -> str:
+        star = "<div class='ref-star'>★</div>" if featured else ""
+        return f"""
+        <div class="ref-scenario" style="border-color:{color};">
+          {star}
+          <div class="ref-scenario-head">
+            <div class="ref-shield" style="border-color:{color};color:{color};">⬡</div>
+            <div><b>{html.escape(title)}</b><br><span>{html.escape(subtitle)}</span></div>
+          </div>
+          <div class="ref-scenario-grid">
+            <div><small>MONTO</small><strong>{format_clp(amount)}</strong><em>{format_pct(pct)} del hito</em></div>
+            <div><small>IMPLICANCIA OPERATIVA</small><p>{html.escape(impact)}</p></div>
+          </div>
+          <div class="ref-risk" style="color:{color};">RIESGO: {html.escape(risk_label)}</div>
+        </div>
+        """
+
+    timeline_items = []
+    status_label = {"Ejecutado": "EJECUTADO", "En curso": "EN CURSO", "Pendiente": "PENDIENTE"}
+    status_color = {"Ejecutado": "#10B981", "En curso": "#2F80ED", "Pendiente": "#94A3B8"}
+    for _, row in matrix.sort_values("Hito Orden").iterrows():
+        crit = str(row.get("Criticidad", "Media"))
+        stt = str(row.get("Estado", "Pendiente"))
+        dot_color = "#EF4444" if crit == "Alta" and stt != "Ejecutado" else status_color.get(stt, "#94A3B8")
+        timeline_items.append(
+            f"""
+            <div class="ref-mile">
+              <div class="ref-node" style="background:{dot_color};">{html.escape(str(row['Hito']))}</div>
+              <div class="ref-mile-title">{html.escape(str(row['Hito Corto']))}</div>
+              <div class="ref-mile-date">{html.escape(str(row['Inicio']))}<br>{html.escape(str(row['Termino']))}</div>
+              <div class="ref-mile-status" style="color:{dot_color};background:{dot_color}18;">{html.escape(status_label.get(stt, stt).upper())}</div>
+            </div>
+            """
+        )
+
+    executive_text = (
+        f"El cronograma presenta un CAPEX restante de {format_clp(total)}, concentrado principalmente en los hitos {concentration_txt}. "
+        f"El avance técnico ponderado alcanza {format_pct(technical_pct)}, mientras que la liberación financiera estimada se mantiene en "
+        f"{format_pct(float(metrics['financial_progress']))}, generando una brecha de continuidad operacional de {format_clp(float(metrics['breach']))}. "
+        "Se recomienda priorizar la liberación inicial del hito actual y asegurar fondos de avance para evitar desaceleración en ingeniería, fabricación e integración."
+    )
+
     st.markdown(
-        f"<div class='section-note'>{html.escape(hitos_executive_reading(df, hito_summary))}</div>",
+        f"""
+        <style>
+        .ref-wrap{{background:#F6F8FB;border:1px solid #D9E2EC;border-radius:4px;padding:20px 22px 22px 22px;color:#0B1633;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;}}
+        .ref-top{{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px;}}
+        .ref-title{{font-size:28px;font-weight:900;color:#0B1633;line-height:1.05;margin:0;}}
+        .ref-sub{{font-size:13px;color:#607086;margin-top:7px;}}
+        .ref-actions{{display:flex;gap:14px;align-items:center;color:#607086;font-size:11px;}}
+        .ref-filter{{border:1px solid #D7E0EA;border-radius:7px;background:#FFFFFF;padding:9px 14px;font-weight:800;color:#25364F;}}
+        .ref-band{{display:grid;grid-template-columns:1.1fr 1.25fr 1fr 2.2fr;gap:22px;background:linear-gradient(135deg,#08253B,#0B3554);border-radius:12px;padding:22px 32px;color:#FFFFFF;box-shadow:0 16px 34px rgba(8,37,59,.24);margin-bottom:18px;}}
+        .ref-band-block{{border-right:1px solid rgba(255,255,255,.28);padding-right:22px;min-height:86px;}}
+        .ref-band-block:last-child{{border-right:0;}}
+        .ref-band-k{{font-size:11px;color:#B8C9D8;font-weight:800;letter-spacing:.06em;text-transform:uppercase;margin-bottom:10px;}}
+        .ref-hito{{display:flex;align-items:center;gap:14px;}}
+        .ref-hito-code{{font-size:34px;font-weight:900;color:#B8C9D8;line-height:1;}}
+        .ref-hito-name{{font-size:13px;line-height:1.25;color:#FFFFFF;font-weight:650;}}
+        .ref-badge{{display:inline-flex;margin-top:12px;border-radius:4px;padding:5px 12px;background:#14B8A6;color:#FFFFFF;font-size:11px;font-weight:900;}}
+        .ref-critical{{font-size:24px;font-weight:900;color:#FF5B6E;}}
+        .ref-rec{{font-size:13px;line-height:1.45;color:#FFFFFF;max-width:560px;}}
+        .ref-action-badge{{display:inline-flex;margin-top:10px;background:#FBBF24;color:#1F2937;border-radius:4px;padding:5px 13px;font-size:11px;font-weight:900;}}
+        .ref-kpis{{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:14px;margin-bottom:18px;}}
+        .ref-kpi{{background:#FFFFFF;border:1px solid #E2E8F0;border-radius:12px;padding:18px 16px;display:flex;gap:12px;min-height:122px;box-shadow:0 14px 26px rgba(15,23,42,.06);}}
+        .ref-icon{{width:34px;height:34px;border-radius:999px;display:flex;align-items:center;justify-content:center;color:#FFFFFF;font-weight:900;flex:0 0 auto;}}
+        .ref-kpi-label{{font-size:10px;font-weight:900;color:#4D5E76;letter-spacing:.05em;text-transform:uppercase;line-height:1.15;min-height:24px;}}
+        .ref-kpi-value{{font-size:20px;font-weight:900;color:#0B1633;margin-top:12px;white-space:nowrap;}}
+        .ref-kpi-value span{{font-size:10px;color:#64748B;margin-left:5px;font-weight:700;}}
+        .ref-kpi-note{{font-size:11px;color:#64748B;margin-top:7px;line-height:1.25;}}
+        .ref-main{{display:grid;grid-template-columns:1fr 1.8fr;gap:16px;margin-bottom:12px;}}
+        .ref-panel{{background:#FFFFFF;border:1px solid #E2E8F0;border-radius:12px;padding:18px 20px;box-shadow:0 12px 24px rgba(15,23,42,.05);}}
+        .ref-panel-title{{font-size:13px;font-weight:900;color:#23457A;letter-spacing:.04em;text-transform:uppercase;margin-bottom:15px;}}
+        .ref-read{{font-size:13px;line-height:1.65;color:#182A44;}}
+        .ref-scenarios{{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;}}
+        .ref-scenario{{position:relative;border:1.5px solid #E2E8F0;border-radius:10px;background:#FFFFFF;padding:18px 18px 14px 18px;min-height:165px;}}
+        .ref-scenario-head{{display:flex;gap:12px;align-items:center;font-size:14px;color:#0B1633;}}
+        .ref-scenario-head span{{font-size:12px;color:#64748B;font-weight:500;}}
+        .ref-shield{{width:34px;height:34px;border:2px solid;border-radius:999px;display:flex;align-items:center;justify-content:center;font-size:17px;font-weight:900;}}
+        .ref-star{{position:absolute;right:14px;top:12px;color:#1E88E5;font-size:20px;}}
+        .ref-scenario-grid{{display:grid;grid-template-columns:.8fr 1.35fr;gap:16px;margin-top:18px;}}
+        .ref-scenario-grid small{{display:block;font-size:9px;color:#4D5E76;font-weight:900;letter-spacing:.05em;}}
+        .ref-scenario-grid strong{{display:block;font-size:16px;color:#0B1633;margin-top:7px;}}
+        .ref-scenario-grid em{{display:block;font-size:10px;color:#64748B;font-style:normal;margin-top:4px;}}
+        .ref-scenario-grid p{{font-size:11px;line-height:1.35;color:#25364F;margin:7px 0 0 0;}}
+        .ref-risk{{border-top:1px solid #E5EAF0;margin-top:12px;padding-top:9px;font-size:12px;font-weight:900;}}
+        .ref-timeline{{background:#FFFFFF;border:1px solid #E2E8F0;border-radius:12px;padding:14px 18px 18px 18px;margin-bottom:12px;box-shadow:0 12px 24px rgba(15,23,42,.05);}}
+        .ref-stage{{display:grid;grid-template-columns:1.9fr 4.1fr 1.6fr;gap:12px;margin:8px 0 18px 0;}}
+        .ref-stage div{{height:24px;border-radius:3px;font-size:10px;font-weight:900;display:flex;align-items:center;justify-content:center;color:#334155;}}
+        .ref-line{{position:relative;display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:8px;border-top:4px solid #CBD5E1;padding-top:0;margin-top:24px;}}
+        .ref-mile{{text-align:center;position:relative;min-height:118px;}}
+        .ref-node{{width:38px;height:38px;border-radius:999px;color:#FFFFFF;font-weight:900;display:flex;align-items:center;justify-content:center;margin:-21px auto 8px auto;box-shadow:0 7px 14px rgba(15,23,42,.18);}}
+        .ref-mile-title{{font-size:11px;color:#243B53;line-height:1.2;min-height:35px;}}
+        .ref-mile-date{{font-size:10px;color:#64748B;line-height:1.35;margin-top:6px;}}
+        .ref-mile-status{{display:inline-flex;border-radius:4px;padding:4px 8px;font-size:9px;font-weight:900;margin-top:8px;}}
+        .ref-bottom{{display:grid;grid-template-columns:270px 1fr;gap:16px;align-items:start;}}
+        .ref-decisions{{display:grid;gap:10px;}}
+        .ref-decision{{background:#FFFFFF;border:1px solid #F3B4B4;border-radius:10px;padding:13px 14px;display:grid;grid-template-columns:34px 1fr;gap:10px;}}
+        .ref-decision b{{font-size:12px;color:#E11D48;}}
+        .ref-decision p{{font-size:11px;color:#334155;line-height:1.35;margin:3px 0 0 0;}}
+        @media(max-width:1200px){{.ref-kpis{{grid-template-columns:repeat(4,1fr);}}.ref-main,.ref-bottom{{grid-template-columns:1fr;}}}}
+        </style>
+        <div class="ref-wrap">
+          <div class="ref-top">
+            <div>
+              <h2 class="ref-title">Vista Ejecutiva de Hitos y Liberación de Fondos</h2>
+              <div class="ref-sub">Seguimiento PMO del piloto 10 kW: avance técnico, CAPEX pendiente y escenarios de continuidad</div>
+            </div>
+            <div class="ref-actions"><div class="ref-filter">▽ Filtros</div><span>Actualizado: {html.escape(today_label)}</span></div>
+          </div>
+          <div class="ref-band">
+            <div class="ref-band-block">
+              <div class="ref-band-k">Hito actual</div>
+              <div class="ref-hito"><div class="ref-hito-code">{html.escape(current_hito_label)}</div><div class="ref-hito-name">{html.escape(str(current.get("Hito Corto", "-")))}</div></div>
+              <div class="ref-badge">{html.escape(str(current.get("Estado", "-")).upper())}</div>
+            </div>
+            <div class="ref-band-block">
+              <div class="ref-band-k">Próximo hito</div>
+              <div class="ref-hito"><div class="ref-hito-code">{html.escape(next_hito_label)}</div><div class="ref-hito-name">{html.escape(str(next_row.get("Hito Corto", "-")))}</div></div>
+              <div style="font-size:12px;color:#B8C9D8;margin-top:12px;">{format_date(next_row.get("_Inicio", pd.NaT))}</div>
+            </div>
+            <div class="ref-band-block">
+              <div class="ref-band-k">Fecha crítica</div>
+              <div class="ref-critical">{format_date(launch_date)}</div>
+              <div style="font-size:12px;color:#B8C9D8;margin-top:12px;">Puesta en marcha esperada</div>
+            </div>
+            <div class="ref-band-block">
+              <div class="ref-band-k">Recomendación ejecutiva</div>
+              <div class="ref-rec">Priorizar liberación inicial del {html.escape(current_hito_label)} y asegurar fondos de avance para sostener continuidad técnica y evitar desaceleración del cronograma.</div>
+              <div class="ref-action-badge">ACCIÓN REQUERIDA</div>
+            </div>
+          </div>
+          <div class="ref-kpis">
+            {card("CAPEX restante total", format_clp(total), f"{format_pct(total / total) if total else '0,0%'} del total", "$", "#059669")}
+            {card(f"Monto hito actual ({current_hito_label})", format_clp(float(current.get("Monto_CLP", 0) or 0)), f"{format_pct(float(current.get('Monto_CLP', 0) or 0)/total) if total else '0,0%'} del total", "▣", "#2563EB")}
+            {card("Fondos críticos 30 días", format_clp(float(metrics["funds_30"])), "Ventana de decisión inmediata", "◷", "#0284C7")}
+            {card("Fondos críticos 60 días", format_clp(float(metrics["funds_60"])), "Ventana de continuidad", "◔", "#0EA5E9")}
+            {card("% avance técnico ponderado", format_pct(technical_pct), "Avance real vs plan", "⌁", "#2563EB")}
+            {card("Brecha financiera para continuidad", format_clp(float(metrics["breach"])), "Riesgo de desaceleración", "!", "#F59E0B")}
+            {card("Puesta en marcha estimada", format_date(launch_date), "Fecha objetivo del piloto", "⚑", "#64748B")}
+            {card("Riesgo PMO actual", risk, "Atención ejecutiva", "♦", risk_color)}
+          </div>
+          <div class="ref-main">
+            <div class="ref-panel">
+              <div class="ref-panel-title">Lectura ejecutiva del período</div>
+              <div class="ref-read">{html.escape(executive_text)}</div>
+            </div>
+            <div class="ref-panel">
+              <div class="ref-panel-title">Escenarios de liberación de fondos</div>
+              <div class="ref-scenarios">
+                {scenario("Escenario Conservador", "Solo liberación inicial", cons, cons/current_total if current_total else 0, "Continuidad limitada. Riesgo de retrasos en ingeniería y adquisiciones críticas.", "ALTO", "#F59E0B")}
+                {scenario("Escenario Base", "Liberación inicial + avance", base, base/current_total if current_total else 0, "Continuidad técnica controlada. Permite sostener ruta crítica sin interrupciones mayores.", "MEDIO", "#2F80ED", True)}
+                {scenario("Escenario Cierre", "Liberación total del hito", close, 1 if current_total else 0, "Ejecución sin interrupciones. Maximiza probabilidad de puesta en marcha en fecha.", "BAJO", "#10B981")}
+              </div>
+            </div>
+          </div>
+          <div class="ref-timeline">
+            <div class="ref-panel-title">Línea de tiempo ejecutiva H1 → H8</div>
+            <div class="ref-stage"><div style="background:#DDF3F7;">LIBERACIÓN INICIAL</div><div style="background:#FBF0D5;">AVANCE</div><div style="background:#DDF4EA;">CIERRE</div></div>
+            <div class="ref-line">{''.join(timeline_items)}</div>
+          </div>
+          <div class="ref-bottom">
+            <div class="ref-panel">
+              <div class="ref-panel-title">Decisiones requeridas</div>
+              <div class="ref-decisions">
+                <div class="ref-decision"><div class="ref-icon" style="background:#FCA5A5;">▣</div><div><b>Decisión financiera inmediata</b><p>Aprobar liberación inicial del {html.escape(current_hito_label)} por {format_clp(cons)}.</p></div></div>
+                <div class="ref-decision" style="border-color:#FCD34D;"><div class="ref-icon" style="background:#F59E0B;">▣</div><div><b style="color:#D97706;">Decisión técnica pendiente</b><p>Validar dependencias críticas antes de sostener avance del próximo hito.</p></div></div>
+                <div class="ref-decision"><div class="ref-icon" style="background:#FB7185;">!</div><div><b>Riesgo si no se libera financiamiento</b><p>Riesgo de desaceleración, aumento de costos y retraso en puesta en marcha.</p></div></div>
+              </div>
+            </div>
+            <div>
+        """,
         unsafe_allow_html=True,
     )
+    render_hitos_table(df, hito_summary)
+    st.markdown("</div></div></div>", unsafe_allow_html=True)
 
 
 def executive_reading(df: pd.DataFrame, hito_summary: pd.DataFrame) -> dict[str, list[str] | str]:
