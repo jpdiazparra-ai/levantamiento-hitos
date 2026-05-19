@@ -1977,6 +1977,17 @@ def render_hitos_financial_view(
         </div>
         """
 
+    def kpi_group(title: str, color: str, cards: list[str], variant: str = "") -> str:
+        return f"""
+        <div class="kpi-group {variant}" style="--group:{color};">
+          <div class="kpi-group-head">
+            <span></span>
+            <b>{html.escape(title)}</b>
+          </div>
+          <div class="kpi-group-grid">{''.join(cards)}</div>
+        </div>
+        """
+
     def scenario(
         title: str,
         subtitle: str,
@@ -1989,7 +2000,7 @@ def render_hitos_financial_view(
     ) -> str:
         return f"""
         <div class="ref-scenario {'featured' if featured else ''}" style="--scenario:{color};">
-          {'<div class="scenario-star">★</div>' if featured else ''}
+          {'<div class="scenario-tag">Recomendado</div>' if featured else ''}
           <div class="ref-scenario-head">
             <div class="scenario-shield">◇</div>
             <div>
@@ -2008,7 +2019,7 @@ def render_hitos_financial_view(
               <p>{html.escape(impact)}</p>
             </div>
           </div>
-          <div class="scenario-risk" style="color:{color};">RIESGO: {html.escape(risk_label)}</div>
+          <div class="scenario-risk" style="color:{color};">Riesgo residual: {html.escape(risk_label)}</div>
         </div>
         """
 
@@ -2035,6 +2046,33 @@ def render_hitos_financial_view(
         f"El avance técnico ponderado alcanza {format_pct(technical_pct)}, mientras que la liberación financiera estimada se mantiene en "
         f"{format_pct(float(metrics['financial_progress']))}, generando una brecha de continuidad operacional de {format_clp(float(metrics['breach']))}. "
         "Se recomienda priorizar la liberación inicial del hito actual y asegurar fondos de avance para evitar desaceleración en ingeniería, fabricación e integración."
+    )
+    memo_blocks = [
+        (
+            "Diagnóstico",
+            f"CAPEX restante de {format_clp(total)} concentrado en {concentration_txt}; avance técnico ponderado de {format_pct(technical_pct)}.",
+        ),
+        (
+            "Riesgo",
+            f"Brecha de continuidad por {format_clp(float(metrics['breach']))}; riesgo PMO actual {risk.lower()}.",
+        ),
+        (
+            "Decisión requerida",
+            f"Liberar fondos iniciales del {current_hito_label} y asegurar avance para sostener ingeniería e integración.",
+        ),
+        (
+            "Próximo paso",
+            f"Validar condición de liberación del {current_hito_label} y preparar transición hacia {next_hito_label}.",
+        ),
+    ]
+    memo_html = "".join(
+        f"""
+        <div class="memo-row">
+          <b>{html.escape(title)}</b>
+          <p>{html.escape(body)}</p>
+        </div>
+        """
+        for title, body in memo_blocks
     )
     matrix_preview = matrix.sort_values("Hito Orden").copy()
     if matrix_preview.empty:
@@ -2087,41 +2125,55 @@ def render_hitos_financial_view(
         <style>
         *{{box-sizing:border-box;}}
         body{{margin:0;background:transparent;}}
-        .ref-wrap{{background:#F7F9FC;border:1px solid #E1E8EF;border-radius:8px;padding:26px 28px 28px 28px;color:#0B1633;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;}}
-        .ref-top{{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:20px;}}
+        .ref-wrap{{background:#F7F9FC;border:1px solid #E1E8EF;border-radius:8px;padding:22px 26px 24px 26px;color:#0B1633;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;}}
+        .ref-top{{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px;}}
         .ref-title{{font-size:30px;font-weight:900;color:#0B1633;line-height:1.05;margin:0;}}
         .ref-sub{{font-size:14px;color:#607086;margin-top:9px;}}
         .ref-actions{{display:flex;gap:14px;align-items:center;color:#607086;font-size:11px;}}
         .ref-filter{{border:1px solid #D7E0EA;border-radius:7px;background:#FFFFFF;padding:9px 14px;font-weight:800;color:#25364F;}}
-        .ref-band{{display:grid;grid-template-columns:1.25fr 1.35fr 1.05fr 2.85fr;gap:28px;background:linear-gradient(135deg,#08253B,#0B3554);border-radius:16px;padding:26px 34px;color:#FFFFFF;box-shadow:0 18px 38px rgba(8,37,59,.22);margin-bottom:24px;}}
-        .ref-band-block{{border-right:1px solid rgba(255,255,255,.28);padding-right:22px;min-height:86px;}}
+        .ref-band{{display:grid;grid-template-columns:1.15fr 1.15fr 1fr 2.75fr;gap:24px;background:linear-gradient(135deg,#08253B,#0B3554);border-radius:16px;padding:20px 30px;color:#FFFFFF;box-shadow:0 18px 38px rgba(8,37,59,.22);margin-bottom:18px;}}
+        .ref-band-block{{border-right:1px solid rgba(255,255,255,.24);padding-right:20px;min-height:76px;}}
         .ref-band-block:last-child{{border-right:0;}}
         .ref-band-k{{font-size:11px;color:#B8C9D8;font-weight:800;letter-spacing:.06em;text-transform:uppercase;margin-bottom:10px;}}
         .ref-hito{{display:flex;align-items:center;gap:14px;}}
-        .ref-hito-code{{font-size:38px;font-weight:900;color:#B8C9D8;line-height:1;}}
+        .ref-hito-code{{font-size:34px;font-weight:900;color:#B8C9D8;line-height:1;}}
         .ref-hito-name{{font-size:14px;line-height:1.3;color:#FFFFFF;font-weight:650;}}
         .ref-next-date{{font-size:14px;color:#B8C9D8;margin-top:16px;}}
-        .ref-badge{{display:inline-flex;margin-top:12px;border-radius:4px;padding:5px 12px;background:#14B8A6;color:#FFFFFF;font-size:11px;font-weight:900;}}
+        .ref-badge{{display:inline-flex;margin-top:9px;border-radius:999px;padding:5px 12px;background:#14B8A6;color:#FFFFFF;font-size:11px;font-weight:900;}}
         .ref-critical{{font-size:24px;font-weight:900;color:#FF5B6E;display:flex;gap:12px;align-items:center;}}
         .ref-rec{{font-size:13px;line-height:1.45;color:#FFFFFF;max-width:560px;}}
-        .ref-action-badge{{display:inline-flex;margin-top:10px;background:#FBBF24;color:#1F2937;border-radius:4px;padding:5px 13px;font-size:11px;font-weight:900;}}
-        .ref-kpis{{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:14px;margin-bottom:18px;}}
-        .ref-kpi{{position:relative;display:grid;grid-template-columns:44px 1fr;gap:14px;background:#FFFFFF;border:1px solid #E2E8F0;border-radius:14px;padding:20px 16px;min-height:124px;box-shadow:0 12px 24px rgba(15,23,42,.055);overflow:hidden;transition:transform .18s ease,box-shadow .18s ease;}}
+        .ref-action-badge{{display:inline-flex;margin-top:10px;background:#FBBF24;color:#1F2937;border-radius:999px;padding:8px 14px;font-size:12px;font-weight:950;box-shadow:0 10px 20px rgba(251,191,36,.24);}}
+        .ref-kpi-groups{{display:grid;grid-template-columns:1.35fr .95fr .7fr 1fr;gap:14px;margin-bottom:16px;}}
+        .kpi-group{{background:#FFFFFF;border:1px solid #E2E8F0;border-top:3px solid var(--group);border-radius:14px;padding:12px;box-shadow:0 12px 24px rgba(15,23,42,.052);}}
+        .kpi-group.priority{{box-shadow:0 16px 34px rgba(15,23,42,.075);}}
+        .kpi-group-head{{display:flex;align-items:center;gap:8px;margin:0 0 10px 2px;}}
+        .kpi-group-head span{{width:9px;height:9px;border-radius:999px;background:var(--group);display:inline-block;}}
+        .kpi-group-head b{{font-size:12px;color:#25364F;font-weight:850;letter-spacing:0;}}
+        .kpi-group-grid{{display:grid;grid-template-columns:repeat(1,minmax(0,1fr));gap:10px;}}
+        .kpi-group.priority .kpi-group-grid{{grid-template-columns:repeat(3,minmax(0,1fr));}}
+        .kpi-group.urgency .kpi-group-grid,.kpi-group.risk-group .kpi-group-grid{{grid-template-columns:repeat(2,minmax(0,1fr));}}
+        .ref-kpi{{position:relative;display:grid;grid-template-columns:34px 1fr;gap:10px;background:#FBFCFE;border:1px solid #E8EEF5;border-radius:12px;padding:13px 12px;min-height:94px;box-shadow:none;overflow:hidden;transition:transform .18s ease,box-shadow .18s ease;}}
         .ref-kpi::after{{content:"";position:absolute;right:-35px;top:-40px;width:92px;height:92px;background:var(--accent);opacity:.045;border-radius:999px;}}
         .ref-kpi:hover{{transform:translateY(-2px);box-shadow:0 18px 32px rgba(15,23,42,.08);}}
-        .ref-kpi-icon{{width:38px;height:38px;border-radius:999px;background:var(--accent);color:#FFFFFF;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:900;box-shadow:0 10px 18px rgba(15,23,42,.12);}}
-        .ref-kpi-label{{font-size:9px;font-weight:900;color:#41516B;letter-spacing:.055em;text-transform:uppercase;line-height:1.25;min-height:24px;}}
-        .ref-kpi-value{{font-size:18px;font-weight:950;color:#0B1633;line-height:1.1;margin-top:13px;white-space:nowrap;}}
-        .ref-kpi-note{{font-size:10px;color:#64748B;line-height:1.35;margin-top:9px;}}
+        .ref-kpi-icon{{width:31px;height:31px;border-radius:999px;background:var(--accent);color:#FFFFFF;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:900;box-shadow:0 10px 18px rgba(15,23,42,.10);}}
+        .ref-kpi-label{{font-size:10px;font-weight:800;color:#41516B;letter-spacing:0;line-height:1.25;min-height:22px;}}
+        .ref-kpi-value{{font-size:17px;font-weight:950;color:#0B1633;line-height:1.1;margin-top:8px;white-space:nowrap;}}
+        .kpi-group.priority .ref-kpi-value{{font-size:18px;}}
+        .ref-kpi-note{{font-size:10px;color:#52647A;line-height:1.35;margin-top:7px;}}
         .ref-kpi.risk .ref-kpi-value{{color:#E11D48;font-size:20px;letter-spacing:.02em;}}
-        .ref-main{{display:grid;grid-template-columns:1fr 1.45fr;gap:20px;margin-bottom:16px;}}
+        .ref-main{{display:grid;grid-template-columns:.82fr 1.55fr;gap:16px;margin-bottom:14px;align-items:stretch;}}
         .ref-panel{{background:#FFFFFF;border:1px solid #E2E8F0;border-radius:12px;padding:18px 20px;box-shadow:0 12px 24px rgba(15,23,42,.05);}}
-        .ref-panel-title{{font-size:13px;font-weight:900;color:#23457A;letter-spacing:.04em;text-transform:uppercase;margin-bottom:15px;}}
-        .ref-read{{font-size:13px;line-height:1.65;color:#182A44;}}
+        .ref-panel-title{{font-size:14px;font-weight:850;color:#23457A;letter-spacing:0;margin-bottom:14px;}}
+        .memo-card{{background:linear-gradient(145deg,#FFFFFF,#FAFCFF);}}
+        .memo-row{{border-bottom:1px solid #E8EEF5;padding:9px 0;}}
+        .memo-row:first-of-type{{padding-top:0;}}
+        .memo-row:last-child{{border-bottom:0;padding-bottom:0;}}
+        .memo-row b{{display:block;font-size:12px;color:#0B2D42;margin-bottom:4px;}}
+        .memo-row p{{font-size:12px;line-height:1.45;color:#334155;margin:0;}}
         .ref-scenarios{{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;}}
-        .ref-scenario{{position:relative;border:1px solid var(--scenario);border-radius:12px;background:linear-gradient(145deg,#FFFFFF,#FCFEFF);padding:18px 20px 14px 20px;min-height:176px;box-shadow:0 12px 24px rgba(15,23,42,.045);}}
-        .ref-scenario.featured{{box-shadow:0 16px 32px rgba(47,128,237,.12);}}
-        .scenario-star{{position:absolute;right:16px;top:12px;color:#2F80ED;font-size:22px;}}
+        .ref-scenario{{position:relative;border:1px solid var(--scenario);border-radius:12px;background:linear-gradient(145deg,#FFFFFF,#FCFEFF);padding:18px 20px 14px 20px;min-height:190px;box-shadow:0 12px 24px rgba(15,23,42,.045);}}
+        .ref-scenario.featured{{border-width:2px;box-shadow:0 18px 38px rgba(47,128,237,.14);transform:translateY(-2px);}}
+        .scenario-tag{{position:absolute;right:14px;top:12px;background:#DBEAFE;color:#2563EB;border-radius:999px;padding:5px 10px;font-size:10px;font-weight:900;}}
         .ref-scenario-head{{display:flex;gap:13px;align-items:center;color:#0B1633;}}
         .scenario-shield{{width:34px;height:34px;border-radius:999px;border:3px solid var(--scenario);color:var(--scenario);display:flex;align-items:center;justify-content:center;font-weight:900;background:#FFFFFF;}}
         .ref-scenario-head b{{font-size:16px;}}
@@ -2131,7 +2183,7 @@ def render_hitos_financial_view(
         .scenario-body strong{{display:block;font-size:18px;color:#0B1633;}}
         .scenario-body em{{font-style:normal;display:block;font-size:10px;color:#64748B;margin-top:6px;}}
         .scenario-body p{{font-size:11px;line-height:1.42;color:#25364F;margin:0;}}
-        .scenario-risk{{font-size:13px;font-weight:950;margin-top:12px;text-transform:uppercase;}}
+        .scenario-risk{{font-size:12px;font-weight:900;margin-top:12px;}}
         .ref-timeline{{background:#FFFFFF;border:1px solid #E2E8F0;border-radius:12px;padding:14px 18px 18px 18px;margin-bottom:12px;box-shadow:0 12px 24px rgba(15,23,42,.05);}}
         .timeline-head{{display:flex;justify-content:space-between;gap:20px;align-items:center;}}
         .timeline-legend{{display:flex;gap:22px;align-items:center;font-size:11px;color:#334155;}}
@@ -2163,7 +2215,7 @@ def render_hitos_financial_view(
         .matrix-pill.amber{{background:#FEF3C7;color:#D97706;}}
         .matrix-pill.green{{background:#D1FAE5;color:#047857;}}
         .matrix-foot{{font-size:10px;color:#64748B;margin-top:10px;display:flex;gap:28px;align-items:center;}}
-        @media(max-width:1320px){{.ref-kpis{{grid-template-columns:repeat(4,1fr);}}.ref-band{{grid-template-columns:1fr 1fr;}}.ref-band-block:nth-child(2){{border-right:0;}}}}
+        @media(max-width:1320px){{.ref-kpi-groups{{grid-template-columns:1fr 1fr;}}.ref-band{{grid-template-columns:1fr 1fr;}}.ref-band-block:nth-child(2){{border-right:0;}}}}
         @media(max-width:1200px){{.ref-main,.ref-bottom{{grid-template-columns:1fr;}}}}
         </style>
         <div class="ref-wrap">
@@ -2193,30 +2245,38 @@ def render_hitos_financial_view(
             <div class="ref-band-block">
               <div class="ref-band-k">Recomendación ejecutiva</div>
               <div class="ref-rec">Priorizar liberación inicial del {html.escape(current_hito_label)} y asegurar fondos de avance para sostener continuidad técnica y evitar desaceleración del cronograma.</div>
-              <div class="ref-action-badge">ACCIÓN REQUERIDA</div>
+              <div class="ref-action-badge">Liberar fondos iniciales {html.escape(current_hito_label)} para evitar desaceleración técnica</div>
             </div>
           </div>
-          <div class="ref-kpis">
-            {ref_kpi("CAPEX restante total", format_clp(total), f"{format_pct(remaining_share)} del total", "$", "#028C8C")}
-            {ref_kpi(f"Monto hito actual ({current_hito_label})", format_clp(current_total), f"{format_pct(current_share)} del total", "▣", "#2563EB")}
-            {ref_kpi("Fondos críticos 30 días", format_clp(critical_30), f"{hitos_30} hito{'s' if hitos_30 != 1 else ''} en ventana", "◷", "#0B79B7")}
-            {ref_kpi("Fondos críticos 60 días", format_clp(critical_60), f"{hitos_60} hito{'s' if hitos_60 != 1 else ''} en ventana", "◔", "#1295C9")}
-            {ref_kpi("% avance técnico ponderado", format_pct(technical_pct), "Avance real vs plan", "⌁", "#2563EB")}
-            {ref_kpi("Brecha financiera para continuidad", format_clp(float(metrics["breach"])), "Riesgo de desaceleración", "!", "#F59E0B")}
-            {ref_kpi("Puesta en marcha estimada", format_date(launch_date), launch_remaining, "⚑", "#64748B")}
-            {ref_kpi("Riesgo PMO actual", risk, "Atención inmediata" if risk == "ALTO" else "Seguimiento activo", "⬟", risk_color, "risk")}
+          <div class="ref-kpi-groups">
+            {kpi_group("Financiero", "#F59E0B", [
+                ref_kpi("CAPEX restante", format_clp(total), f"{format_pct(remaining_share)} del total", "$", "#0F766E"),
+                ref_kpi(f"Monto {current_hito_label}", format_clp(current_total), f"{format_pct(current_share)} del total", "▣", "#0F766E"),
+                ref_kpi("Brecha financiera", format_clp(float(metrics["breach"])), "Riesgo de desaceleración", "!", "#F59E0B"),
+            ], "priority")}
+            {kpi_group("Urgencia", "#F59E0B", [
+                ref_kpi("Fondos 30 días", format_clp(critical_30), f"{hitos_30} hito{'s' if hitos_30 != 1 else ''} en ventana", "◷", "#F59E0B"),
+                ref_kpi("Fondos 60 días", format_clp(critical_60), f"{hitos_60} hito{'s' if hitos_60 != 1 else ''} en ventana", "◔", "#F59E0B"),
+            ], "urgency")}
+            {kpi_group("Avance", "#2563EB", [
+                ref_kpi("Avance técnico", format_pct(technical_pct), "Avance real vs plan", "⌁", "#2563EB"),
+            ])}
+            {kpi_group("Riesgo", risk_color, [
+                ref_kpi("Puesta en marcha", format_date(launch_date), launch_remaining, "⚑", "#64748B"),
+                ref_kpi("Riesgo PMO", risk, "Atención inmediata" if risk == "ALTO" else "Seguimiento activo", "⬟", risk_color, "risk"),
+            ], "risk-group")}
           </div>
           <div class="ref-main">
-            <div class="ref-panel">
-              <div class="ref-panel-title">Lectura ejecutiva del período</div>
-              <div class="ref-read">{html.escape(executive_text)}</div>
+            <div class="ref-panel memo-card">
+              <div class="ref-panel-title">Memo ejecutivo del período</div>
+              {memo_html}
             </div>
             <div class="ref-panel">
               <div class="ref-panel-title">Escenarios de liberación de fondos</div>
               <div class="ref-scenarios">
-                {scenario("Escenario Conservador", "Solo liberación inicial", cons, (cons / current_total if current_total else 0), "Continuidad limitada. Riesgo de retrasos en ingeniería y adquisiciones críticas.", "ALTO", "#F59E0B")}
-                {scenario("Escenario Base", "Liberación inicial + avance", base, (base / current_total if current_total else 0), "Continuidad técnica controlada. Permite sostener ruta crítica sin interrupciones mayores.", "MEDIO", "#2F80ED", True)}
-                {scenario("Escenario Cierre", "Liberación total del hito", close, (close / current_total if current_total else 0), "Ejecución sin interrupciones. Maximiza probabilidad de puesta en marcha en fecha.", "BAJO", "#10B981")}
+                {scenario("Escenario mínimo", "Solo liberación inicial", cons, (cons / current_total if current_total else 0), "Cubre arranque y continuidad mínima. Riesgo residual alto por avance limitado.", "Alto", "#F59E0B")}
+                {scenario("Escenario base recomendado", "Inicial + avance", base, (base / current_total if current_total else 0), "Cubre ruta técnica crítica y reduce fricción operativa sin financiar cierre completo.", "Medio", "#2F80ED", True)}
+                {scenario("Escenario cierre", "Liberación total del hito", close, (close / current_total if current_total else 0), "Cubre ejecución completa del hito y minimiza interrupciones de puesta en marcha.", "Bajo", "#10B981")}
               </div>
             </div>
           </div>
