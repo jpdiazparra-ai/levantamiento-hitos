@@ -1855,25 +1855,50 @@ def render_hitos_financial_view(df: pd.DataFrame, hito_summary: pd.DataFrame) ->
     risk_color = {"ALTO": "#E11D48", "MEDIO": "#F59E0B", "BAJO": "#10B981"}.get(risk, "#F59E0B")
     technical_pct = float(metrics["technical_progress"])
 
-    def executive_kpi(label: str, value: str, note: str, icon: str, accent: str, variant: str = "") -> str:
+    def ref_kpi(label: str, value: str, note: str, icon: str, accent: str, variant: str = "") -> str:
         return f"""
-        <div class="simple-kpi {variant}" style="--accent:{accent};">
-          <div class="simple-icon">{html.escape(icon)}</div>
-          <div class="simple-label">{html.escape(label)}</div>
-          <div class="simple-value">{html.escape(value)}</div>
-          <div class="simple-note">{html.escape(note)}</div>
+        <div class="ref-kpi {variant}" style="--accent:{accent};">
+          <div class="ref-kpi-icon">{html.escape(icon)}</div>
+          <div class="ref-kpi-copy">
+            <div class="ref-kpi-label">{html.escape(label)}</div>
+            <div class="ref-kpi-value">{html.escape(value)}</div>
+            <div class="ref-kpi-note">{html.escape(note)}</div>
+          </div>
         </div>
         """
 
-    def scenario(title: str, amount: float, impact: str, risk_label: str, color: str) -> str:
+    def scenario(
+        title: str,
+        subtitle: str,
+        amount: float,
+        percent: float,
+        impact: str,
+        risk_label: str,
+        color: str,
+        featured: bool = False,
+    ) -> str:
         return f"""
-        <div class="ref-scenario" style="--scenario:{color};">
+        <div class="ref-scenario {'featured' if featured else ''}" style="--scenario:{color};">
+          {'<div class="scenario-star">★</div>' if featured else ''}
           <div class="ref-scenario-head">
-            <b>{html.escape(title)}</b>
-            <span>Riesgo {html.escape(risk_label)}</span>
+            <div class="scenario-shield">◇</div>
+            <div>
+              <b>{html.escape(title)}</b>
+              <span>{html.escape(subtitle)}</span>
+            </div>
           </div>
-          <strong>{format_clp(amount)}</strong>
-          <p>{html.escape(impact)}</p>
+          <div class="scenario-body">
+            <div>
+              <small>Monto</small>
+              <strong>{format_clp(amount)}</strong>
+              <em>{format_pct(percent)} del hito</em>
+            </div>
+            <div>
+              <small>Implicancia operativa</small>
+              <p>{html.escape(impact)}</p>
+            </div>
+          </div>
+          <div class="scenario-risk" style="color:{color};">RIESGO: {html.escape(risk_label)}</div>
         </div>
         """
 
@@ -1901,6 +1926,54 @@ def render_hitos_financial_view(df: pd.DataFrame, hito_summary: pd.DataFrame) ->
         f"{format_pct(float(metrics['financial_progress']))}, generando una brecha de continuidad operacional de {format_clp(float(metrics['breach']))}. "
         "Se recomienda priorizar la liberación inicial del hito actual y asegurar fondos de avance para evitar desaceleración en ingeniería, fabricación e integración."
     )
+    preview_ids = [current_hito_label, next_hito_label, "H8"]
+    matrix_preview = matrix[matrix["Hito"].isin(preview_ids)].copy()
+    matrix_preview["_preview_order"] = matrix_preview["Hito"].map({hito: idx for idx, hito in enumerate(preview_ids)})
+    matrix_preview = matrix_preview.sort_values(["_preview_order", "Hito Orden"]).drop(columns=["_preview_order"])
+    if matrix_preview.empty:
+        matrix_preview = matrix.sort_values(["Criticidad", "Monto_CLP"], ascending=[True, False]).head(3).copy()
+
+    matrix_rows = []
+    for _, row in matrix_preview.iterrows():
+        state = str(row.get("Estado", "Pendiente"))
+        crit = str(row.get("Criticidad", "Media"))
+        scenario_name = str(row.get("Escenario recomendado", "Base")).upper()
+        state_class = "blue" if state == "En curso" else "gray"
+        crit_class = "red" if crit in {"Alta", "Crítica"} else "amber" if crit == "Media" else "green"
+        scen_class = "green" if scenario_name == "CIERRE" else "blue" if scenario_name == "BASE" else "amber"
+        matrix_rows.append(
+            f"""
+            <tr>
+              <td class="hito-code">{html.escape(str(row.get("Hito", "-")))}</td>
+              <td>{html.escape(str(row.get("Hito ejecutivo", row.get("Hito Ejecutivo", "-"))))}</td>
+              <td>{html.escape(str(row.get("Etapa del hito", "-")))}</td>
+              <td><span class="matrix-pill {state_class}">{html.escape(state.upper())}</span></td>
+              <td><span class="matrix-pill {crit_class}">{html.escape(crit.upper())}</span></td>
+              <td>{html.escape(str(row.get("Inicio", "-")))}</td>
+              <td>{html.escape(str(row.get("Término", row.get("Termino", "-"))))}</td>
+              <td>{html.escape(str(row.get("Duración hábil", row.get("Duracion_habil", "-"))))}</td>
+              <td>{html.escape(str(row.get("Monto total", "-")))}</td>
+              <td>{html.escape(str(row.get("% total", "% Total")))}</td>
+              <td>{html.escape(str(row.get("Liberación Inicial", "-")))}</td>
+              <td>{html.escape(str(row.get("Liberación Avance", "-")))}</td>
+              <td>{html.escape(str(row.get("Liberación Cierre", "-")))}</td>
+              <td>{html.escape(str(row.get("Total Liberación", "-")))}</td>
+              <td>{html.escape(str(row.get("Monto crítico próximo", "-")))}</td>
+              <td><span class="matrix-pill {scen_class}">{html.escape(scenario_name)}</span></td>
+              <td>{html.escape(str(row.get("Decisión requerida", "-")))}</td>
+              <td>{html.escape(str(row.get("Comentario ejecutivo", "-")))}</td>
+            </tr>
+            """
+        )
+    critical_30 = float(metrics.get("funds_30", current_total) or 0)
+    critical_60 = float(metrics.get("funds_60", current_total) or 0)
+    current_share = (current_total / total) if total else 0.0
+    remaining_share = total / (total + float(metrics.get("committed", 0) or 0)) if total else 0.0
+    hitos_30 = int((matrix["_Inicio"].between(pd.Timestamp("today").normalize(), pd.Timestamp("today").normalize() + pd.Timedelta(days=30), inclusive="both")).sum())
+    hitos_60 = int((matrix["_Inicio"].between(pd.Timestamp("today").normalize(), pd.Timestamp("today").normalize() + pd.Timedelta(days=60), inclusive="both")).sum())
+    launch_remaining = "-"
+    if pd.notna(launch_date):
+        launch_remaining = f"{max((pd.Timestamp(launch_date).normalize() - pd.Timestamp('today').normalize()).days, 0)} días restantes"
 
     html_doc = f"""
         <style>
@@ -1912,39 +1985,49 @@ def render_hitos_financial_view(df: pd.DataFrame, hito_summary: pd.DataFrame) ->
         .ref-sub{{font-size:14px;color:#607086;margin-top:9px;}}
         .ref-actions{{display:flex;gap:14px;align-items:center;color:#607086;font-size:11px;}}
         .ref-filter{{border:1px solid #D7E0EA;border-radius:7px;background:#FFFFFF;padding:9px 14px;font-weight:800;color:#25364F;}}
-        .ref-band{{display:grid;grid-template-columns:1.15fr 1fr 2.45fr;gap:28px;background:linear-gradient(135deg,#08253B,#0B3554);border-radius:16px;padding:28px 34px;color:#FFFFFF;box-shadow:0 18px 38px rgba(8,37,59,.22);margin-bottom:24px;}}
+        .ref-band{{display:grid;grid-template-columns:1.25fr 1.35fr 1.05fr 2.85fr;gap:28px;background:linear-gradient(135deg,#08253B,#0B3554);border-radius:16px;padding:26px 34px;color:#FFFFFF;box-shadow:0 18px 38px rgba(8,37,59,.22);margin-bottom:24px;}}
         .ref-band-block{{border-right:1px solid rgba(255,255,255,.28);padding-right:22px;min-height:86px;}}
         .ref-band-block:last-child{{border-right:0;}}
         .ref-band-k{{font-size:11px;color:#B8C9D8;font-weight:800;letter-spacing:.06em;text-transform:uppercase;margin-bottom:10px;}}
         .ref-hito{{display:flex;align-items:center;gap:14px;}}
         .ref-hito-code{{font-size:38px;font-weight:900;color:#B8C9D8;line-height:1;}}
         .ref-hito-name{{font-size:14px;line-height:1.3;color:#FFFFFF;font-weight:650;}}
+        .ref-next-date{{font-size:14px;color:#B8C9D8;margin-top:16px;}}
         .ref-badge{{display:inline-flex;margin-top:12px;border-radius:4px;padding:5px 12px;background:#14B8A6;color:#FFFFFF;font-size:11px;font-weight:900;}}
-        .ref-critical{{font-size:24px;font-weight:900;color:#FF5B6E;}}
+        .ref-critical{{font-size:24px;font-weight:900;color:#FF5B6E;display:flex;gap:12px;align-items:center;}}
         .ref-rec{{font-size:13px;line-height:1.45;color:#FFFFFF;max-width:560px;}}
         .ref-action-badge{{display:inline-flex;margin-top:10px;background:#FBBF24;color:#1F2937;border-radius:4px;padding:5px 13px;font-size:11px;font-weight:900;}}
-        .kpi-row{{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:20px;margin-bottom:24px;}}
-        .simple-kpi{{position:relative;background:#FFFFFF;border:1px solid #E2E8F0;border-radius:18px;padding:26px 26px 24px 26px;min-height:178px;box-shadow:0 18px 34px rgba(15,23,42,.07);overflow:hidden;transition:transform .18s ease,box-shadow .18s ease;}}
-        .simple-kpi::before{{content:"";position:absolute;inset:0;background:linear-gradient(135deg,var(--accent),transparent 42%);opacity:.07;}}
-        .simple-kpi:hover{{transform:translateY(-2px);box-shadow:0 24px 44px rgba(15,23,42,.10);}}
-        .simple-kpi.alert{{background:linear-gradient(145deg,#FFFFFF,#FFF9EC);}}
-        .simple-kpi.risk{{background:linear-gradient(145deg,#FFFFFF,#F8FBFC);box-shadow:0 18px 34px rgba(8,37,59,.09);}}
-        .simple-icon{{position:relative;width:42px;height:42px;border-radius:14px;background:var(--accent);color:#FFFFFF;display:flex;align-items:center;justify-content:center;font-size:19px;font-weight:900;margin-bottom:22px;}}
-        .simple-label{{position:relative;font-size:12px;font-weight:900;color:#52647A;letter-spacing:.08em;text-transform:uppercase;}}
-        .simple-value{{position:relative;font-size:34px;font-weight:950;color:#0B1633;line-height:1;margin-top:13px;white-space:nowrap;}}
-        .simple-note{{position:relative;font-size:14px;color:#607086;line-height:1.4;margin-top:14px;max-width:270px;}}
+        .ref-kpis{{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:14px;margin-bottom:18px;}}
+        .ref-kpi{{position:relative;display:grid;grid-template-columns:44px 1fr;gap:14px;background:#FFFFFF;border:1px solid #E2E8F0;border-radius:14px;padding:20px 16px;min-height:124px;box-shadow:0 12px 24px rgba(15,23,42,.055);overflow:hidden;transition:transform .18s ease,box-shadow .18s ease;}}
+        .ref-kpi::after{{content:"";position:absolute;right:-35px;top:-40px;width:92px;height:92px;background:var(--accent);opacity:.045;border-radius:999px;}}
+        .ref-kpi:hover{{transform:translateY(-2px);box-shadow:0 18px 32px rgba(15,23,42,.08);}}
+        .ref-kpi-icon{{width:38px;height:38px;border-radius:999px;background:var(--accent);color:#FFFFFF;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:900;box-shadow:0 10px 18px rgba(15,23,42,.12);}}
+        .ref-kpi-label{{font-size:9px;font-weight:900;color:#41516B;letter-spacing:.055em;text-transform:uppercase;line-height:1.25;min-height:24px;}}
+        .ref-kpi-value{{font-size:18px;font-weight:950;color:#0B1633;line-height:1.1;margin-top:13px;white-space:nowrap;}}
+        .ref-kpi-note{{font-size:10px;color:#64748B;line-height:1.35;margin-top:9px;}}
+        .ref-kpi.risk .ref-kpi-value{{color:#E11D48;font-size:20px;letter-spacing:.02em;}}
         .ref-main{{display:grid;grid-template-columns:1fr 1.45fr;gap:20px;margin-bottom:16px;}}
         .ref-panel{{background:#FFFFFF;border:1px solid #E2E8F0;border-radius:12px;padding:18px 20px;box-shadow:0 12px 24px rgba(15,23,42,.05);}}
         .ref-panel-title{{font-size:13px;font-weight:900;color:#23457A;letter-spacing:.04em;text-transform:uppercase;margin-bottom:15px;}}
         .ref-read{{font-size:13px;line-height:1.65;color:#182A44;}}
         .ref-scenarios{{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;}}
-        .ref-scenario{{position:relative;border:1px solid #E2E8F0;border-top:3px solid var(--scenario);border-radius:14px;background:#FFFFFF;padding:22px 22px 20px 22px;min-height:172px;box-shadow:0 12px 24px rgba(15,23,42,.045);}}
-        .ref-scenario-head{{display:flex;justify-content:space-between;gap:16px;align-items:center;color:#0B1633;}}
+        .ref-scenario{{position:relative;border:1px solid var(--scenario);border-radius:12px;background:linear-gradient(145deg,#FFFFFF,#FCFEFF);padding:18px 20px 14px 20px;min-height:176px;box-shadow:0 12px 24px rgba(15,23,42,.045);}}
+        .ref-scenario.featured{{box-shadow:0 16px 32px rgba(47,128,237,.12);}}
+        .scenario-star{{position:absolute;right:16px;top:12px;color:#2F80ED;font-size:22px;}}
+        .ref-scenario-head{{display:flex;gap:13px;align-items:center;color:#0B1633;}}
+        .scenario-shield{{width:34px;height:34px;border-radius:999px;border:3px solid var(--scenario);color:var(--scenario);display:flex;align-items:center;justify-content:center;font-weight:900;background:#FFFFFF;}}
         .ref-scenario-head b{{font-size:16px;}}
-        .ref-scenario-head span{{font-size:11px;color:var(--scenario);font-weight:900;text-transform:uppercase;}}
-        .ref-scenario strong{{display:block;font-size:24px;color:#0B1633;margin-top:20px;}}
-        .ref-scenario p{{font-size:13px;line-height:1.45;color:#52647A;margin:14px 0 0 0;}}
+        .ref-scenario-head span{{display:block;font-size:12px;color:#52647A;margin-top:2px;}}
+        .scenario-body{{display:grid;grid-template-columns:.82fr 1fr;gap:18px;margin-top:18px;padding-bottom:14px;border-bottom:1px solid #E2E8F0;}}
+        .scenario-body small{{display:block;font-size:9px;font-weight:900;color:#475569;letter-spacing:.06em;text-transform:uppercase;margin-bottom:6px;}}
+        .scenario-body strong{{display:block;font-size:18px;color:#0B1633;}}
+        .scenario-body em{{font-style:normal;display:block;font-size:10px;color:#64748B;margin-top:6px;}}
+        .scenario-body p{{font-size:11px;line-height:1.42;color:#25364F;margin:0;}}
+        .scenario-risk{{font-size:13px;font-weight:950;margin-top:12px;text-transform:uppercase;}}
         .ref-timeline{{background:#FFFFFF;border:1px solid #E2E8F0;border-radius:12px;padding:14px 18px 18px 18px;margin-bottom:12px;box-shadow:0 12px 24px rgba(15,23,42,.05);}}
+        .timeline-head{{display:flex;justify-content:space-between;gap:20px;align-items:center;}}
+        .timeline-legend{{display:flex;gap:22px;align-items:center;font-size:11px;color:#334155;}}
+        .legend-dot{{display:inline-block;width:12px;height:12px;border-radius:999px;margin-right:6px;vertical-align:-1px;}}
         .ref-stage{{display:grid;grid-template-columns:1.9fr 4.1fr 1.6fr;gap:12px;margin:8px 0 18px 0;}}
         .ref-stage div{{height:24px;border-radius:3px;font-size:10px;font-weight:900;display:flex;align-items:center;justify-content:center;color:#334155;}}
         .ref-line{{position:relative;display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:8px;border-top:4px solid #CBD5E1;padding-top:0;margin-top:24px;}}
@@ -1956,9 +2039,24 @@ def render_hitos_financial_view(df: pd.DataFrame, hito_summary: pd.DataFrame) ->
         .ref-bottom{{display:grid;grid-template-columns:270px 1fr;gap:16px;align-items:start;}}
         .ref-decisions{{display:grid;gap:10px;}}
         .ref-decision{{background:#FFFFFF;border:1px solid #F3B4B4;border-radius:10px;padding:13px 14px;display:grid;grid-template-columns:34px 1fr;gap:10px;}}
+        .ref-icon{{width:30px;height:30px;border-radius:999px;color:#FFFFFF;display:flex;align-items:center;justify-content:center;font-weight:900;}}
         .ref-decision b{{font-size:12px;color:#E11D48;}}
         .ref-decision p{{font-size:11px;color:#334155;line-height:1.35;margin:3px 0 0 0;}}
-        @media(max-width:1200px){{.kpi-row{{grid-template-columns:repeat(2,1fr);}}.ref-main,.ref-bottom{{grid-template-columns:1fr;}}}}
+        .matrix-scroll{{overflow:auto;border:1px solid #E2E8F0;border-radius:10px;}}
+        .pmo-matrix{{width:100%;min-width:1160px;border-collapse:collapse;background:#FFFFFF;font-size:10px;color:#0B1633;}}
+        .pmo-matrix th{{background:#F8FAFC;color:#0B1633;font-size:9px;text-transform:uppercase;letter-spacing:.035em;border-bottom:1px solid #E2E8F0;border-right:1px solid #E2E8F0;padding:11px 10px;text-align:center;}}
+        .pmo-matrix td{{border-bottom:1px solid #E2E8F0;border-right:1px solid #EDF2F7;padding:10px 10px;text-align:center;vertical-align:middle;}}
+        .pmo-matrix td:nth-child(2),.pmo-matrix td:nth-child(17),.pmo-matrix td:nth-child(18){{text-align:left;line-height:1.3;}}
+        .hito-code{{font-size:15px;font-weight:950;color:#0B1633;}}
+        .matrix-pill{{display:inline-flex;border-radius:5px;padding:4px 8px;font-size:9px;font-weight:950;white-space:nowrap;}}
+        .matrix-pill.blue{{background:#DBEAFE;color:#2563EB;}}
+        .matrix-pill.gray{{background:#E2E8F0;color:#64748B;}}
+        .matrix-pill.red{{background:#FEE2E2;color:#E11D48;}}
+        .matrix-pill.amber{{background:#FEF3C7;color:#D97706;}}
+        .matrix-pill.green{{background:#D1FAE5;color:#047857;}}
+        .matrix-foot{{font-size:10px;color:#64748B;margin-top:10px;display:flex;gap:28px;align-items:center;}}
+        @media(max-width:1320px){{.ref-kpis{{grid-template-columns:repeat(4,1fr);}}.ref-band{{grid-template-columns:1fr 1fr;}}.ref-band-block:nth-child(2){{border-right:0;}}}}
+        @media(max-width:1200px){{.ref-main,.ref-bottom{{grid-template-columns:1fr;}}}}
         </style>
         <div class="ref-wrap">
           <div class="ref-top">
@@ -1975,8 +2073,13 @@ def render_hitos_financial_view(df: pd.DataFrame, hito_summary: pd.DataFrame) ->
               <div class="ref-badge">{html.escape(str(current.get("Estado", "-")).upper())}</div>
             </div>
             <div class="ref-band-block">
+              <div class="ref-band-k">Próximo hito</div>
+              <div class="ref-hito"><div class="ref-hito-code">{html.escape(next_hito_label)}</div><div class="ref-hito-name">{html.escape(str(next_row.get("Hito Corto", "-")))}</div></div>
+              <div class="ref-next-date">{html.escape(str(next_row.get("Inicio", "-")))}</div>
+            </div>
+            <div class="ref-band-block">
               <div class="ref-band-k">Puesta en marcha</div>
-              <div class="ref-critical">{format_date(launch_date)}</div>
+              <div class="ref-critical"><span>▦</span>{format_date(launch_date)}</div>
               <div style="font-size:12px;color:#B8C9D8;margin-top:12px;">Fecha estimada de continuidad operacional</div>
             </div>
             <div class="ref-band-block">
@@ -1985,11 +2088,15 @@ def render_hitos_financial_view(df: pd.DataFrame, hito_summary: pd.DataFrame) ->
               <div class="ref-action-badge">ACCIÓN REQUERIDA</div>
             </div>
           </div>
-          <div class="kpi-row">
-            {executive_kpi("CAPEX restante", format_clp(total), "Capital requerido para continuidad operacional.", "$", "#0B2D42")}
-            {executive_kpi("Brecha financiera", format_clp(float(metrics["breach"])), "Capital pendiente para sostener ejecución.", "!", "#F59E0B", "alert")}
-            {executive_kpi("Riesgo PMO", risk, "Lectura ejecutiva de continuidad y financiamiento.", "◆", risk_color, "risk")}
-            {executive_kpi("Puesta en marcha", format_date(launch_date), "Fecha estimada de cierre operativo.", "⚑", "#0F766E")}
+          <div class="ref-kpis">
+            {ref_kpi("CAPEX restante total", format_clp(total), f"{format_pct(remaining_share)} del total", "$", "#028C8C")}
+            {ref_kpi(f"Monto hito actual ({current_hito_label})", format_clp(current_total), f"{format_pct(current_share)} del total", "▣", "#2563EB")}
+            {ref_kpi("Fondos críticos 30 días", format_clp(critical_30), f"{hitos_30} hito{'s' if hitos_30 != 1 else ''} en ventana", "◷", "#0B79B7")}
+            {ref_kpi("Fondos críticos 60 días", format_clp(critical_60), f"{hitos_60} hito{'s' if hitos_60 != 1 else ''} en ventana", "◔", "#1295C9")}
+            {ref_kpi("% avance técnico ponderado", format_pct(technical_pct), "Avance real vs plan", "⌁", "#2563EB")}
+            {ref_kpi("Brecha financiera para continuidad", format_clp(float(metrics["breach"])), "Riesgo de desaceleración", "!", "#F59E0B")}
+            {ref_kpi("Puesta en marcha estimada", format_date(launch_date), launch_remaining, "⚑", "#64748B")}
+            {ref_kpi("Riesgo PMO actual", risk, "Atención inmediata" if risk == "ALTO" else "Seguimiento activo", "⬟", risk_color, "risk")}
           </div>
           <div class="ref-main">
             <div class="ref-panel">
@@ -1999,14 +2106,22 @@ def render_hitos_financial_view(df: pd.DataFrame, hito_summary: pd.DataFrame) ->
             <div class="ref-panel">
               <div class="ref-panel-title">Escenarios de liberación de fondos</div>
               <div class="ref-scenarios">
-                {scenario("Conservador", cons, "Continuidad limitada.", "ALTO", "#F59E0B")}
-                {scenario("Base", base, "Continuidad técnica controlada.", "MEDIO", "#0F766E")}
-                {scenario("Cierre", close, "Ejecución sin interrupciones.", "BAJO", "#0B2D42")}
+                {scenario("Escenario Conservador", "Solo liberación inicial", cons, (cons / current_total if current_total else 0), "Continuidad limitada. Riesgo de retrasos en ingeniería y adquisiciones críticas.", "ALTO", "#F59E0B")}
+                {scenario("Escenario Base", "Liberación inicial + avance", base, (base / current_total if current_total else 0), "Continuidad técnica controlada. Permite sostener ruta crítica sin interrupciones mayores.", "MEDIO", "#2F80ED", True)}
+                {scenario("Escenario Cierre", "Liberación total del hito", close, (close / current_total if current_total else 0), "Ejecución sin interrupciones. Maximiza probabilidad de puesta en marcha en fecha.", "BAJO", "#10B981")}
               </div>
             </div>
           </div>
           <div class="ref-timeline">
-            <div class="ref-panel-title">Línea de tiempo ejecutiva H1 → H8</div>
+            <div class="timeline-head">
+              <div class="ref-panel-title">Línea de tiempo ejecutiva H1 → H8</div>
+              <div class="timeline-legend">
+                <span><i class="legend-dot" style="background:#10B981;"></i>Ejecutado</span>
+                <span><i class="legend-dot" style="background:#2F80ED;"></i>En curso</span>
+                <span><i class="legend-dot" style="background:#94A3B8;"></i>Pendiente</span>
+                <span><i class="legend-dot" style="background:#EF4444;"></i>Crítico</span>
+              </div>
+            </div>
             <div class="ref-stage"><div style="background:#DDF3F7;">LIBERACIÓN INICIAL</div><div style="background:#FBF0D5;">AVANCE</div><div style="background:#DDF4EA;">CIERRE</div></div>
             <div class="ref-line">{''.join(timeline_items)}</div>
           </div>
@@ -2021,16 +2136,27 @@ def render_hitos_financial_view(df: pd.DataFrame, hito_summary: pd.DataFrame) ->
             </div>
             <div class="ref-panel">
               <div class="ref-panel-title">Matriz PMO de hitos</div>
-              <div style="font-size:13px;line-height:1.55;color:#334155;">
-                La matriz detallada se muestra bajo este panel para mantener lectura ejecutiva limpia y tabla interactiva.
+              <div class="matrix-scroll">
+                <table class="pmo-matrix">
+                  <thead>
+                    <tr>
+                      <th>Hito</th><th>Hito ejecutivo</th><th>Etapa</th><th>Estado</th><th>Criticidad</th>
+                      <th>Inicio</th><th>Término</th><th>Dur. hábil</th><th>Monto restante CLP</th><th>% total</th>
+                      <th>Inicial</th><th>Avance</th><th>Cierre</th><th>Total</th><th>Monto crítico próximo</th>
+                      <th>Escenario recomendado</th><th>Decisión requerida</th><th>Comentario ejecutivo</th>
+                    </tr>
+                  </thead>
+                  <tbody>{''.join(matrix_rows)}</tbody>
+                </table>
               </div>
+              <div class="matrix-foot"><span>Criticidad: <b style="color:#E11D48;">● Alta</b> <b style="color:#F59E0B;">● Media</b> <b style="color:#10B981;">● Baja</b></span><span>Escenario recomendado calculado según criticidad e impacto en puesta en marcha.</span></div>
             </div>
           </div>
         </div>
         """
-    components.html(html_doc, height=980, scrolling=True)
-    st.markdown("#### Matriz PMO de hitos")
-    render_hitos_table(df, hito_summary)
+    components.html(html_doc, height=1120, scrolling=True)
+    with st.expander("Ver matriz PMO completa", expanded=False):
+        render_hitos_table(df, hito_summary)
 
 
 def executive_reading(df: pd.DataFrame, hito_summary: pd.DataFrame) -> dict[str, list[str] | str]:
