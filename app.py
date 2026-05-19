@@ -1993,14 +1993,20 @@ def render_hitos_financial_view(
         subtitle: str,
         amount: float,
         percent: float,
-        impact: str,
-        risk_label: str,
+        bullets: list[str],
+        delay_risk: str,
+        runway: str,
         color: str,
         featured: bool = False,
     ) -> str:
+        coverage = min(max(percent * 100, 0), 100)
+        initial_on = percent > 0
+        advance_on = percent >= 0.50
+        close_on = percent >= 0.99
+        bullet_html = "".join(f"<li>{html.escape(item)}</li>" for item in bullets[:3])
         return f"""
         <div class="ref-scenario {'featured' if featured else ''}" style="--scenario:{color};">
-          {'<div class="scenario-tag">Recomendado</div>' if featured else ''}
+          {'<div class="scenario-tag">RECOMENDADO</div>' if featured else ''}
           <div class="ref-scenario-head">
             <div class="scenario-shield">◇</div>
             <div>
@@ -2008,18 +2014,22 @@ def render_hitos_financial_view(
               <span>{html.escape(subtitle)}</span>
             </div>
           </div>
-          <div class="scenario-body">
-            <div>
-              <small>Monto</small>
-              <strong>{format_clp(amount)}</strong>
-              <em>{format_pct(percent)} del hito</em>
-            </div>
-            <div>
-              <small>Implicancia operativa</small>
-              <p>{html.escape(impact)}</p>
-            </div>
+          <div class="scenario-amount">{format_clp(amount)}</div>
+          <div class="scenario-metrics">
+            <div><span>{coverage:.0f}%</span><small>continuidad</small></div>
+            <div><span>{html.escape(delay_risk)}</span><small>riesgo retraso</small></div>
+            <div><span>{html.escape(runway)}</span><small>runway</small></div>
           </div>
-          <div class="scenario-risk" style="color:{color};">Riesgo residual: {html.escape(risk_label)}</div>
+          <div class="scenario-coverage">
+            <div class="coverage-label"><span>Cobertura operacional</span><b>{coverage:.0f}%</b></div>
+            <div class="coverage-track"><div style="width:{coverage:.0f}%;background:{color};"></div></div>
+          </div>
+          <div class="scenario-mini-timeline">
+            <span class="{'on' if initial_on else ''}">Inicial</span>
+            <span class="{'on' if advance_on else ''}">Avance</span>
+            <span class="{'on' if close_on else ''}">Cierre</span>
+          </div>
+          <ul class="scenario-bullets">{bullet_html}</ul>
         </div>
         """
 
@@ -2194,20 +2204,29 @@ def render_hitos_financial_view(
         .memo-row:last-child{{border-bottom:0;padding-bottom:0;}}
         .memo-row b{{display:block;font-size:12px;color:#0B2D42;margin-bottom:4px;}}
         .memo-row p{{font-size:12px;line-height:1.45;color:#334155;margin:0;}}
-        .ref-scenarios{{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;}}
-        .ref-scenario{{position:relative;border:1px solid var(--scenario);border-radius:12px;background:linear-gradient(145deg,#FFFFFF,#FCFEFF);padding:18px 20px 14px 20px;min-height:190px;box-shadow:0 12px 24px rgba(15,23,42,.045);}}
-        .ref-scenario.featured{{border-width:2px;box-shadow:0 18px 38px rgba(47,128,237,.14);transform:translateY(-2px);}}
-        .scenario-tag{{position:absolute;right:14px;top:12px;background:#DBEAFE;color:#2563EB;border-radius:999px;padding:5px 10px;font-size:10px;font-weight:900;}}
+        .ref-scenarios{{display:grid;grid-template-columns:.92fr 1.18fr .92fr;gap:16px;align-items:stretch;}}
+        .ref-scenario{{position:relative;border:1px solid #DCE6F0;border-top:4px solid var(--scenario);border-radius:14px;background:linear-gradient(145deg,#FFFFFF,#FCFEFF);padding:16px 18px 14px 18px;min-height:244px;box-shadow:0 12px 24px rgba(15,23,42,.045);}}
+        .ref-scenario.featured{{border:2px solid #2F80ED;border-top-width:4px;box-shadow:0 0 0 5px rgba(47,128,237,.10),0 24px 52px rgba(47,128,237,.22);transform:translateY(-5px);}}
+        .scenario-tag{{position:absolute;right:14px;top:12px;background:#2F80ED;color:#FFFFFF;border-radius:999px;padding:6px 11px;font-size:10px;font-weight:950;letter-spacing:.02em;box-shadow:0 9px 18px rgba(47,128,237,.22);}}
         .ref-scenario-head{{display:flex;gap:13px;align-items:center;color:#0B1633;}}
         .scenario-shield{{width:34px;height:34px;border-radius:999px;border:3px solid var(--scenario);color:var(--scenario);display:flex;align-items:center;justify-content:center;font-weight:900;background:#FFFFFF;}}
         .ref-scenario-head b{{font-size:16px;}}
         .ref-scenario-head span{{display:block;font-size:12px;color:#52647A;margin-top:2px;}}
-        .scenario-body{{display:grid;grid-template-columns:.82fr 1fr;gap:18px;margin-top:18px;padding-bottom:14px;border-bottom:1px solid #E2E8F0;}}
-        .scenario-body small{{display:block;font-size:9px;font-weight:900;color:#475569;letter-spacing:.06em;text-transform:uppercase;margin-bottom:6px;}}
-        .scenario-body strong{{display:block;font-size:18px;color:#0B1633;}}
-        .scenario-body em{{font-style:normal;display:block;font-size:10px;color:#64748B;margin-top:6px;}}
-        .scenario-body p{{font-size:11px;line-height:1.42;color:#25364F;margin:0;}}
-        .scenario-risk{{font-size:12px;font-weight:900;margin-top:12px;}}
+        .scenario-amount{{font-size:23px;color:#0B1633;font-weight:950;margin-top:15px;letter-spacing:-.01em;}}
+        .scenario-metrics{{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:12px;}}
+        .scenario-metrics div{{background:#F8FAFC;border:1px solid #E8EEF5;border-radius:9px;padding:8px 7px;}}
+        .scenario-metrics span{{display:block;font-size:13px;font-weight:950;color:#0B1633;line-height:1.1;white-space:nowrap;}}
+        .scenario-metrics small{{display:block;font-size:9px;color:#64748B;margin-top:4px;line-height:1.15;}}
+        .scenario-coverage{{margin-top:13px;}}
+        .coverage-label{{display:flex;justify-content:space-between;align-items:center;font-size:10px;color:#52647A;font-weight:800;}}
+        .coverage-label b{{color:#0B1633;}}
+        .coverage-track{{height:8px;background:#E2E8F0;border-radius:999px;overflow:hidden;margin-top:6px;}}
+        .coverage-track div{{height:100%;border-radius:999px;box-shadow:0 7px 14px rgba(15,23,42,.12);}}
+        .scenario-mini-timeline{{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin-top:12px;}}
+        .scenario-mini-timeline span{{height:24px;border-radius:999px;background:#EDF2F7;color:#64748B;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:850;}}
+        .scenario-mini-timeline span.on{{background:#FFFFFF;color:var(--scenario);box-shadow:inset 0 0 0 1px var(--scenario);}}
+        .scenario-bullets{{margin:12px 0 0 0;padding-left:16px;color:#25364F;font-size:11px;line-height:1.42;}}
+        .scenario-bullets li{{margin:3px 0;}}
         .ref-timeline{{background:#FFFFFF;border:1px solid #E2E8F0;border-radius:12px;padding:16px 18px 18px 18px;margin-bottom:12px;box-shadow:0 12px 24px rgba(15,23,42,.05);overflow:visible;}}
         .timeline-head{{display:flex;justify-content:space-between;gap:20px;align-items:center;}}
         .timeline-legend{{display:flex;gap:22px;align-items:center;font-size:11px;color:#334155;}}
@@ -2309,9 +2328,9 @@ def render_hitos_financial_view(
             <div class="ref-panel">
               <div class="ref-panel-title">Escenarios de liberación de fondos</div>
               <div class="ref-scenarios">
-                {scenario("Escenario mínimo", "Solo liberación inicial", cons, (cons / current_total if current_total else 0), "Cubre arranque y continuidad mínima. Riesgo residual alto por avance limitado.", "Alto", "#F59E0B")}
-                {scenario("Escenario base recomendado", "Inicial + avance", base, (base / current_total if current_total else 0), "Cubre ruta técnica crítica y reduce fricción operativa sin financiar cierre completo.", "Medio", "#2F80ED", True)}
-                {scenario("Escenario cierre", "Liberación total del hito", close, (close / current_total if current_total else 0), "Cubre ejecución completa del hito y minimiza interrupciones de puesta en marcha.", "Bajo", "#10B981")}
+                {scenario("Escenario mínimo", "Solo liberación inicial", cons, (cons / current_total if current_total else 0), ["Activa continuidad mínima", "No cubre avance técnico", "Requiere control semanal"], "Alto", "30 días", "#F59E0B")}
+                {scenario("Escenario base recomendado", "Inicial + avance", base, (base / current_total if current_total else 0), ["Cubre ruta técnica crítica", "Reduce riesgo de pausa", "Sostiene ejecución PMO"], "Medio", "60 días", "#2F80ED", True)}
+                {scenario("Escenario cierre", "Liberación total del hito", close, (close / current_total if current_total else 0), ["Cubre cierre completo", "Minimiza interrupciones", "Asegura continuidad operacional"], "Bajo", "90+ días", "#10B981")}
               </div>
             </div>
           </div>
