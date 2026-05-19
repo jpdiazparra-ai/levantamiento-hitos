@@ -2388,32 +2388,11 @@ def main() -> None:
         st.warning("No se pudo cargar la fuente financiera de Matriz PMO; se usará el resumen calculado del cronograma.")
         st.caption(str(exc))
 
-    st.markdown("<div class='pill'>Controles ejecutivos</div>", unsafe_allow_html=True)
-    fc1, fc2, fc3, fc4, fc5 = st.columns([1.4, 2.2, 1.3, 1.4, 1.1])
-    with fc1:
-        selected_sources = st.multiselect(
-            "Fuente",
-            sorted(df["Fuente"].unique()),
-            default=sorted(df["Fuente"].unique()),
-            label_visibility="collapsed",
-            placeholder="Fuente",
-        )
-    with fc2:
-        selected_hitos = st.multiselect(
-            "Hitos",
-            DISPLAY_MILESTONES,
-            default=DISPLAY_MILESTONES,
-            label_visibility="collapsed",
-            placeholder="Hitos",
-        )
-    with fc3:
-        criticidad_options = ["Todas"] + sorted(df["Criticidad"].unique())
-        selected_criticidad = st.selectbox("Criticidad", criticidad_options, label_visibility="collapsed")
-    with fc4:
-        zoom_timeline = st.selectbox("Zoom", ["4 meses", "60 días", "30 días"], label_visibility="collapsed")
-    with fc5:
-        show_pending = st.toggle("Pendientes", value=True)
-
+    selected_sources = sorted(df["Fuente"].unique())
+    selected_hitos = DISPLAY_MILESTONES
+    selected_criticidad = "Todas"
+    zoom_timeline = "4 meses"
+    show_pending = True
     selected_states = sorted(df["Estado"].unique())
 
     filtered = df[
@@ -2430,17 +2409,6 @@ def main() -> None:
         st.warning("No hay actividades para los filtros seleccionados.")
         st.stop()
 
-    render_premium_kpis(filtered)
-
-    pending_count = int(filtered["Pendiente programación"].sum())
-    corrected_count = int(filtered["Fecha corregida"].sum())
-    chips = [
-        f"<span class='pill'>Pendientes de programacion: {pending_count}</span>",
-        f"<span class='pill'>Fechas corregidas automaticamente: {corrected_count}</span>",
-        "<span class='pill'>Horizonte visual: 4 meses</span>",
-        f"<span class='pill'>Vista riesgo: {html.escape(selected_criticidad)}</span>",
-    ]
-    st.markdown("".join(chips), unsafe_allow_html=True)
     hito_summary = make_hito_summary(filtered)
 
     st.subheader("Roadmap y Gantt ejecutivo")
