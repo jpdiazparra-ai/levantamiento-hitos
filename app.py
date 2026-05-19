@@ -2036,12 +2036,9 @@ def render_hitos_financial_view(
         f"{format_pct(float(metrics['financial_progress']))}, generando una brecha de continuidad operacional de {format_clp(float(metrics['breach']))}. "
         "Se recomienda priorizar la liberación inicial del hito actual y asegurar fondos de avance para evitar desaceleración en ingeniería, fabricación e integración."
     )
-    preview_ids = [current_hito_label, next_hito_label, "H8"]
-    matrix_preview = matrix[matrix["Hito"].isin(preview_ids)].copy()
-    matrix_preview["_preview_order"] = matrix_preview["Hito"].map({hito: idx for idx, hito in enumerate(preview_ids)})
-    matrix_preview = matrix_preview.sort_values(["_preview_order", "Hito Orden"]).drop(columns=["_preview_order"])
+    matrix_preview = matrix.sort_values("Hito Orden").copy()
     if matrix_preview.empty:
-        matrix_preview = matrix.sort_values(["Criticidad", "Monto_CLP"], ascending=[True, False]).head(3).copy()
+        matrix_preview = matrix.sort_values(["Criticidad", "Monto_CLP"], ascending=[True, False]).copy()
 
     matrix_rows = []
     for _, row in matrix_preview.iterrows():
@@ -2265,7 +2262,7 @@ def render_hitos_financial_view(
           </div>
         </div>
         """
-    components.html(html_doc, height=1120, scrolling=True)
+    components.html(html_doc, height=1280, scrolling=True)
     with st.expander("Ver matriz PMO completa", expanded=False):
         render_hitos_table(df, hito_summary, pmo_source)
 
