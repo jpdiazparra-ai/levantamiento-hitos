@@ -1855,14 +1855,41 @@ def render_hitos_financial_view(df: pd.DataFrame, hito_summary: pd.DataFrame) ->
     risk_color = {"ALTO": "#E11D48", "MEDIO": "#F59E0B", "BAJO": "#10B981"}.get(risk, "#F59E0B")
     technical_pct = float(metrics["technical_progress"])
 
-    def card(label: str, value: str, note: str, icon: str, accent: str = "#0F766E") -> str:
+    today = pd.Timestamp("today").normalize()
+    launch_days = business_days(today, launch_date) if pd.notna(pd.to_datetime(launch_date, errors="coerce")) else 0
+    runway_days = business_days(today, horizon_dates(df)[1])
+
+    def intel_card(
+        label: str,
+        value: str,
+        note: str,
+        icon: str,
+        accent: str,
+        state: str,
+        trend: str,
+        progress: float,
+        variant: str = "",
+        unit: str = "",
+    ) -> str:
+        progress_pct = max(0, min(100, int(progress * 100)))
+        spark_seed = max(8, min(92, progress_pct))
+        spark_values = [22, 34, 28, 46, 39, spark_seed, min(96, spark_seed + 8)]
+        spark = "".join(f"<i style='height:{height}%;'></i>" for height in spark_values)
+        trend_class = "up" if "▲" in trend else "down" if "▼" in trend else "flat"
         return f"""
-        <div class="ref-kpi">
-          <div class="ref-icon" style="background:{accent};">{html.escape(icon)}</div>
-          <div>
-            <div class="ref-kpi-label">{html.escape(label)}</div>
-            <div class="ref-kpi-value">{html.escape(value)} <span>{'CLP' if '$' in value else ''}</span></div>
-            <div class="ref-kpi-note">{html.escape(note)}</div>
+        <div class="eic-card {variant}" style="--accent:{accent};">
+          <div class="eic-top">
+            <div class="eic-icon">{html.escape(icon)}</div>
+            <div class="eic-state">{html.escape(state)}</div>
+          </div>
+          <div class="eic-label">{html.escape(label)}</div>
+          <div class="eic-value">{html.escape(value)} <span>{html.escape(unit)}</span></div>
+          <div class="eic-note">{html.escape(note)}</div>
+          <div class="eic-spark">{spark}</div>
+          <div class="eic-progress"><b style="width:{progress_pct}%;"></b></div>
+          <div class="eic-foot">
+            <span class="{trend_class}">{html.escape(trend)}</span>
+            <em>{progress_pct}% señal PMO</em>
           </div>
         </div>
         """
@@ -1930,13 +1957,31 @@ def render_hitos_financial_view(df: pd.DataFrame, hito_summary: pd.DataFrame) ->
         .ref-critical{{font-size:24px;font-weight:900;color:#FF5B6E;}}
         .ref-rec{{font-size:13px;line-height:1.45;color:#FFFFFF;max-width:560px;}}
         .ref-action-badge{{display:inline-flex;margin-top:10px;background:#FBBF24;color:#1F2937;border-radius:4px;padding:5px 13px;font-size:11px;font-weight:900;}}
-        .ref-kpis{{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:14px;margin-bottom:18px;}}
-        .ref-kpi{{background:#FFFFFF;border:1px solid #E2E8F0;border-radius:12px;padding:18px 16px;display:flex;gap:12px;min-height:122px;box-shadow:0 14px 26px rgba(15,23,42,.06);}}
-        .ref-icon{{width:34px;height:34px;border-radius:999px;display:flex;align-items:center;justify-content:center;color:#FFFFFF;font-weight:900;flex:0 0 auto;}}
-        .ref-kpi-label{{font-size:10px;font-weight:900;color:#4D5E76;letter-spacing:.05em;text-transform:uppercase;line-height:1.15;min-height:24px;}}
-        .ref-kpi-value{{font-size:20px;font-weight:900;color:#0B1633;margin-top:12px;white-space:nowrap;}}
-        .ref-kpi-value span{{font-size:10px;color:#64748B;margin-left:5px;font-weight:700;}}
-        .ref-kpi-note{{font-size:11px;color:#64748B;margin-top:7px;line-height:1.25;}}
+        .eic-wrap{{display:grid;gap:14px;margin-bottom:18px;}}
+        .eic-critical{{display:grid;grid-template-columns:1.4fr 1.25fr .95fr;gap:14px;}}
+        .eic-secondary,.eic-state-grid{{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;}}
+        .eic-card{{position:relative;overflow:hidden;background:linear-gradient(145deg,rgba(255,255,255,.94),rgba(248,251,253,.88));border:1px solid rgba(211,222,232,.92);border-radius:16px;padding:18px 18px 16px 18px;min-height:150px;box-shadow:0 18px 34px rgba(15,23,42,.08);transition:transform .18s ease,box-shadow .18s ease,border-color .18s ease;}}
+        .eic-card::before{{content:"";position:absolute;inset:0;background:radial-gradient(circle at top right,var(--accent),transparent 30%);opacity:.09;pointer-events:none;}}
+        .eic-card:hover{{transform:translateY(-2px);box-shadow:0 22px 42px rgba(15,23,42,.12);border-color:color-mix(in srgb,var(--accent) 42%,#D8E2EA);}}
+        .eic-card.critical{{min-height:186px;padding:21px 22px 18px 22px;}}
+        .eic-card.critical .eic-value{{font-size:31px;}}
+        .eic-card.risk{{background:linear-gradient(145deg,rgba(255,255,255,.96),rgba(255,245,247,.82));box-shadow:0 18px 34px rgba(225,29,72,.10);}}
+        .eic-card.amber{{background:linear-gradient(145deg,rgba(255,255,255,.96),rgba(255,248,231,.88));box-shadow:0 18px 34px rgba(245,158,11,.10);}}
+        .eic-top{{display:flex;align-items:center;justify-content:space-between;position:relative;z-index:1;}}
+        .eic-icon{{width:36px;height:36px;border-radius:12px;background:linear-gradient(135deg,var(--accent),#0B2D42);color:#FFFFFF;display:flex;align-items:center;justify-content:center;font-size:17px;font-weight:900;box-shadow:0 10px 20px color-mix(in srgb,var(--accent) 28%,transparent);}}
+        .eic-state{{border:1px solid color-mix(in srgb,var(--accent) 32%,#DCE5EC);background:rgba(255,255,255,.72);color:#334155;border-radius:999px;padding:5px 9px;font-size:10px;font-weight:900;letter-spacing:.04em;text-transform:uppercase;}}
+        .eic-label{{position:relative;z-index:1;margin-top:14px;font-size:10px;font-weight:900;color:#4D5E76;letter-spacing:.08em;text-transform:uppercase;line-height:1.15;}}
+        .eic-value{{position:relative;z-index:1;font-size:24px;font-weight:950;color:#0B1633;line-height:1.05;margin-top:9px;white-space:nowrap;}}
+        .eic-value span{{font-size:10px;color:#64748B;margin-left:6px;font-weight:800;}}
+        .eic-note{{position:relative;z-index:1;font-size:12px;color:#64748B;line-height:1.35;margin-top:8px;min-height:31px;}}
+        .eic-spark{{height:28px;display:flex;align-items:flex-end;gap:4px;margin-top:12px;position:relative;z-index:1;}}
+        .eic-spark i{{width:100%;max-width:18px;border-radius:999px;background:linear-gradient(180deg,color-mix(in srgb,var(--accent) 76%,#FFFFFF),rgba(148,163,184,.28));opacity:.86;}}
+        .eic-progress{{height:5px;border-radius:999px;background:#E8EEF4;overflow:hidden;margin-top:12px;position:relative;z-index:1;}}
+        .eic-progress b{{display:block;height:100%;border-radius:999px;background:linear-gradient(90deg,var(--accent),#14B8A6);}}
+        .eic-foot{{display:flex;justify-content:space-between;gap:10px;margin-top:9px;font-size:11px;position:relative;z-index:1;}}
+        .eic-foot span{{font-weight:900;}}
+        .eic-foot .up{{color:#059669;}}.eic-foot .down{{color:#E11D48;}}.eic-foot .flat{{color:#64748B;}}
+        .eic-foot em{{font-style:normal;color:#7A8797;}}
         .ref-main{{display:grid;grid-template-columns:1fr 1.8fr;gap:16px;margin-bottom:12px;}}
         .ref-panel{{background:#FFFFFF;border:1px solid #E2E8F0;border-radius:12px;padding:18px 20px;box-shadow:0 12px 24px rgba(15,23,42,.05);}}
         .ref-panel-title{{font-size:13px;font-weight:900;color:#23457A;letter-spacing:.04em;text-transform:uppercase;margin-bottom:15px;}}
@@ -1967,7 +2012,7 @@ def render_hitos_financial_view(df: pd.DataFrame, hito_summary: pd.DataFrame) ->
         .ref-decision{{background:#FFFFFF;border:1px solid #F3B4B4;border-radius:10px;padding:13px 14px;display:grid;grid-template-columns:34px 1fr;gap:10px;}}
         .ref-decision b{{font-size:12px;color:#E11D48;}}
         .ref-decision p{{font-size:11px;color:#334155;line-height:1.35;margin:3px 0 0 0;}}
-        @media(max-width:1200px){{.ref-kpis{{grid-template-columns:repeat(4,1fr);}}.ref-main,.ref-bottom{{grid-template-columns:1fr;}}}}
+        @media(max-width:1200px){{.eic-critical,.eic-secondary,.eic-state-grid{{grid-template-columns:1fr;}}.ref-main,.ref-bottom{{grid-template-columns:1fr;}}}}
         </style>
         <div class="ref-wrap">
           <div class="ref-top">
@@ -1999,15 +2044,22 @@ def render_hitos_financial_view(df: pd.DataFrame, hito_summary: pd.DataFrame) ->
               <div class="ref-action-badge">ACCIÓN REQUERIDA</div>
             </div>
           </div>
-          <div class="ref-kpis">
-            {card("CAPEX restante total", format_clp(total), f"{format_pct(total / total) if total else '0,0%'} del total", "$", "#059669")}
-            {card(f"Monto hito actual ({current_hito_label})", format_clp(float(current.get("Monto_CLP", 0) or 0)), f"{format_pct(float(current.get('Monto_CLP', 0) or 0)/total) if total else '0,0%'} del total", "▣", "#2563EB")}
-            {card("Fondos críticos 30 días", format_clp(float(metrics["funds_30"])), "Ventana de decisión inmediata", "◷", "#0284C7")}
-            {card("Fondos críticos 60 días", format_clp(float(metrics["funds_60"])), "Ventana de continuidad", "◔", "#0EA5E9")}
-            {card("% avance técnico ponderado", format_pct(technical_pct), "Avance real vs plan", "⌁", "#2563EB")}
-            {card("Brecha financiera para continuidad", format_clp(float(metrics["breach"])), "Riesgo de desaceleración", "!", "#F59E0B")}
-            {card("Puesta en marcha estimada", format_date(launch_date), "Fecha objetivo del piloto", "⚑", "#64748B")}
-            {card("Riesgo PMO actual", risk, "Atención ejecutiva", "♦", risk_color)}
+          <div class="eic-wrap">
+            <div class="eic-critical">
+              {intel_card("CAPEX restante", format_clp(total), f"{format_pct(total / total) if total else '0,0%'} del programa filtrado · presión financiera activa", "$", "#0B2D42", "Presión financiera", "▲ foco ejecutivo", 0.88, "critical", "CLP")}
+              {intel_card("Brecha financiera", format_clp(float(metrics["breach"])), "Capital no comprometido para continuidad operacional", "!", "#F59E0B", "Ruta crítica", "▼ deterioro si no se libera", min(1, float(metrics["breach"]) / total if total else 0), "critical amber", "CLP")}
+              {intel_card("Riesgo PMO", risk, "Semáforo ejecutivo de continuidad y financiamiento", "♦", risk_color, "Atención inmediata" if risk == "ALTO" else "Continuidad vigilada", "▼ exposición" if risk != "BAJO" else "▲ controlado", 0.86 if risk == "ALTO" else 0.58 if risk == "MEDIO" else 0.24, "critical risk")}
+            </div>
+            <div class="eic-secondary">
+              {intel_card("Fondos próximos 30 días", format_clp(float(metrics["funds_30"])), "Monto a liberar en ventana inmediata", "30", "#0284C7", "Ventana operacional", "▲ decisión próxima", min(1, float(metrics["funds_30"]) / total if total else 0), "", "CLP")}
+              {intel_card("Fondos próximos 60 días", format_clp(float(metrics["funds_60"])), "Sostiene dos ciclos de ejecución PMO", "60", "#0EA5E9", "Continuidad controlada", "▲ runway PMO", min(1, float(metrics["funds_60"]) / total if total else 0), "", "CLP")}
+              {intel_card(f"Monto hito actual ({current_hito_label})", format_clp(float(current.get("Monto_CLP", 0) or 0)), str(current.get("Hito Corto", "-")), "H", "#2563EB", "Hito activo", "▲ bloque operacional", min(1, float(current.get("Monto_CLP", 0) or 0) / total if total else 0), "", "CLP")}
+            </div>
+            <div class="eic-state-grid">
+              {intel_card("Avance técnico", format_pct(technical_pct), "Progreso ponderado real vs plan", "⌁", "#0F766E", "Ejecución técnica", "▲ avance", technical_pct)}
+              {intel_card("Puesta en marcha", format_date(launch_date), f"{launch_days} días hábiles restantes", "⚑", "#64748B", "Countdown ejecutivo", "▲ objetivo visible", max(0.08, min(1, launch_days / 120 if launch_days else 0.08)))}
+              {intel_card("Runway operacional", f"{runway_days} días", "Horizonte útil para sostener integración", "⟲", "#14B8A6", "Ventana PMO", "▲ continuidad", max(0.08, min(1, runway_days / 120 if runway_days else 0.08)))}
+            </div>
           </div>
           <div class="ref-main">
             <div class="ref-panel">
