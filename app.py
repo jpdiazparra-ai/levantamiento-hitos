@@ -19,6 +19,12 @@ CSV_URL = (
     "pub?gid=176738706&single=true&output=csv"
 )
 
+PMO_MATRIX_URL = (
+    "https://docs.google.com/spreadsheets/d/e/"
+    "2PACX-1vR6ouTippfyLquWDgCXB7j_arqGGn2i5kND2FX5CKxTiQ0amOu33ZC2sY7kh_yqtQ/"
+    "pub?gid=446249592&single=true&output=csv"
+)
+
 TECHNICAL_MILESTONES = [
     "Gestion tecnica y continuidad del proyecto",
     "Habilitacion del sitio y obras previas",
@@ -1413,9 +1419,96 @@ def pmo_comment_for(row: pd.Series) -> str:
     return "Puede operar con liberación inicial mientras no bloquee integración."
 
 
-def build_pmo_hito_matrix(df: pd.DataFrame, hito_summary: pd.DataFrame) -> pd.DataFrame:
+def clean_pmo_matrix_source(raw_pmo: pd.DataFrame | None) -> pd.DataFrame:
+    if raw_pmo is None or raw_pmo.empty:
+        return pd.DataFrame()
+
+    pmo = raw_pmo.copy()
+    pmo.columns = [normalize_text(col) for col in pmo.columns]
+    rename_map = {
+        "Hito": "Hito",
+        "Hito Ejecutivo": "Hito Ejecutivo",
+        "Monto Restante CLP": "Monto_CLP",
+        "Liberacion Inicial 30%": "Liberacion_Inicial",
+        "Liberacion Avance 50%": "Liberacion_Avance",
+        "Liberacion Cierre 20%": "Liberacion_Cierre",
+        "Total Liberacion": "Total_Liberacion",
+        "Condicion de Liberacion": "Condición de Liberación",
+    }
+    pmo = pmo.rename(columns={col: rename_map.get(col, col) for col in pmo.columns})
+
+    required = {"Hito", "Hito Ejecutivo"}
+    if not required.issubset(set(pmo.columns)):
+        return pd.DataFrame()
+
+    for col in ["Monto_CLP", "Liberacion_Inicial", "Liberacion_Avance", "Liberacion_Cierre", "Total_Liberacion"]:
+        if col not in pmo.columns:
+            pmo[col] = 0.0
+        pmo[col] = pmo[col].apply(parse_money)
+
+    if "Condición de Liberación" not in pmo.columns:
+        pmo["Condición de Liberación"] = ""
+
+    pmo["Hito"] = pmo["Hito"].astype(str).str.strip()
+    pmo["Hito Ejecutivo"] = pmo["Hito Ejecutivo"].astype(str).str.strip()
+    return pmo[
+        [
+            "Hito",
+            "Hito Ejecutivo",
+            "Monto_CLP",
+            "Liberacion_Inicial",
+            "Liberacion_Avance",
+            "Liberacion_Cierre",
+            "Total_Liberacion",
+            "Condición de Liberación",
+        ]
+    ]
+
+
+def build_pmo_hito_matrix(
+    df: pd.DataFrame,
+    hito_summary: pd.DataFrame,
+    pmo_source: pd.DataFrame | None = None,
+) -> pd.DataFrame:
     today = pd.Timestamp("today").normalize()
     matrix = hito_summary.copy()
+
+    source = clean_pmo_matrix_source(pmo_source)
+    if not source.empty:
+        override_cols = [
+            "Monto_CLP",
+            "Liberacion_Inicial",
+            "Liberacion_Avance",
+            "Liberacion_Cierre",
+            "Total_Liberacion",
+            "Condición de Liberación",
+        ]
+        matrix = matrix.merge(
+            source[["Hito", *override_cols]],
+            on="Hito",
+            how="left",
+            suffixes=("", "_PMO"),
+        )
+        for col in override_cols:
+            pmo_col = f"{col}_PMO"
+            if pmo_col in matrix.columns:
+                if col == "Condición de Liberación":
+                    matrix[col] = matrix[pmo_col].where(matrix[pmo_col].notna(), matrix.get(col, ""))
+                else:
+                    matrix[col] = matrix[pmo_col].where(matrix[pmo_col].notna(), matrix[col])
+                matrix = matrix.drop(columns=[pmo_col])
+
+    total = float(matrix["Monto_CLP"].sum() or 0)
+    matrix["% sobre total"] = np.where(total > 0, matrix["Monto_CLP"] / total, 0)
+    matrix["Monto total"] = matrix["Monto_CLP"].apply(format_clp)
+    matrix["Liberación Inicial"] = matrix["Liberacion_Inicial"].apply(format_clp)
+    matrix["Liberación Avance"] = matrix["Liberacion_Avance"].apply(format_clp)
+    matrix["Liberación Cierre"] = matrix["Liberacion_Cierre"].apply(format_clp)
+    matrix["Total Liberación"] = matrix["Total_Liberacion"].apply(format_clp)
+    matrix["% total"] = matrix["% sobre total"].apply(format_pct)
+    if "Condición de Liberación" not in matrix.columns:
+        matrix["Condición de Liberación"] = ""
+
     matrix["_Inicio"] = pd.to_datetime(matrix["Inicio"], dayfirst=True, errors="coerce")
     matrix["_Termino"] = pd.to_datetime(matrix["Termino"], dayfirst=True, errors="coerce")
     matrix["Etapa del hito"] = matrix.apply(hito_stage, axis=1)
@@ -1436,15 +1529,19 @@ def build_pmo_hito_matrix(df: pd.DataFrame, hito_summary: pd.DataFrame) -> pd.Da
     return matrix
 
 
-def pmo_financial_metrics(df: pd.DataFrame, hito_summary: pd.DataFrame) -> dict[str, object]:
+def pmo_financial_metrics(
+    df: pd.DataFrame,
+    hito_summary: pd.DataFrame,
+    pmo_source: pd.DataFrame | None = None,
+) -> dict[str, object]:
     today = pd.Timestamp("today").normalize()
-    total_capex = float(df["Monto CLP Num"].sum() or 0)
+    matrix = build_pmo_hito_matrix(df, hito_summary, pmo_source)
+    total_capex = float(matrix["Monto_CLP"].sum() or df["Monto CLP Num"].sum() or 0)
     committed = float((df["Monto CLP Num"] * df["Avance Num"]).sum())
-    total_release = float(df["Total Liberación Num"].sum() or 0)
+    total_release = float(matrix["Total_Liberacion"].sum() or df["Total Liberación Num"].sum() or 0)
     technical_progress = float((df["Monto CLP Num"] * df["Avance Num"]).sum() / total_capex) if total_capex else 0.0
     financial_progress = committed / total_release if total_release else 0.0
     breach = max(total_capex - committed, 0.0)
-    matrix = build_pmo_hito_matrix(df, hito_summary)
     current = matrix[matrix["Estado"].eq("En curso")].sort_values(["Criticidad", "Hito Orden"], ascending=[True, True])
     if current.empty:
         current = matrix[matrix["_Inicio"].ge(today)].sort_values("_Inicio").head(1)
@@ -1474,8 +1571,12 @@ def pmo_financial_metrics(df: pd.DataFrame, hito_summary: pd.DataFrame) -> dict[
     }
 
 
-def render_hitos_header(df: pd.DataFrame, hito_summary: pd.DataFrame) -> dict[str, object]:
-    metrics = pmo_financial_metrics(df, hito_summary)
+def render_hitos_header(
+    df: pd.DataFrame,
+    hito_summary: pd.DataFrame,
+    pmo_source: pd.DataFrame | None = None,
+) -> dict[str, object]:
+    metrics = pmo_financial_metrics(df, hito_summary, pmo_source)
     current = metrics["current_row"]
     next_row = metrics["next_row"]
     recommendation = (
@@ -1766,8 +1867,12 @@ def hito_relevant_info(df: pd.DataFrame) -> dict[str, str]:
     return info
 
 
-def render_hitos_table(df: pd.DataFrame, hito_summary: pd.DataFrame) -> None:
-    table = build_pmo_hito_matrix(df, hito_summary).copy()
+def render_hitos_table(
+    df: pd.DataFrame,
+    hito_summary: pd.DataFrame,
+    pmo_source: pd.DataFrame | None = None,
+) -> None:
+    table = build_pmo_hito_matrix(df, hito_summary, pmo_source).copy()
     table = table[
         [
             "Hito",
@@ -1787,6 +1892,7 @@ def render_hitos_table(df: pd.DataFrame, hito_summary: pd.DataFrame) -> None:
             "Monto crítico próximo",
             "Escenario recomendado",
             "Decisión requerida",
+            "Condición de Liberación",
             "Comentario ejecutivo",
         ]
     ].rename(
@@ -1835,8 +1941,12 @@ def hitos_executive_reading(df: pd.DataFrame, hito_summary: pd.DataFrame) -> str
     )
 
 
-def render_hitos_financial_view(df: pd.DataFrame, hito_summary: pd.DataFrame) -> None:
-    metrics = pmo_financial_metrics(df, hito_summary)
+def render_hitos_financial_view(
+    df: pd.DataFrame,
+    hito_summary: pd.DataFrame,
+    pmo_source: pd.DataFrame | None = None,
+) -> None:
+    metrics = pmo_financial_metrics(df, hito_summary, pmo_source)
     matrix = metrics["matrix"].copy()
     current = metrics["current_row"]
     next_row = metrics["next_row"]
@@ -1961,6 +2071,7 @@ def render_hitos_financial_view(df: pd.DataFrame, hito_summary: pd.DataFrame) ->
               <td>{html.escape(str(row.get("Monto crítico próximo", "-")))}</td>
               <td><span class="matrix-pill {scen_class}">{html.escape(scenario_name)}</span></td>
               <td>{html.escape(str(row.get("Decisión requerida", "-")))}</td>
+              <td>{html.escape(str(row.get("Condición de Liberación", "-")))}</td>
               <td>{html.escape(str(row.get("Comentario ejecutivo", "-")))}</td>
             </tr>
             """
@@ -2043,10 +2154,10 @@ def render_hitos_financial_view(df: pd.DataFrame, hito_summary: pd.DataFrame) ->
         .ref-decision b{{font-size:12px;color:#E11D48;}}
         .ref-decision p{{font-size:11px;color:#334155;line-height:1.35;margin:3px 0 0 0;}}
         .matrix-scroll{{overflow:auto;border:1px solid #E2E8F0;border-radius:10px;}}
-        .pmo-matrix{{width:100%;min-width:1160px;border-collapse:collapse;background:#FFFFFF;font-size:10px;color:#0B1633;}}
+        .pmo-matrix{{width:100%;min-width:1240px;border-collapse:collapse;background:#FFFFFF;font-size:10px;color:#0B1633;}}
         .pmo-matrix th{{background:#F8FAFC;color:#0B1633;font-size:9px;text-transform:uppercase;letter-spacing:.035em;border-bottom:1px solid #E2E8F0;border-right:1px solid #E2E8F0;padding:11px 10px;text-align:center;}}
         .pmo-matrix td{{border-bottom:1px solid #E2E8F0;border-right:1px solid #EDF2F7;padding:10px 10px;text-align:center;vertical-align:middle;}}
-        .pmo-matrix td:nth-child(2),.pmo-matrix td:nth-child(17),.pmo-matrix td:nth-child(18){{text-align:left;line-height:1.3;}}
+        .pmo-matrix td:nth-child(2),.pmo-matrix td:nth-child(17),.pmo-matrix td:nth-child(18),.pmo-matrix td:nth-child(19){{text-align:left;line-height:1.3;}}
         .hito-code{{font-size:15px;font-weight:950;color:#0B1633;}}
         .matrix-pill{{display:inline-flex;border-radius:5px;padding:4px 8px;font-size:9px;font-weight:950;white-space:nowrap;}}
         .matrix-pill.blue{{background:#DBEAFE;color:#2563EB;}}
@@ -2143,7 +2254,7 @@ def render_hitos_financial_view(df: pd.DataFrame, hito_summary: pd.DataFrame) ->
                       <th>Hito</th><th>Hito ejecutivo</th><th>Etapa</th><th>Estado</th><th>Criticidad</th>
                       <th>Inicio</th><th>Término</th><th>Dur. hábil</th><th>Monto restante CLP</th><th>% total</th>
                       <th>Inicial</th><th>Avance</th><th>Cierre</th><th>Total</th><th>Monto crítico próximo</th>
-                      <th>Escenario recomendado</th><th>Decisión requerida</th><th>Comentario ejecutivo</th>
+                      <th>Escenario recomendado</th><th>Decisión requerida</th><th>Condición de liberación</th><th>Comentario ejecutivo</th>
                     </tr>
                   </thead>
                   <tbody>{''.join(matrix_rows)}</tbody>
@@ -2156,7 +2267,7 @@ def render_hitos_financial_view(df: pd.DataFrame, hito_summary: pd.DataFrame) ->
         """
     components.html(html_doc, height=1120, scrolling=True)
     with st.expander("Ver matriz PMO completa", expanded=False):
-        render_hitos_table(df, hito_summary)
+        render_hitos_table(df, hito_summary, pmo_source)
 
 
 def executive_reading(df: pd.DataFrame, hito_summary: pd.DataFrame) -> dict[str, list[str] | str]:
@@ -2270,6 +2381,13 @@ def main() -> None:
         st.exception(exc)
         st.stop()
 
+    pmo_source = pd.DataFrame()
+    try:
+        pmo_source = load_csv(PMO_MATRIX_URL)
+    except Exception as exc:
+        st.warning("No se pudo cargar la fuente financiera de Matriz PMO; se usará el resumen calculado del cronograma.")
+        st.caption(str(exc))
+
     st.markdown("<div class='pill'>Controles ejecutivos</div>", unsafe_allow_html=True)
     fc1, fc2, fc3, fc4, fc5 = st.columns([1.4, 2.2, 1.3, 1.4, 1.1])
     with fc1:
@@ -2356,7 +2474,7 @@ def main() -> None:
     with technical_tab:
         st.plotly_chart(build_gantt(filtered, zoom=zoom_timeline), use_container_width=True)
     with hitos_tab:
-        render_hitos_financial_view(filtered, hito_summary)
+        render_hitos_financial_view(filtered, hito_summary, pmo_source)
 
     pending_df = filtered[filtered["Pendiente programación"]].copy()
     if not pending_df.empty:
