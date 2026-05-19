@@ -1855,59 +1855,25 @@ def render_hitos_financial_view(df: pd.DataFrame, hito_summary: pd.DataFrame) ->
     risk_color = {"ALTO": "#E11D48", "MEDIO": "#F59E0B", "BAJO": "#10B981"}.get(risk, "#F59E0B")
     technical_pct = float(metrics["technical_progress"])
 
-    today = pd.Timestamp("today").normalize()
-    launch_days = business_days(today, launch_date) if pd.notna(pd.to_datetime(launch_date, errors="coerce")) else 0
-    runway_days = business_days(today, horizon_dates(df)[1])
-
-    def intel_card(
-        label: str,
-        value: str,
-        note: str,
-        icon: str,
-        accent: str,
-        state: str,
-        trend: str,
-        progress: float,
-        variant: str = "",
-        unit: str = "",
-    ) -> str:
-        progress_pct = max(0, min(100, int(progress * 100)))
-        spark_seed = max(8, min(92, progress_pct))
-        spark_values = [22, 34, 28, 46, 39, spark_seed, min(96, spark_seed + 8)]
-        spark = "".join(f"<i style='height:{height}%;'></i>" for height in spark_values)
-        trend_class = "up" if "▲" in trend else "down" if "▼" in trend else "flat"
+    def executive_kpi(label: str, value: str, note: str, icon: str, accent: str, variant: str = "") -> str:
         return f"""
-        <div class="eic-card {variant}" style="--accent:{accent};">
-          <div class="eic-top">
-            <div class="eic-icon">{html.escape(icon)}</div>
-            <div class="eic-state">{html.escape(state)}</div>
-          </div>
-          <div class="eic-label">{html.escape(label)}</div>
-          <div class="eic-value">{html.escape(value)} <span>{html.escape(unit)}</span></div>
-          <div class="eic-note">{html.escape(note)}</div>
-          <div class="eic-spark">{spark}</div>
-          <div class="eic-progress"><b style="width:{progress_pct}%;"></b></div>
-          <div class="eic-foot">
-            <span class="{trend_class}">{html.escape(trend)}</span>
-            <em>{progress_pct}% señal PMO</em>
-          </div>
+        <div class="simple-kpi {variant}" style="--accent:{accent};">
+          <div class="simple-icon">{html.escape(icon)}</div>
+          <div class="simple-label">{html.escape(label)}</div>
+          <div class="simple-value">{html.escape(value)}</div>
+          <div class="simple-note">{html.escape(note)}</div>
         </div>
         """
 
-    def scenario(title: str, subtitle: str, amount: float, pct: float, impact: str, risk_label: str, color: str, featured: bool = False) -> str:
-        star = "<div class='ref-star'>★</div>" if featured else ""
+    def scenario(title: str, amount: float, impact: str, risk_label: str, color: str) -> str:
         return f"""
-        <div class="ref-scenario" style="border-color:{color};">
-          {star}
+        <div class="ref-scenario" style="--scenario:{color};">
           <div class="ref-scenario-head">
-            <div class="ref-shield" style="border-color:{color};color:{color};">⬡</div>
-            <div><b>{html.escape(title)}</b><br><span>{html.escape(subtitle)}</span></div>
+            <b>{html.escape(title)}</b>
+            <span>Riesgo {html.escape(risk_label)}</span>
           </div>
-          <div class="ref-scenario-grid">
-            <div><small>MONTO</small><strong>{format_clp(amount)}</strong><em>{format_pct(pct)} del hito</em></div>
-            <div><small>IMPLICANCIA OPERATIVA</small><p>{html.escape(impact)}</p></div>
-          </div>
-          <div class="ref-risk" style="color:{color};">RIESGO: {html.escape(risk_label)}</div>
+          <strong>{format_clp(amount)}</strong>
+          <p>{html.escape(impact)}</p>
         </div>
         """
 
@@ -1940,64 +1906,44 @@ def render_hitos_financial_view(df: pd.DataFrame, hito_summary: pd.DataFrame) ->
         <style>
         *{{box-sizing:border-box;}}
         body{{margin:0;background:transparent;}}
-        .ref-wrap{{background:#F6F8FB;border:1px solid #D9E2EC;border-radius:4px;padding:20px 22px 22px 22px;color:#0B1633;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;}}
-        .ref-top{{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px;}}
-        .ref-title{{font-size:28px;font-weight:900;color:#0B1633;line-height:1.05;margin:0;}}
-        .ref-sub{{font-size:13px;color:#607086;margin-top:7px;}}
+        .ref-wrap{{background:#F7F9FC;border:1px solid #E1E8EF;border-radius:8px;padding:26px 28px 28px 28px;color:#0B1633;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;}}
+        .ref-top{{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:20px;}}
+        .ref-title{{font-size:30px;font-weight:900;color:#0B1633;line-height:1.05;margin:0;}}
+        .ref-sub{{font-size:14px;color:#607086;margin-top:9px;}}
         .ref-actions{{display:flex;gap:14px;align-items:center;color:#607086;font-size:11px;}}
         .ref-filter{{border:1px solid #D7E0EA;border-radius:7px;background:#FFFFFF;padding:9px 14px;font-weight:800;color:#25364F;}}
-        .ref-band{{display:grid;grid-template-columns:1.1fr 1.25fr 1fr 2.2fr;gap:22px;background:linear-gradient(135deg,#08253B,#0B3554);border-radius:12px;padding:22px 32px;color:#FFFFFF;box-shadow:0 16px 34px rgba(8,37,59,.24);margin-bottom:18px;}}
+        .ref-band{{display:grid;grid-template-columns:1.15fr 1fr 2.45fr;gap:28px;background:linear-gradient(135deg,#08253B,#0B3554);border-radius:16px;padding:28px 34px;color:#FFFFFF;box-shadow:0 18px 38px rgba(8,37,59,.22);margin-bottom:24px;}}
         .ref-band-block{{border-right:1px solid rgba(255,255,255,.28);padding-right:22px;min-height:86px;}}
         .ref-band-block:last-child{{border-right:0;}}
         .ref-band-k{{font-size:11px;color:#B8C9D8;font-weight:800;letter-spacing:.06em;text-transform:uppercase;margin-bottom:10px;}}
         .ref-hito{{display:flex;align-items:center;gap:14px;}}
-        .ref-hito-code{{font-size:34px;font-weight:900;color:#B8C9D8;line-height:1;}}
-        .ref-hito-name{{font-size:13px;line-height:1.25;color:#FFFFFF;font-weight:650;}}
+        .ref-hito-code{{font-size:38px;font-weight:900;color:#B8C9D8;line-height:1;}}
+        .ref-hito-name{{font-size:14px;line-height:1.3;color:#FFFFFF;font-weight:650;}}
         .ref-badge{{display:inline-flex;margin-top:12px;border-radius:4px;padding:5px 12px;background:#14B8A6;color:#FFFFFF;font-size:11px;font-weight:900;}}
         .ref-critical{{font-size:24px;font-weight:900;color:#FF5B6E;}}
         .ref-rec{{font-size:13px;line-height:1.45;color:#FFFFFF;max-width:560px;}}
         .ref-action-badge{{display:inline-flex;margin-top:10px;background:#FBBF24;color:#1F2937;border-radius:4px;padding:5px 13px;font-size:11px;font-weight:900;}}
-        .eic-wrap{{display:grid;gap:14px;margin-bottom:18px;}}
-        .eic-critical{{display:grid;grid-template-columns:1.4fr 1.25fr .95fr;gap:14px;}}
-        .eic-secondary,.eic-state-grid{{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;}}
-        .eic-card{{position:relative;overflow:hidden;background:linear-gradient(145deg,rgba(255,255,255,.94),rgba(248,251,253,.88));border:1px solid rgba(211,222,232,.92);border-radius:16px;padding:18px 18px 16px 18px;min-height:150px;box-shadow:0 18px 34px rgba(15,23,42,.08);transition:transform .18s ease,box-shadow .18s ease,border-color .18s ease;}}
-        .eic-card::before{{content:"";position:absolute;inset:0;background:radial-gradient(circle at top right,var(--accent),transparent 30%);opacity:.09;pointer-events:none;}}
-        .eic-card:hover{{transform:translateY(-2px);box-shadow:0 22px 42px rgba(15,23,42,.12);border-color:color-mix(in srgb,var(--accent) 42%,#D8E2EA);}}
-        .eic-card.critical{{min-height:186px;padding:21px 22px 18px 22px;}}
-        .eic-card.critical .eic-value{{font-size:31px;}}
-        .eic-card.risk{{background:linear-gradient(145deg,rgba(255,255,255,.96),rgba(255,245,247,.82));box-shadow:0 18px 34px rgba(225,29,72,.10);}}
-        .eic-card.amber{{background:linear-gradient(145deg,rgba(255,255,255,.96),rgba(255,248,231,.88));box-shadow:0 18px 34px rgba(245,158,11,.10);}}
-        .eic-top{{display:flex;align-items:center;justify-content:space-between;position:relative;z-index:1;}}
-        .eic-icon{{width:36px;height:36px;border-radius:12px;background:linear-gradient(135deg,var(--accent),#0B2D42);color:#FFFFFF;display:flex;align-items:center;justify-content:center;font-size:17px;font-weight:900;box-shadow:0 10px 20px color-mix(in srgb,var(--accent) 28%,transparent);}}
-        .eic-state{{border:1px solid color-mix(in srgb,var(--accent) 32%,#DCE5EC);background:rgba(255,255,255,.72);color:#334155;border-radius:999px;padding:5px 9px;font-size:10px;font-weight:900;letter-spacing:.04em;text-transform:uppercase;}}
-        .eic-label{{position:relative;z-index:1;margin-top:14px;font-size:10px;font-weight:900;color:#4D5E76;letter-spacing:.08em;text-transform:uppercase;line-height:1.15;}}
-        .eic-value{{position:relative;z-index:1;font-size:24px;font-weight:950;color:#0B1633;line-height:1.05;margin-top:9px;white-space:nowrap;}}
-        .eic-value span{{font-size:10px;color:#64748B;margin-left:6px;font-weight:800;}}
-        .eic-note{{position:relative;z-index:1;font-size:12px;color:#64748B;line-height:1.35;margin-top:8px;min-height:31px;}}
-        .eic-spark{{height:28px;display:flex;align-items:flex-end;gap:4px;margin-top:12px;position:relative;z-index:1;}}
-        .eic-spark i{{width:100%;max-width:18px;border-radius:999px;background:linear-gradient(180deg,color-mix(in srgb,var(--accent) 76%,#FFFFFF),rgba(148,163,184,.28));opacity:.86;}}
-        .eic-progress{{height:5px;border-radius:999px;background:#E8EEF4;overflow:hidden;margin-top:12px;position:relative;z-index:1;}}
-        .eic-progress b{{display:block;height:100%;border-radius:999px;background:linear-gradient(90deg,var(--accent),#14B8A6);}}
-        .eic-foot{{display:flex;justify-content:space-between;gap:10px;margin-top:9px;font-size:11px;position:relative;z-index:1;}}
-        .eic-foot span{{font-weight:900;}}
-        .eic-foot .up{{color:#059669;}}.eic-foot .down{{color:#E11D48;}}.eic-foot .flat{{color:#64748B;}}
-        .eic-foot em{{font-style:normal;color:#7A8797;}}
-        .ref-main{{display:grid;grid-template-columns:1fr 1.8fr;gap:16px;margin-bottom:12px;}}
+        .kpi-row{{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:20px;margin-bottom:24px;}}
+        .simple-kpi{{position:relative;background:#FFFFFF;border:1px solid #E2E8F0;border-radius:18px;padding:26px 26px 24px 26px;min-height:178px;box-shadow:0 18px 34px rgba(15,23,42,.07);overflow:hidden;transition:transform .18s ease,box-shadow .18s ease;}}
+        .simple-kpi::before{{content:"";position:absolute;inset:0;background:linear-gradient(135deg,var(--accent),transparent 42%);opacity:.07;}}
+        .simple-kpi:hover{{transform:translateY(-2px);box-shadow:0 24px 44px rgba(15,23,42,.10);}}
+        .simple-kpi.alert{{background:linear-gradient(145deg,#FFFFFF,#FFF9EC);}}
+        .simple-kpi.risk{{background:linear-gradient(145deg,#FFFFFF,#F8FBFC);box-shadow:0 18px 34px rgba(8,37,59,.09);}}
+        .simple-icon{{position:relative;width:42px;height:42px;border-radius:14px;background:var(--accent);color:#FFFFFF;display:flex;align-items:center;justify-content:center;font-size:19px;font-weight:900;margin-bottom:22px;}}
+        .simple-label{{position:relative;font-size:12px;font-weight:900;color:#52647A;letter-spacing:.08em;text-transform:uppercase;}}
+        .simple-value{{position:relative;font-size:34px;font-weight:950;color:#0B1633;line-height:1;margin-top:13px;white-space:nowrap;}}
+        .simple-note{{position:relative;font-size:14px;color:#607086;line-height:1.4;margin-top:14px;max-width:270px;}}
+        .ref-main{{display:grid;grid-template-columns:1fr 1.45fr;gap:20px;margin-bottom:16px;}}
         .ref-panel{{background:#FFFFFF;border:1px solid #E2E8F0;border-radius:12px;padding:18px 20px;box-shadow:0 12px 24px rgba(15,23,42,.05);}}
         .ref-panel-title{{font-size:13px;font-weight:900;color:#23457A;letter-spacing:.04em;text-transform:uppercase;margin-bottom:15px;}}
         .ref-read{{font-size:13px;line-height:1.65;color:#182A44;}}
-        .ref-scenarios{{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;}}
-        .ref-scenario{{position:relative;border:1.5px solid #E2E8F0;border-radius:10px;background:#FFFFFF;padding:18px 18px 14px 18px;min-height:165px;}}
-        .ref-scenario-head{{display:flex;gap:12px;align-items:center;font-size:14px;color:#0B1633;}}
-        .ref-scenario-head span{{font-size:12px;color:#64748B;font-weight:500;}}
-        .ref-shield{{width:34px;height:34px;border:2px solid;border-radius:999px;display:flex;align-items:center;justify-content:center;font-size:17px;font-weight:900;}}
-        .ref-star{{position:absolute;right:14px;top:12px;color:#1E88E5;font-size:20px;}}
-        .ref-scenario-grid{{display:grid;grid-template-columns:.8fr 1.35fr;gap:16px;margin-top:18px;}}
-        .ref-scenario-grid small{{display:block;font-size:9px;color:#4D5E76;font-weight:900;letter-spacing:.05em;}}
-        .ref-scenario-grid strong{{display:block;font-size:16px;color:#0B1633;margin-top:7px;}}
-        .ref-scenario-grid em{{display:block;font-size:10px;color:#64748B;font-style:normal;margin-top:4px;}}
-        .ref-scenario-grid p{{font-size:11px;line-height:1.35;color:#25364F;margin:7px 0 0 0;}}
-        .ref-risk{{border-top:1px solid #E5EAF0;margin-top:12px;padding-top:9px;font-size:12px;font-weight:900;}}
+        .ref-scenarios{{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;}}
+        .ref-scenario{{position:relative;border:1px solid #E2E8F0;border-top:3px solid var(--scenario);border-radius:14px;background:#FFFFFF;padding:22px 22px 20px 22px;min-height:172px;box-shadow:0 12px 24px rgba(15,23,42,.045);}}
+        .ref-scenario-head{{display:flex;justify-content:space-between;gap:16px;align-items:center;color:#0B1633;}}
+        .ref-scenario-head b{{font-size:16px;}}
+        .ref-scenario-head span{{font-size:11px;color:var(--scenario);font-weight:900;text-transform:uppercase;}}
+        .ref-scenario strong{{display:block;font-size:24px;color:#0B1633;margin-top:20px;}}
+        .ref-scenario p{{font-size:13px;line-height:1.45;color:#52647A;margin:14px 0 0 0;}}
         .ref-timeline{{background:#FFFFFF;border:1px solid #E2E8F0;border-radius:12px;padding:14px 18px 18px 18px;margin-bottom:12px;box-shadow:0 12px 24px rgba(15,23,42,.05);}}
         .ref-stage{{display:grid;grid-template-columns:1.9fr 4.1fr 1.6fr;gap:12px;margin:8px 0 18px 0;}}
         .ref-stage div{{height:24px;border-radius:3px;font-size:10px;font-weight:900;display:flex;align-items:center;justify-content:center;color:#334155;}}
@@ -2012,7 +1958,7 @@ def render_hitos_financial_view(df: pd.DataFrame, hito_summary: pd.DataFrame) ->
         .ref-decision{{background:#FFFFFF;border:1px solid #F3B4B4;border-radius:10px;padding:13px 14px;display:grid;grid-template-columns:34px 1fr;gap:10px;}}
         .ref-decision b{{font-size:12px;color:#E11D48;}}
         .ref-decision p{{font-size:11px;color:#334155;line-height:1.35;margin:3px 0 0 0;}}
-        @media(max-width:1200px){{.eic-critical,.eic-secondary,.eic-state-grid{{grid-template-columns:1fr;}}.ref-main,.ref-bottom{{grid-template-columns:1fr;}}}}
+        @media(max-width:1200px){{.kpi-row{{grid-template-columns:repeat(2,1fr);}}.ref-main,.ref-bottom{{grid-template-columns:1fr;}}}}
         </style>
         <div class="ref-wrap">
           <div class="ref-top">
@@ -2029,14 +1975,9 @@ def render_hitos_financial_view(df: pd.DataFrame, hito_summary: pd.DataFrame) ->
               <div class="ref-badge">{html.escape(str(current.get("Estado", "-")).upper())}</div>
             </div>
             <div class="ref-band-block">
-              <div class="ref-band-k">Próximo hito</div>
-              <div class="ref-hito"><div class="ref-hito-code">{html.escape(next_hito_label)}</div><div class="ref-hito-name">{html.escape(str(next_row.get("Hito Corto", "-")))}</div></div>
-              <div style="font-size:12px;color:#B8C9D8;margin-top:12px;">{format_date(next_row.get("_Inicio", pd.NaT))}</div>
-            </div>
-            <div class="ref-band-block">
-              <div class="ref-band-k">Fecha crítica</div>
+              <div class="ref-band-k">Puesta en marcha</div>
               <div class="ref-critical">{format_date(launch_date)}</div>
-              <div style="font-size:12px;color:#B8C9D8;margin-top:12px;">Puesta en marcha esperada</div>
+              <div style="font-size:12px;color:#B8C9D8;margin-top:12px;">Fecha estimada de continuidad operacional</div>
             </div>
             <div class="ref-band-block">
               <div class="ref-band-k">Recomendación ejecutiva</div>
@@ -2044,22 +1985,11 @@ def render_hitos_financial_view(df: pd.DataFrame, hito_summary: pd.DataFrame) ->
               <div class="ref-action-badge">ACCIÓN REQUERIDA</div>
             </div>
           </div>
-          <div class="eic-wrap">
-            <div class="eic-critical">
-              {intel_card("CAPEX restante", format_clp(total), f"{format_pct(total / total) if total else '0,0%'} del programa filtrado · presión financiera activa", "$", "#0B2D42", "Presión financiera", "▲ foco ejecutivo", 0.88, "critical", "CLP")}
-              {intel_card("Brecha financiera", format_clp(float(metrics["breach"])), "Capital no comprometido para continuidad operacional", "!", "#F59E0B", "Ruta crítica", "▼ deterioro si no se libera", min(1, float(metrics["breach"]) / total if total else 0), "critical amber", "CLP")}
-              {intel_card("Riesgo PMO", risk, "Semáforo ejecutivo de continuidad y financiamiento", "♦", risk_color, "Atención inmediata" if risk == "ALTO" else "Continuidad vigilada", "▼ exposición" if risk != "BAJO" else "▲ controlado", 0.86 if risk == "ALTO" else 0.58 if risk == "MEDIO" else 0.24, "critical risk")}
-            </div>
-            <div class="eic-secondary">
-              {intel_card("Fondos próximos 30 días", format_clp(float(metrics["funds_30"])), "Monto a liberar en ventana inmediata", "30", "#0284C7", "Ventana operacional", "▲ decisión próxima", min(1, float(metrics["funds_30"]) / total if total else 0), "", "CLP")}
-              {intel_card("Fondos próximos 60 días", format_clp(float(metrics["funds_60"])), "Sostiene dos ciclos de ejecución PMO", "60", "#0EA5E9", "Continuidad controlada", "▲ runway PMO", min(1, float(metrics["funds_60"]) / total if total else 0), "", "CLP")}
-              {intel_card(f"Monto hito actual ({current_hito_label})", format_clp(float(current.get("Monto_CLP", 0) or 0)), str(current.get("Hito Corto", "-")), "H", "#2563EB", "Hito activo", "▲ bloque operacional", min(1, float(current.get("Monto_CLP", 0) or 0) / total if total else 0), "", "CLP")}
-            </div>
-            <div class="eic-state-grid">
-              {intel_card("Avance técnico", format_pct(technical_pct), "Progreso ponderado real vs plan", "⌁", "#0F766E", "Ejecución técnica", "▲ avance", technical_pct)}
-              {intel_card("Puesta en marcha", format_date(launch_date), f"{launch_days} días hábiles restantes", "⚑", "#64748B", "Countdown ejecutivo", "▲ objetivo visible", max(0.08, min(1, launch_days / 120 if launch_days else 0.08)))}
-              {intel_card("Runway operacional", f"{runway_days} días", "Horizonte útil para sostener integración", "⟲", "#14B8A6", "Ventana PMO", "▲ continuidad", max(0.08, min(1, runway_days / 120 if runway_days else 0.08)))}
-            </div>
+          <div class="kpi-row">
+            {executive_kpi("CAPEX restante", format_clp(total), "Capital requerido para continuidad operacional.", "$", "#0B2D42")}
+            {executive_kpi("Brecha financiera", format_clp(float(metrics["breach"])), "Capital pendiente para sostener ejecución.", "!", "#F59E0B", "alert")}
+            {executive_kpi("Riesgo PMO", risk, "Lectura ejecutiva de continuidad y financiamiento.", "◆", risk_color, "risk")}
+            {executive_kpi("Puesta en marcha", format_date(launch_date), "Fecha estimada de cierre operativo.", "⚑", "#0F766E")}
           </div>
           <div class="ref-main">
             <div class="ref-panel">
@@ -2069,9 +1999,9 @@ def render_hitos_financial_view(df: pd.DataFrame, hito_summary: pd.DataFrame) ->
             <div class="ref-panel">
               <div class="ref-panel-title">Escenarios de liberación de fondos</div>
               <div class="ref-scenarios">
-                {scenario("Escenario Conservador", "Solo liberación inicial", cons, cons/current_total if current_total else 0, "Continuidad limitada. Riesgo de retrasos en ingeniería y adquisiciones críticas.", "ALTO", "#F59E0B")}
-                {scenario("Escenario Base", "Liberación inicial + avance", base, base/current_total if current_total else 0, "Continuidad técnica controlada. Permite sostener ruta crítica sin interrupciones mayores.", "MEDIO", "#2F80ED", True)}
-                {scenario("Escenario Cierre", "Liberación total del hito", close, 1 if current_total else 0, "Ejecución sin interrupciones. Maximiza probabilidad de puesta en marcha en fecha.", "BAJO", "#10B981")}
+                {scenario("Conservador", cons, "Continuidad limitada.", "ALTO", "#F59E0B")}
+                {scenario("Base", base, "Continuidad técnica controlada.", "MEDIO", "#0F766E")}
+                {scenario("Cierre", close, "Ejecución sin interrupciones.", "BAJO", "#0B2D42")}
               </div>
             </div>
           </div>
