@@ -2260,7 +2260,8 @@ def render_hitos_financial_view(
         <style>
         *{{box-sizing:border-box;}}
         body{{margin:0;background:transparent;}}
-        .ref-wrap{{background:#F7F9FC;border:1px solid #E1E8EF;border-radius:8px;padding:22px 26px 24px 26px;color:#0B1633;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;}}
+        .ref-wrap{{background:#F7F9FC;border:1px solid #E1E8EF;border-radius:8px;padding:22px 0 24px 0;color:#0B1633;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;}}
+        .dashboard-shell{{max-width:1450px;margin:0 auto;padding:0 24px;}}
         .ref-top{{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px;}}
         .ref-title{{font-size:30px;font-weight:900;color:#0B1633;line-height:1.05;margin:0;}}
         .ref-sub{{font-size:14px;color:#607086;margin-top:9px;}}
@@ -2278,7 +2279,7 @@ def render_hitos_financial_view(
         .ref-critical{{font-size:24px;font-weight:900;color:#FF5B6E;display:flex;gap:12px;align-items:center;}}
         .ref-rec{{font-size:13px;line-height:1.45;color:#FFFFFF;max-width:560px;}}
         .ref-action-badge{{display:inline-flex;margin-top:10px;background:#FBBF24;color:#1F2937;border-radius:999px;padding:8px 14px;font-size:12px;font-weight:950;box-shadow:0 10px 20px rgba(251,191,36,.24);}}
-        .ref-kpi-groups{{display:grid;grid-template-columns:1.35fr .95fr .7fr 1fr;gap:14px;margin-bottom:16px;}}
+        .ref-kpi-groups{{display:grid;grid-template-columns:1.35fr .95fr .7fr 1fr;gap:20px;margin-bottom:16px;}}
         .kpi-group{{background:#FFFFFF;border:1px solid #E2E8F0;border-top:3px solid var(--group);border-radius:14px;padding:12px;box-shadow:0 12px 24px rgba(15,23,42,.052);}}
         .kpi-group.priority{{box-shadow:0 16px 34px rgba(15,23,42,.075);}}
         .kpi-group-head{{display:flex;align-items:center;gap:8px;margin:0 0 10px 2px;}}
@@ -2297,7 +2298,7 @@ def render_hitos_financial_view(
         .ref-kpi-note{{font-size:10px;color:#52647A;line-height:1.35;margin-top:7px;}}
         .ref-kpi.risk .ref-kpi-value{{color:#E11D48;font-size:20px;letter-spacing:.02em;}}
         .pmo-flow{{width:100%;max-width:100%;margin:0 auto;display:grid;gap:14px;}}
-        .ref-main{{display:grid;grid-template-columns:.82fr 1.55fr;gap:14px;margin:0;align-items:stretch;width:100%;}}
+        .ref-main{{display:grid;grid-template-columns:.38fr .62fr;gap:14px;margin:0;align-items:stretch;width:100%;}}
         .ref-panel,.control-panel{{background:#FFFFFF;border:1px solid #E2E8F0;border-radius:12px;padding:18px 20px;box-shadow:0 12px 24px rgba(15,23,42,.05);}}
         .ref-panel-title{{font-size:14px;font-weight:850;color:#23457A;letter-spacing:0;margin-bottom:14px;}}
         .memo-card{{background:linear-gradient(145deg,#FFFFFF,#FAFCFF);}}
@@ -2412,54 +2413,55 @@ def render_hitos_financial_view(
         @media(max-width:1200px){{.ref-main{{grid-template-columns:1fr;}}.ref-decisions{{grid-template-columns:1fr;}}}}
         </style>
         <div class="ref-wrap">
-          <div class="ref-top">
-            <div>
-              <h2 class="ref-title">Vista Ejecutiva de Hitos y Liberación de Fondos</h2>
-              <div class="ref-sub">Seguimiento PMO del piloto 10 kW: avance técnico, CAPEX pendiente y escenarios de continuidad</div>
+          <div class="dashboard-shell">
+            <div class="ref-top">
+              <div>
+                <h2 class="ref-title">Vista Ejecutiva de Hitos y Liberación de Fondos</h2>
+                <div class="ref-sub">Seguimiento PMO del piloto 10 kW: avance técnico, CAPEX pendiente y escenarios de continuidad</div>
+              </div>
+              <div class="ref-actions"><div class="ref-filter">▽ Filtros</div><span>Actualizado: {html.escape(today_label)}</span></div>
             </div>
-            <div class="ref-actions"><div class="ref-filter">▽ Filtros</div><span>Actualizado: {html.escape(today_label)}</span></div>
-          </div>
-          <div class="ref-band">
-            <div class="ref-band-block">
-              <div class="ref-band-k">Hito actual</div>
-              <div class="ref-hito"><div class="ref-hito-code">{html.escape(current_hito_label)}</div><div class="ref-hito-name">{html.escape(str(current.get("Hito Corto", "-")))}</div></div>
-              <div class="ref-badge">{html.escape(str(current.get("Estado", "-")).upper())}</div>
+            <div class="ref-band">
+              <div class="ref-band-block">
+                <div class="ref-band-k">Hito actual</div>
+                <div class="ref-hito"><div class="ref-hito-code">{html.escape(current_hito_label)}</div><div class="ref-hito-name">{html.escape(str(current.get("Hito Corto", "-")))}</div></div>
+                <div class="ref-badge">{html.escape(str(current.get("Estado", "-")).upper())}</div>
+              </div>
+              <div class="ref-band-block">
+                <div class="ref-band-k">Próximo hito</div>
+                <div class="ref-hito"><div class="ref-hito-code">{html.escape(next_hito_label)}</div><div class="ref-hito-name">{html.escape(str(next_row.get("Hito Corto", "-")))}</div></div>
+                <div class="ref-next-date">{html.escape(str(next_row.get("Inicio", "-")))}</div>
+              </div>
+              <div class="ref-band-block">
+                <div class="ref-band-k">Puesta en marcha</div>
+                <div class="ref-critical"><span>▦</span>{format_date(launch_date)}</div>
+                <div style="font-size:12px;color:#B8C9D8;margin-top:12px;">Fecha estimada de continuidad operacional</div>
+              </div>
+              <div class="ref-band-block">
+                <div class="ref-band-k">Recomendación ejecutiva</div>
+                <div class="ref-rec">Priorizar liberación inicial del {html.escape(current_hito_label)} y asegurar fondos de avance para sostener continuidad técnica y evitar desaceleración del cronograma.</div>
+                <div class="ref-action-badge">Liberar fondos iniciales {html.escape(current_hito_label)} para evitar desaceleración técnica</div>
+              </div>
             </div>
-            <div class="ref-band-block">
-              <div class="ref-band-k">Próximo hito</div>
-              <div class="ref-hito"><div class="ref-hito-code">{html.escape(next_hito_label)}</div><div class="ref-hito-name">{html.escape(str(next_row.get("Hito Corto", "-")))}</div></div>
-              <div class="ref-next-date">{html.escape(str(next_row.get("Inicio", "-")))}</div>
+            <div class="ref-kpi-groups">
+              {kpi_group("Financiero", "#F59E0B", [
+                  ref_kpi("CAPEX restante", format_clp(total), f"{format_pct(remaining_share)} del total", "$", "#0F766E"),
+                  ref_kpi(f"Monto {current_hito_label}", format_clp(current_total), f"{format_pct(current_share)} del total", "▣", "#0F766E"),
+                  ref_kpi("Brecha financiera", format_clp(float(metrics["breach"])), "Riesgo de desaceleración", "!", "#F59E0B"),
+              ], "priority")}
+              {kpi_group("Urgencia", "#F59E0B", [
+                  ref_kpi("Fondos 30 días", format_clp(critical_30), f"{hitos_30} hito{'s' if hitos_30 != 1 else ''} en ventana", "◷", "#F59E0B"),
+                  ref_kpi("Fondos 60 días", format_clp(critical_60), f"{hitos_60} hito{'s' if hitos_60 != 1 else ''} en ventana", "◔", "#F59E0B"),
+              ], "urgency")}
+              {kpi_group("Avance", "#2563EB", [
+                  ref_kpi("Avance técnico", format_pct(technical_pct), "Avance real vs plan", "⌁", "#2563EB"),
+              ])}
+              {kpi_group("Riesgo", risk_color, [
+                  ref_kpi("Puesta en marcha", format_date(launch_date), launch_remaining, "⚑", "#64748B"),
+                  ref_kpi("Riesgo PMO", risk, "Atención inmediata" if risk == "ALTO" else "Seguimiento activo", "⬟", risk_color, "risk"),
+              ], "risk-group")}
             </div>
-            <div class="ref-band-block">
-              <div class="ref-band-k">Puesta en marcha</div>
-              <div class="ref-critical"><span>▦</span>{format_date(launch_date)}</div>
-              <div style="font-size:12px;color:#B8C9D8;margin-top:12px;">Fecha estimada de continuidad operacional</div>
-            </div>
-            <div class="ref-band-block">
-              <div class="ref-band-k">Recomendación ejecutiva</div>
-              <div class="ref-rec">Priorizar liberación inicial del {html.escape(current_hito_label)} y asegurar fondos de avance para sostener continuidad técnica y evitar desaceleración del cronograma.</div>
-              <div class="ref-action-badge">Liberar fondos iniciales {html.escape(current_hito_label)} para evitar desaceleración técnica</div>
-            </div>
-          </div>
-          <div class="ref-kpi-groups">
-            {kpi_group("Financiero", "#F59E0B", [
-                ref_kpi("CAPEX restante", format_clp(total), f"{format_pct(remaining_share)} del total", "$", "#0F766E"),
-                ref_kpi(f"Monto {current_hito_label}", format_clp(current_total), f"{format_pct(current_share)} del total", "▣", "#0F766E"),
-                ref_kpi("Brecha financiera", format_clp(float(metrics["breach"])), "Riesgo de desaceleración", "!", "#F59E0B"),
-            ], "priority")}
-            {kpi_group("Urgencia", "#F59E0B", [
-                ref_kpi("Fondos 30 días", format_clp(critical_30), f"{hitos_30} hito{'s' if hitos_30 != 1 else ''} en ventana", "◷", "#F59E0B"),
-                ref_kpi("Fondos 60 días", format_clp(critical_60), f"{hitos_60} hito{'s' if hitos_60 != 1 else ''} en ventana", "◔", "#F59E0B"),
-            ], "urgency")}
-            {kpi_group("Avance", "#2563EB", [
-                ref_kpi("Avance técnico", format_pct(technical_pct), "Avance real vs plan", "⌁", "#2563EB"),
-            ])}
-            {kpi_group("Riesgo", risk_color, [
-                ref_kpi("Puesta en marcha", format_date(launch_date), launch_remaining, "⚑", "#64748B"),
-                ref_kpi("Riesgo PMO", risk, "Atención inmediata" if risk == "ALTO" else "Seguimiento activo", "⬟", risk_color, "risk"),
-            ], "risk-group")}
-          </div>
-          <div class="pmo-flow">
+            <div class="pmo-flow">
             <div class="ref-main">
               <div class="ref-panel memo-card">
                 <div class="ref-panel-title">Memo ejecutivo del período</div>
@@ -2523,6 +2525,7 @@ def render_hitos_financial_view(
               </div>
             </div>
             </div>
+          </div>
           </div>
         </div>
         """
