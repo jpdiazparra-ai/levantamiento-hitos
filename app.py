@@ -3506,37 +3506,10 @@ def main() -> None:
         st.warning("No hay actividades para los filtros seleccionados.")
         st.stop()
 
-    hito_summary = make_hito_summary(filtered)
-
-    st.subheader("Vista ejecutiva")
     render_board_kpis(filtered)
+    render_expandable_activity_gantt(filtered)
     render_hito_span_gantt(filtered)
     render_release_cutoff_intelligence(filtered)
-    render_expandable_activity_gantt(filtered)
-    st.markdown("#### Actividades técnicas por hito")
-    for milestone in DISPLAY_MILESTONES:
-        hito_df = filtered[filtered["Hito Ejecutivo"].eq(milestone)].copy()
-        if hito_df.empty:
-            continue
-        hito_df = hito_df.sort_values(["Es crítica", "Es habilitante", "Inicio"], ascending=[False, False, True])
-        preview = hito_df.head(6)[
-            [
-                "ID",
-                "Fuente",
-                "Categoría/Línea",
-                "Descripción Técnica / Acción",
-                "Criticidad",
-                "Riesgo operacional",
-                "Inicio Acción",
-                "Término Acción",
-                "Monto CLP",
-            ]
-        ]
-        label = f"{ROADMAP_LABELS.get(milestone, milestone)} · {len(hito_df)} actividades"
-        with st.expander(label, expanded=False):
-            st.dataframe(preview, hide_index=True, use_container_width=True, height=min(320, 70 + 36 * len(preview)))
-            if len(hito_df) > len(preview):
-                st.caption(f"Se muestran las 6 actividades más relevantes de {len(hito_df)}.")
 
     pending_df = filtered[filtered["Pendiente programación"]].copy()
     if not pending_df.empty:
