@@ -1978,6 +1978,116 @@ def render_hitos_table(
     st.dataframe(styler, hide_index=True, use_container_width=True, height=min(520, 82 + 42 * len(table)))
 
 
+def render_release_cutoff_intelligence(df: pd.DataFrame) -> None:
+    cuts = [
+        ("Liberación inicial", "30-05-2026", pd.Timestamp("2026-05-30"), "Liberación Inicial Num", "#0F766E", "Activación financiera"),
+        ("Liberación avance", "30-06-2026", pd.Timestamp("2026-06-30"), "Liberación Avance Num", "#2F80ED", "Continuidad técnica"),
+        ("Liberación cierre", "30-07-2026", pd.Timestamp("2026-07-30"), "Liberación Cierre Num", "#F59E0B", "Cierre de etapa"),
+    ]
+    panels: list[dict[str, object]] = []
+    max_amount = 1.0
+    for title, date_label, cut_date, amount_col, color, thesis in cuts:
+        active = df[df["Inicio"].le(cut_date) & df["Termino"].ge(cut_date)].copy()
+        if active.empty:
+            detail = pd.DataFrame(columns=["Hito", "Hito Corto", "Categoría/Línea", "Partidas", "Monto"])
+            total = 0.0
+        else:
+            detail = (
+                active.groupby(["Hito", "Hito Corto", "Categoría/Línea"], as_index=False)
+                .agg(Partidas=("ID", "count"), Monto=(amount_col, "sum"))
+                .sort_values(["Monto", "Hito"], ascending=[False, True])
+            )
+            total = float(detail["Monto"].sum() or 0)
+            max_amount = max(max_amount, float(detail["Monto"].max() or 0))
+        panels.append({"title": title, "date": date_label, "color": color, "thesis": thesis, "detail": detail, "total": total, "hitos": int(detail["Hito"].nunique()) if not detail.empty else 0, "partidas": int(detail["Partidas"].sum()) if not detail.empty else 0})
+
+    max_total = max(max(float(panel["total"]) for panel in panels), 1.0)
+
+    def money_mm(value: float) -> str:
+        return f"${value / 1_000_000:.1f}MM".replace(".", ",")
+
+    def stage_card(panel: dict[str, object]) -> str:
+        color = str(panel["color"])
+        width = min(max(float(panel["total"]) / max_total * 100, 3), 100)
+        return f"""
+        <div class="release-stage" style="--accent:{color};">
+          <div class="stage-top">
+            <div>
+              <div class="stage-title">{html.escape(str(panel["title"]))}</div>
+              <div class="stage-date">{html.escape(str(panel["date"]))} · {html.escape(str(panel["thesis"]))}</div>
+            </div>
+            <div class="stage-total">{money_mm(float(panel["total"]))}</div>
+          </div>
+          <div class="stage-meta"><span>{int(panel["hitos"])} hitos activos</span><span>{int(panel["partidas"])} partidas</span></div>
+          <div class="stage-track"><i style="width:{width:.0f}%;"></i></div>
+        </div>
+        """
+
+    def detail_rows(panel: dict[str, object]) -> str:
+        detail = panel["detail"]
+        color = str(panel["color"])
+        if not isinstance(detail, pd.DataFrame) or detail.empty:
+            return '<div class="release-empty">Sin partidas activas en este corte.</div>'
+        rows = []
+        for _, row in detail.iterrows():
+            amount = float(row["Monto"] or 0)
+            width = min(max(amount / max_amount * 100, 4), 100)
+            rows.append(
+                f"""
+                <div class="release-row">
+                  <div class="release-hito">{html.escape(str(row["Hito"]))}</div>
+                  <div class="release-copy"><b>{html.escape(str(row["Categoría/Línea"]))}</b><span>{html.escape(str(row["Hito Corto"]))} · {int(row["Partidas"])} partidas</span></div>
+                  <div class="release-bar"><i style="width:{width:.0f}%;background:{color};"></i></div>
+                  <div class="release-amount">{format_clp(amount)}</div>
+                </div>
+                """
+            )
+        return "".join(rows)
+
+    html_doc = f"""
+    <style>
+    *{{box-sizing:border-box;}}
+    body{{margin:0;background:transparent;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;color:#0B1633;overflow-x:hidden;}}
+    .release-shell{{background:#F7F9FC;border:1px solid #E2E8F0;border-radius:12px;padding:18px 20px;box-shadow:0 12px 24px rgba(15,23,42,.05);}}
+    .release-head{{display:flex;justify-content:space-between;gap:18px;align-items:flex-start;margin-bottom:14px;}}
+    .release-title{{font-size:20px;font-weight:950;color:#23457A;line-height:1.1;}}
+    .release-sub{{font-size:12px;color:#64748B;margin-top:6px;line-height:1.35;max-width:820px;}}
+    .release-badge{{border:1px solid #DCE6EF;background:#FFFFFF;border-radius:999px;padding:7px 10px;color:#475569;font-size:11px;font-weight:850;white-space:nowrap;}}
+    .stage-grid{{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-bottom:14px;}}
+    .release-stage{{background:#FFFFFF;border:1px solid #E2E8F0;border-top:4px solid var(--accent);border-radius:12px;padding:14px 15px;box-shadow:0 10px 20px rgba(15,23,42,.045);}}
+    .stage-top{{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;}}
+    .stage-title{{font-size:13px;font-weight:950;color:#0B1633;}}
+    .stage-date{{font-size:11px;color:#64748B;margin-top:4px;}}
+    .stage-total{{font-size:22px;font-weight:950;color:#0B1633;white-space:nowrap;}}
+    .stage-meta{{display:flex;gap:8px;flex-wrap:wrap;margin-top:13px;}}
+    .stage-meta span{{background:color-mix(in srgb,var(--accent) 12%,#FFFFFF);color:var(--accent);border-radius:999px;padding:5px 8px;font-size:10px;font-weight:900;}}
+    .stage-track{{height:8px;background:#E2E8F0;border-radius:999px;overflow:hidden;margin-top:12px;}}
+    .stage-track i{{display:block;height:100%;background:var(--accent);border-radius:999px;}}
+    .micro-grid{{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;}}
+    .release-panel{{background:#FFFFFF;border:1px solid #E2E8F0;border-radius:12px;overflow:hidden;}}
+    .panel-head{{padding:12px 13px;border-bottom:1px solid #E8EEF5;display:flex;justify-content:space-between;gap:10px;align-items:center;}}
+    .panel-head b{{font-size:12px;color:#0B1633;}}.panel-head span{{font-size:11px;color:#64748B;font-weight:800;}}
+    .release-list{{padding:8px 10px 10px 10px;display:grid;gap:7px;max-height:340px;overflow:auto;}}
+    .release-row{{display:grid;grid-template-columns:40px minmax(0,1.25fr) minmax(80px,.75fr) 78px;gap:8px;align-items:center;padding:8px;border:1px solid #EEF3F7;border-radius:10px;background:#FBFCFE;}}
+    .release-hito{{width:30px;height:28px;border-radius:9px;background:#0B2D42;color:#FFFFFF;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:950;}}
+    .release-copy b{{display:block;font-size:11px;color:#0B1633;line-height:1.15;}}.release-copy span{{display:block;font-size:9px;color:#64748B;margin-top:3px;line-height:1.15;}}
+    .release-bar{{height:7px;background:#E2E8F0;border-radius:999px;overflow:hidden;}}.release-bar i{{display:block;height:100%;border-radius:999px;}}
+    .release-amount{{font-size:10px;font-weight:950;color:#0B1633;text-align:right;white-space:nowrap;}}
+    .release-empty{{font-size:12px;color:#64748B;padding:14px;}}
+    @media(max-width:1180px){{.stage-grid,.micro-grid{{grid-template-columns:1fr;}}}}
+    </style>
+    <div class="release-shell">
+      <div class="release-head">
+        <div><div class="release-title">Liberación macro y micro por corte PMO</div><div class="release-sub">Cruce de fechas de actividad contra cortes 30-05, 30-06 y 30-07. Cada bloque muestra hitos activos, categorías y monto específico a liberar en la etapa correspondiente.</div></div>
+        <div class="release-badge">Fuente: Cronograma Integrado</div>
+      </div>
+      <div class="stage-grid">{''.join(stage_card(panel) for panel in panels)}</div>
+      <div class="micro-grid">{''.join(f'<div class="release-panel"><div class="panel-head"><b>{html.escape(str(panel["title"]))}</b><span>{html.escape(str(panel["date"]))}</span></div><div class="release-list">{detail_rows(panel)}</div></div>' for panel in panels)}</div>
+    </div>
+    """
+    components.html(html_doc, height=620, scrolling=True)
+
+
 def render_pmo_roadmap_matrix(
     df: pd.DataFrame,
     hito_summary: pd.DataFrame,
@@ -2959,6 +3069,7 @@ def main() -> None:
     roadmap_tab, hitos_tab = st.tabs(["Vista ejecutiva", "Vista hitos"])
     with roadmap_tab:
         render_executive_roadmap(filtered, hito_summary, pmo_source)
+        render_release_cutoff_intelligence(filtered)
         render_pmo_roadmap_matrix(filtered, hito_summary, pmo_source)
         st.markdown("#### Actividades técnicas por hito")
         for milestone in DISPLAY_MILESTONES:
