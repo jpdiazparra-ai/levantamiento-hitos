@@ -2267,18 +2267,28 @@ def render_release_cutoff_intelligence(df: pd.DataFrame) -> None:
         width = min(max(float(panel["total"]) / max_total * 100, 3), 100)
         return f"""
         <button class="release-stage {'active' if idx == 0 else ''}" data-stage="{idx}" style="--accent:{color};" type="button">
-          <div class="stage-top">
-            <div>
-              <div class="stage-title">{html.escape(str(panel["title"]))}</div>
-              <div class="stage-date">{html.escape(str(panel["date"]))} · {html.escape(str(panel["thesis"]))}</div>
-            </div>
-            <div class="stage-total">{money_mm(float(panel["total"]))}</div>
+          <div class="stage-date">{html.escape(str(panel["date"]))}</div>
+          <div class="stage-title">{html.escape(str(panel["title"]))}</div>
+          <div class="stage-thesis">{html.escape(str(panel["thesis"]))}</div>
+          <div class="stage-total">{money_mm(float(panel["total"]))}</div>
+          <div class="stage-rule"></div>
+          <div class="stage-meta">
+            <span><i class="meta-icon">◎</i><b>{int(panel["hitos"])}</b><small>hitos activos</small></span>
+            <span><i class="meta-icon">▤</i><b>{int(panel["partidas"])}</b><small>partidas</small></span>
           </div>
-          <div class="stage-meta"><span>{int(panel["hitos"])} hitos activos</span><span>{int(panel["partidas"])} partidas</span></div>
           <div class="stage-track"><i style="width:{width:.0f}%;"></i></div>
-          <div class="stage-action">Ver detalle completo</div>
+          <div class="stage-action">Ver detalle completo <b>›</b></div>
         </button>
         """
+
+    release_nodes = "".join(
+        f"""
+        <div class="release-node-wrap" style="--accent:{html.escape(str(panel['color']))};">
+          <div class="release-node">{idx + 1}</div>
+        </div>
+        """
+        for idx, panel in enumerate(panels)
+    )
 
     def detail_rows(panel: dict[str, object]) -> str:
         detail = panel["detail"]
@@ -2318,24 +2328,39 @@ def render_release_cutoff_intelligence(df: pd.DataFrame) -> None:
     <style>
     *{{box-sizing:border-box;}}
     body{{margin:0;background:transparent;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;color:#0B1633;overflow-x:hidden;}}
-    .release-shell{{background:#F7F9FC;border:1px solid #E2E8F0;border-radius:12px;padding:18px 20px;box-shadow:0 12px 24px rgba(15,23,42,.05);}}
-    .release-head{{display:flex;justify-content:space-between;gap:18px;align-items:flex-start;margin-bottom:14px;}}
-    .release-title{{font-size:20px;font-weight:950;color:#23457A;line-height:1.1;}}
-    .release-sub{{font-size:12px;color:#64748B;margin-top:6px;line-height:1.35;max-width:820px;}}
-    .release-badge{{border:1px solid #DCE6EF;background:#FFFFFF;border-radius:999px;padding:7px 10px;color:#475569;font-size:11px;font-weight:850;white-space:nowrap;}}
-    .stage-grid{{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:14px;}}
-    .release-stage{{appearance:none;text-align:left;width:100%;background:#FFFFFF;border:1px solid #E2E8F0;border-top:4px solid var(--accent);border-radius:12px;padding:14px 15px;box-shadow:0 10px 20px rgba(15,23,42,.045);cursor:pointer;transition:transform .16s ease,border-color .16s ease,box-shadow .16s ease;}}
-    .release-stage:hover{{transform:translateY(-2px);box-shadow:0 16px 28px rgba(15,23,42,.075);}}
-    .release-stage.active{{border-color:color-mix(in srgb,var(--accent) 48%,#E2E8F0);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 14%,transparent),0 18px 34px rgba(15,23,42,.09);}}
-    .stage-top{{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;}}
-    .stage-title{{font-size:13px;font-weight:950;color:#0B1633;}}
-    .stage-date{{font-size:11px;color:#64748B;margin-top:4px;}}
-    .stage-total{{font-size:22px;font-weight:950;color:#0B1633;white-space:nowrap;}}
-    .stage-meta{{display:flex;gap:8px;flex-wrap:wrap;margin-top:13px;}}
-    .stage-meta span{{background:color-mix(in srgb,var(--accent) 12%,#FFFFFF);color:var(--accent);border-radius:999px;padding:5px 8px;font-size:10px;font-weight:900;}}
-    .stage-track{{height:8px;background:#E2E8F0;border-radius:999px;overflow:hidden;margin-top:12px;}}
-    .stage-track i{{display:block;height:100%;background:var(--accent);border-radius:999px;}}
-    .stage-action{{font-size:10px;font-weight:950;color:var(--accent);margin-top:10px;letter-spacing:.01em;}}
+    .release-shell{{background:linear-gradient(180deg,#FFFFFF 0%,#F8FBFD 100%);border:1px solid #E2E8F0;border-radius:14px;padding:22px 20px 18px 20px;box-shadow:0 14px 32px rgba(15,23,42,.055);overflow:hidden;}}
+    .release-head{{display:flex;justify-content:space-between;gap:18px;align-items:flex-start;margin-bottom:34px;}}
+    .release-title{{font-size:25px;font-weight:950;color:#0B2D63;line-height:1.08;letter-spacing:-.02em;}}
+    .release-sub{{font-size:14px;color:#64748B;margin-top:9px;line-height:1.42;max-width:840px;}}
+    .release-badge{{border:1px solid #DCE6EF;background:#FFFFFF;border-radius:999px;padding:10px 18px;color:#0B1633;font-size:14px;font-weight:950;white-space:nowrap;box-shadow:0 8px 18px rgba(15,23,42,.04);}}
+    .release-flow{{position:relative;margin:0 0 16px 0;padding-top:64px;}}
+    .release-line{{position:absolute;left:4px;right:4px;top:28px;height:2px;background:#B8B8B8;box-shadow:0 1px 3px rgba(15,23,42,.16);}}
+    .release-line::before,.release-line::after{{content:"";position:absolute;top:50%;width:12px;height:12px;border-radius:999px;background:#B8B8B8;transform:translateY(-50%);}}
+    .release-line::before{{left:-1px;}}.release-line::after{{right:-1px;}}
+    .release-nodes{{position:absolute;left:0;right:0;top:0;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));align-items:center;z-index:5;}}
+    .release-node-wrap{{display:flex;justify-content:center;position:relative;}}
+    .release-node-wrap::after{{content:"";position:absolute;top:58px;width:1px;height:34px;background:color-mix(in srgb,var(--accent) 38%,#DCE6EF);}}
+    .release-node{{width:58px;height:58px;border-radius:999px;background:var(--accent);color:#FFFFFF;font-size:24px;font-weight:950;display:flex;align-items:center;justify-content:center;box-shadow:0 0 0 9px #FFFFFF,0 0 0 12px color-mix(in srgb,var(--accent) 48%,#FFFFFF),0 12px 26px color-mix(in srgb,var(--accent) 24%,transparent);}}
+    .stage-grid{{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:52px;margin-bottom:20px;}}
+    .release-stage{{appearance:none;text-align:center;width:100%;background:rgba(255,255,255,.96);border:1px solid color-mix(in srgb,var(--accent) 52%,#DCE6EF);border-radius:14px;padding:13px 24px 18px 24px;box-shadow:0 12px 26px rgba(15,23,42,.045);cursor:pointer;transition:transform .16s ease,border-color .16s ease,box-shadow .16s ease;position:relative;min-height:300px;}}
+    .release-stage:not(:last-child)::after{{content:"›";position:absolute;right:-43px;top:45%;width:38px;height:38px;border-radius:999px;background:var(--accent);color:#FFFFFF;font-size:34px;line-height:34px;font-weight:650;display:flex;align-items:center;justify-content:center;box-shadow:0 10px 20px color-mix(in srgb,var(--accent) 24%,transparent);}}
+    .release-stage:hover{{transform:translateY(-3px);box-shadow:0 18px 34px rgba(15,23,42,.08);}}
+    .release-stage.active{{box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 15%,transparent),0 20px 38px rgba(15,23,42,.09);}}
+    .stage-date{{display:inline-flex;align-items:center;justify-content:center;margin:0 auto 27px auto;border-radius:999px;padding:9px 24px;background:color-mix(in srgb,var(--accent) 11%,#EFF6FF);color:var(--accent);font-size:14px;font-weight:950;white-space:nowrap;}}
+    .stage-title{{font-size:21px;font-weight:950;color:var(--accent);line-height:1.05;}}
+    .stage-thesis{{font-size:15px;color:#0B1633;margin-top:8px;font-weight:800;line-height:1.25;}}
+    .stage-total{{font-size:31px;font-weight:950;color:#0B1633;margin-top:18px;letter-spacing:-.03em;line-height:1;}}
+    .stage-rule{{height:1px;background:#E2E8F0;margin:20px 0 17px 0;}}
+    .stage-meta{{display:grid;grid-template-columns:1fr 1fr;gap:0;margin:0 0 18px 0;}}
+    .stage-meta span{{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;min-height:58px;color:#0B1633;}}
+    .stage-meta span:first-child{{border-right:1px solid #DCE6EF;}}
+    .stage-meta b{{font-size:26px;color:var(--accent);line-height:1;font-weight:950;}}
+    .stage-meta small{{font-size:11px;color:#0B1633;font-weight:850;}}
+    .meta-icon{{width:32px;height:32px;border-radius:999px;background:#F5F7FA;color:#64748B;font-style:normal;font-size:19px;display:flex;align-items:center;justify-content:center;margin-bottom:3px;}}
+    .stage-track{{height:11px;background:#E2E8F0;border-radius:999px;overflow:hidden;margin-top:2px;box-shadow:inset 0 1px 2px rgba(15,23,42,.08);}}
+    .stage-track i{{display:block;height:100%;background:var(--accent);border-radius:999px;box-shadow:0 8px 16px color-mix(in srgb,var(--accent) 24%,transparent);}}
+    .stage-action{{font-size:13px;font-weight:950;color:var(--accent);margin-top:22px;letter-spacing:.01em;}}
+    .stage-action b{{font-size:24px;vertical-align:-2px;margin-left:6px;}}
     .release-detail-stack{{display:grid;gap:12px;}}
     .release-panel{{display:none;background:#FFFFFF;border:1px solid #E2E8F0;border-radius:12px;overflow:hidden;box-shadow:0 12px 24px rgba(15,23,42,.045);}}
     .release-panel.active{{display:block;}}
@@ -2348,15 +2373,24 @@ def render_release_cutoff_intelligence(df: pd.DataFrame) -> None:
     .release-bar{{height:7px;background:#E2E8F0;border-radius:999px;overflow:hidden;}}.release-bar i{{display:block;height:100%;border-radius:999px;}}
     .release-amount{{font-size:10px;font-weight:950;color:#0B1633;text-align:right;white-space:nowrap;}}
     .release-empty{{font-size:12px;color:#64748B;padding:14px;}}
-    @media(max-width:1180px){{.stage-grid{{grid-template-columns:repeat(2,minmax(0,1fr));}}}}
-    @media(max-width:720px){{.stage-grid{{grid-template-columns:1fr;}}}}
+    .release-legend{{display:flex;gap:34px;justify-content:center;align-items:center;color:#64748B;font-size:13px;font-weight:850;margin:10px 0 18px 0;}}
+    .release-legend span{{display:flex;align-items:center;gap:8px;}}
+    .legend-icon{{width:28px;height:28px;border-radius:999px;background:#F5F7FA;display:flex;align-items:center;justify-content:center;color:#64748B;font-size:18px;}}
+    .legend-line{{width:48px;height:7px;border:2px solid #94A3B8;border-radius:999px;}}
+    @media(max-width:1180px){{.stage-grid{{grid-template-columns:repeat(2,minmax(0,1fr));gap:18px;}}.release-stage:not(:last-child)::after{{display:none;}}.release-nodes{{display:none;}}.release-line{{display:none;}}.release-flow{{padding-top:0;}}}}
+    @media(max-width:720px){{.stage-grid{{grid-template-columns:1fr;}}.release-head{{flex-direction:column;}}}}
     </style>
     <div class="release-shell" id="release-shell-main">
       <div class="release-head">
         <div><div class="release-title">Liberación macro y micro por corte PMO</div><div class="release-sub">Distribución por fecha de inicio contra cortes PMO 30-05, 30-06, 30-07, 30-08 y 30-09. La Liberación 4 consolida todo el remanente del horizonte entre 31-07 y 30-09.</div></div>
         <div class="release-badge">Fuente: Cronograma Integrado</div>
       </div>
-      <div class="stage-grid">{''.join(stage_card(panel, idx) for idx, panel in enumerate(panels))}</div>
+      <div class="release-flow">
+        <div class="release-line"></div>
+        <div class="release-nodes">{release_nodes}</div>
+        <div class="stage-grid">{''.join(stage_card(panel, idx) for idx, panel in enumerate(panels))}</div>
+      </div>
+      <div class="release-legend"><span><i class="legend-icon">◎</i>Hitos activos</span><span><i class="legend-icon">▤</i>Partidas</span><span><i class="legend-line"></i>Avance de ejecución</span></div>
       <div class="release-detail-stack">{detail_panels}</div>
     </div>
     <script>
@@ -3508,8 +3542,8 @@ def main() -> None:
 
     render_board_kpis(filtered)
     render_expandable_activity_gantt(filtered)
-    render_hito_span_gantt(filtered)
     render_release_cutoff_intelligence(filtered)
+    render_hito_span_gantt(filtered)
 
     pending_df = filtered[filtered["Pendiente programación"]].copy()
     if not pending_df.empty:
