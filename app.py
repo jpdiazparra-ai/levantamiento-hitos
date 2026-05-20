@@ -2282,6 +2282,166 @@ def render_release_cutoff_intelligence(df: pd.DataFrame) -> None:
     components.html(html_doc, height=700, scrolling=True)
 
 
+def render_expandable_activity_gantt(df: pd.DataFrame) -> None:
+    scheduled = df[df["Inicio"].notna() & df["Termino"].notna()].copy()
+    if scheduled.empty:
+        return
+
+    hito_ranges = (
+        scheduled.groupby(["Hito", "Hito Ejecutivo", "Hito Corto"], as_index=False)
+        .agg(
+            Inicio_hito=("Inicio", "min"),
+            Termino_hito=("Termino", "max"),
+            Actividades=("ID", "count"),
+            Monto=("Monto CLP Num", "sum"),
+        )
+        .sort_values("Hito")
+    )
+    hito_ranges["Orden"] = pd.to_numeric(hito_ranges["Hito"].astype(str).str.extract(r"(\d+)")[0], errors="coerce")
+    hito_ranges = hito_ranges.sort_values(["Orden", "Inicio_hito"])
+    horizon_start = hito_ranges["Inicio_hito"].min()
+    horizon_end = hito_ranges["Termino_hito"].max()
+    horizon_days = max((horizon_end - horizon_start).days, 1)
+    today = pd.Timestamp("today").normalize()
+
+    def pct(date_value: pd.Timestamp) -> float:
+        return max(0.0, min(100.0, ((date_value - horizon_start).days / horizon_days) * 100.0))
+
+    colors = {
+        "H1": "#0B2D42",
+        "H2": "#2F80ED",
+        "H3": "#1D4ED8",
+        "H4": "#DC2626",
+        "H5": "#64748B",
+        "H6": "#0F766E",
+        "H7": "#2563EB",
+        "H8": "#DC2626",
+    }
+    month_labels = []
+    cursor = pd.Timestamp(horizon_start.year, horizon_start.month, 1)
+    while cursor <= horizon_end:
+        month_labels.append((cursor.strftime("%b %Y"), pct(cursor)))
+        cursor = cursor + pd.DateOffset(months=1)
+    months_html = "".join(
+        f"<span style='left:{left:.2f}%;'>{html.escape(label.title())}</span>" for label, left in month_labels
+    )
+    today_left = pct(today)
+    rows = []
+    for idx, hito in hito_ranges.iterrows():
+        code = str(hito["Hito"])
+        hito_df = scheduled[scheduled["Hito"].astype(str).eq(code)].copy()
+        hito_df = hito_df.sort_values(["Inicio", "Termino", "Monto CLP Num"], ascending=[True, True, False])
+        start = pd.Timestamp(hito["Inicio_hito"])
+        end = pd.Timestamp(hito["Termino_hito"])
+        color = colors.get(code, "#0F766E")
+        left = pct(start)
+        width = max(2.5, pct(end) - left)
+        detail_rows = []
+        for _, activity in hito_df.iterrows():
+            detail_rows.append(
+                f"""
+                <div class="act-detail-row">
+                  <div class="act-id">{html.escape(str(activity["ID"]))}</div>
+                  <div class="act-copy">
+                    <b>{html.escape(str(activity["Categoría/Línea"]))}</b>
+                    <span>{html.escape(str(activity["Descripción Técnica / Acción"]))}</span>
+                  </div>
+                  <div class="act-date">{format_date(activity["Inicio"])}<br>{format_date(activity["Termino"])}</div>
+                  <div class="act-amount">{format_clp(float(activity["Monto CLP Num"] or 0))}</div>
+                </div>
+                """
+            )
+        rows.append(
+            f"""
+            <div class="act-row {'open' if idx == 0 else ''}" data-row="{html.escape(code)}">
+              <button class="act-main" type="button">
+                <div class="act-label">
+                  <div class="act-code" style="background:{color};">{html.escape(code)}</div>
+                  <div>
+                    <div class="act-name">{html.escape(str(hito["Hito Corto"]))}</div>
+                    <div class="act-meta">{int(hito["Actividades"])} actividades · {format_date(start)} a {format_date(end)}</div>
+                  </div>
+                </div>
+                <div class="act-track">
+                  <div class="act-bar" style="left:{left:.2f}%;width:{width:.2f}%;--accent:{color};">
+                    <span>{business_days(start, end)} días hábiles</span>
+                  </div>
+                </div>
+                <div class="act-total">
+                  <b>{format_clp(float(hito["Monto"] or 0))}</b>
+                  <span>Ver detalle</span>
+                </div>
+              </button>
+              <div class="act-details">{''.join(detail_rows)}</div>
+            </div>
+            """
+        )
+
+    html_doc = f"""
+    <style>
+    *{{box-sizing:border-box;}}
+    body{{margin:0;background:transparent;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;color:#0B1633;overflow-x:hidden;}}
+    .act-shell{{background:linear-gradient(180deg,#FFFFFF 0%,#F8FBFD 100%);border:1px solid #DCE6EF;border-radius:14px;padding:18px 20px;box-shadow:0 14px 32px rgba(15,23,42,.06);overflow:hidden;}}
+    .act-head{{display:flex;justify-content:space-between;gap:18px;align-items:flex-start;margin-bottom:14px;}}
+    .act-title{{font-size:20px;font-weight:950;color:#23457A;line-height:1.1;}}
+    .act-sub{{font-size:12px;color:#64748B;line-height:1.38;margin-top:6px;max-width:780px;}}
+    .act-badge{{background:#FFFFFF;border:1px solid #DCE6EF;border-radius:999px;padding:7px 10px;font-size:11px;font-weight:900;color:#475569;white-space:nowrap;}}
+    .act-axis{{position:relative;margin-left:260px;margin-right:120px;height:30px;border-bottom:1px solid #E2E8F0;}}
+    .act-axis span{{position:absolute;top:3px;transform:translateX(-2px);font-size:10px;font-weight:850;color:#64748B;text-transform:uppercase;white-space:nowrap;}}
+    .act-list{{position:relative;display:grid;gap:9px;padding-top:8px;}}
+    .act-overlay{{position:absolute;left:260px;right:120px;top:0;bottom:0;pointer-events:none;}}
+    .act-today{{position:absolute;top:0;bottom:0;left:{today_left:.2f}%;width:2px;background:#EF4444;box-shadow:0 0 0 5px rgba(239,68,68,.08);z-index:5;}}
+    .act-today span{{position:absolute;top:-24px;left:50%;transform:translateX(-50%);background:#EF4444;color:#FFFFFF;border-radius:999px;padding:4px 9px;font-size:10px;font-weight:950;}}
+    .act-row{{position:relative;z-index:10;background:#FFFFFF;border:1px solid #E2E8F0;border-radius:13px;overflow:hidden;box-shadow:0 9px 18px rgba(15,23,42,.035);}}
+    .act-main{{appearance:none;width:100%;border:0;background:transparent;display:grid;grid-template-columns:250px minmax(260px,1fr) 108px;gap:10px;align-items:center;padding:10px;cursor:pointer;text-align:left;}}
+    .act-main:hover{{background:#FAFCFE;}}
+    .act-label{{display:flex;align-items:center;gap:10px;min-width:0;}}
+    .act-code{{width:38px;height:38px;border-radius:12px;color:#FFFFFF;font-size:14px;font-weight:950;display:flex;align-items:center;justify-content:center;box-shadow:0 8px 18px rgba(15,23,42,.16);flex:0 0 auto;}}
+    .act-name{{font-size:12px;font-weight:950;color:#0B1633;line-height:1.14;}}
+    .act-meta{{font-size:10px;color:#64748B;margin-top:3px;font-weight:750;}}
+    .act-track{{height:38px;border-radius:12px;background:linear-gradient(90deg,rgba(226,232,240,.70),rgba(248,250,252,.35));position:relative;overflow:hidden;border:1px solid #EEF3F7;}}
+    .act-bar{{position:absolute;top:8px;height:22px;border-radius:999px;background:linear-gradient(90deg,var(--accent),color-mix(in srgb,var(--accent) 70%,#FFFFFF));box-shadow:0 10px 20px color-mix(in srgb,var(--accent) 20%,transparent);display:flex;align-items:center;padding:0 10px;min-width:34px;}}
+    .act-bar span{{font-size:10px;color:#FFFFFF;font-weight:950;white-space:nowrap;text-shadow:0 1px 2px rgba(15,23,42,.22);}}
+    .act-total{{text-align:right;}}
+    .act-total b{{display:block;font-size:11px;color:#0B1633;white-space:nowrap;}}
+    .act-total span{{display:block;margin-top:4px;font-size:9px;font-weight:950;color:#2F80ED;text-transform:uppercase;}}
+    .act-details{{display:none;border-top:1px solid #EEF3F7;background:#FBFCFE;padding:9px 10px 11px 10px;gap:7px;}}
+    .act-row.open .act-details{{display:grid;}}
+    .act-detail-row{{display:grid;grid-template-columns:70px minmax(0,1fr) 86px 94px;gap:10px;align-items:center;background:#FFFFFF;border:1px solid #EEF3F7;border-radius:10px;padding:9px;}}
+    .act-id{{font-size:10px;font-weight:950;color:#23457A;background:#EEF6FF;border-radius:999px;padding:5px 7px;text-align:center;}}
+    .act-copy b{{display:block;font-size:11px;color:#0B1633;line-height:1.14;}}
+    .act-copy span{{display:block;font-size:10px;color:#64748B;margin-top:3px;line-height:1.25;}}
+    .act-date{{font-size:10px;color:#475569;font-weight:850;text-align:center;line-height:1.2;}}
+    .act-amount{{font-size:10px;color:#0B1633;font-weight:950;text-align:right;white-space:nowrap;}}
+    @media(max-width:980px){{.act-axis{{margin-left:0;margin-right:0;}}.act-main{{grid-template-columns:1fr;}}.act-overlay{{display:none;}}.act-detail-row{{grid-template-columns:1fr;}}.act-total{{text-align:left;}}}}
+    </style>
+    <div class="act-shell" id="activity-gantt-shell">
+      <div class="act-head">
+        <div><div class="act-title">Gantt técnico desplegable por hito</div><div class="act-sub">Vista macro por hito con apertura de subhitos, categorías y descripciones técnicas. Haz clic en cualquier hito del eje Y para ver todas sus actividades asociadas.</div></div>
+        <div class="act-badge">Detalle por hito · Cronograma Integrado</div>
+      </div>
+      <div class="act-axis">{months_html}</div>
+      <div class="act-list">
+        <div class="act-overlay"><div class="act-today"><span>HOY</span></div></div>
+        {''.join(rows)}
+      </div>
+    </div>
+    <script>
+    (() => {{
+      const root = document.getElementById("activity-gantt-shell");
+      if (!root) return;
+      root.querySelectorAll(".act-main").forEach((button) => {{
+        button.addEventListener("click", () => {{
+          const row = button.closest(".act-row");
+          if (row) row.classList.toggle("open");
+        }});
+      }});
+    }})();
+    </script>
+    """
+    components.html(html_doc, height=780, scrolling=True)
+
+
 def render_pmo_roadmap_matrix(
     df: pd.DataFrame,
     hito_summary: pd.DataFrame,
@@ -3255,6 +3415,7 @@ def main() -> None:
     st.subheader("Vista ejecutiva")
     render_hito_span_gantt(filtered)
     render_release_cutoff_intelligence(filtered)
+    render_expandable_activity_gantt(filtered)
     st.markdown("#### Actividades técnicas por hito")
     for milestone in DISPLAY_MILESTONES:
         hito_df = filtered[filtered["Hito Ejecutivo"].eq(milestone)].copy()
