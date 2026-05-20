@@ -1490,32 +1490,46 @@ def build_pmo_hito_matrix(
     pmo_source: pd.DataFrame | None = None,
 ) -> pd.DataFrame:
     today = pd.Timestamp("today").normalize()
-    matrix = hito_summary.copy()
-
     source = clean_pmo_matrix_source(pmo_source)
     if not source.empty:
-        override_cols = [
-            "Monto_CLP",
-            "Liberacion_Inicial",
-            "Liberacion_Avance",
-            "Liberacion_Cierre",
-            "Total_Liberacion",
-            "Condición de Liberación",
+        schedule_cols = [
+            "Hito",
+            "Partidas",
+            "Inicio",
+            "Termino",
+            "Duracion_habil",
+            "Avance_promedio",
+            "Pendientes_programacion",
+            "Fuente principal",
+            "Hito Orden",
+            "Hito Corto",
         ]
-        matrix = matrix.merge(
-            source[["Hito", *override_cols]],
-            on="Hito",
-            how="left",
-            suffixes=("", "_PMO"),
-        )
-        for col in override_cols:
-            pmo_col = f"{col}_PMO"
-            if pmo_col in matrix.columns:
-                if col == "Condición de Liberación":
-                    matrix[col] = matrix[pmo_col].where(matrix[pmo_col].notna(), matrix.get(col, ""))
-                else:
-                    matrix[col] = matrix[pmo_col].where(matrix[pmo_col].notna(), matrix[col])
-                matrix = matrix.drop(columns=[pmo_col])
+        schedule = hito_summary[[col for col in schedule_cols if col in hito_summary.columns]].copy()
+        matrix = source.merge(schedule, on="Hito", how="left")
+        matrix["Fuente matriz"] = "Matriz PMO"
+    else:
+        matrix = hito_summary.copy()
+        matrix["Fuente matriz"] = "Cronograma Integrado"
+
+    matrix["Hito Orden"] = pd.to_numeric(matrix.get("Hito Orden"), errors="coerce")
+    hito_order_from_code = matrix["Hito"].astype(str).str.extract(r"(\d+)")[0].astype(float)
+    matrix["Hito Orden"] = matrix["Hito Orden"].fillna(hito_order_from_code)
+    matrix["Hito Corto"] = matrix.get("Hito Corto", pd.Series(index=matrix.index, dtype=object))
+    matrix["Hito Corto"] = matrix["Hito Corto"].fillna(matrix["Hito Ejecutivo"].map(ROADMAP_LABELS)).fillna(matrix["Hito Ejecutivo"])
+
+    defaults: dict[str, object] = {
+        "Partidas": 0,
+        "Inicio": "",
+        "Termino": "",
+        "Duracion_habil": 0,
+        "Avance_promedio": 0.0,
+        "Pendientes_programacion": 0,
+        "Fuente principal": "Matriz PMO",
+    }
+    for col, default in defaults.items():
+        if col not in matrix.columns:
+            matrix[col] = default
+        matrix[col] = matrix[col].fillna(default)
 
     total = float(matrix["Monto_CLP"].sum() or 0)
     matrix["% sobre total"] = np.where(total > 0, matrix["Monto_CLP"] / total, 0)
