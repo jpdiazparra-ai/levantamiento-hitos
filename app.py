@@ -193,7 +193,7 @@ def business_days(start: object, end: object) -> int:
     return int(np.busday_count(start_dt.date(), (end_dt + pd.Timedelta(days=1)).date()))
 
 
-@st.cache_data(ttl=900, show_spinner=False)
+@st.cache_data(ttl=60, show_spinner=False)
 def load_csv(url: str) -> pd.DataFrame:
     response = requests.get(url, timeout=20)
     response.raise_for_status()
@@ -815,7 +815,12 @@ def render_executive_roadmap(
     pmo_source: pd.DataFrame | None = None,
 ) -> None:
     pmo_matrix = build_pmo_hito_matrix(df, hito_summary, pmo_source).sort_values("Hito Orden").copy()
-    horizon_start, horizon_end = horizon_dates(df)
+    scheduled_hitos = pmo_matrix[pmo_matrix["_Inicio"].notna() & pmo_matrix["_Termino"].notna()]
+    if not scheduled_hitos.empty:
+        horizon_start = scheduled_hitos["_Inicio"].min()
+        horizon_end = scheduled_hitos["_Termino"].max()
+    else:
+        horizon_start, horizon_end = horizon_dates(df)
     horizon_days = max((horizon_end - horizon_start).days, 1)
     today = pd.Timestamp("today").normalize()
 
@@ -1447,6 +1452,8 @@ def clean_pmo_matrix_source(raw_pmo: pd.DataFrame | None) -> pd.DataFrame:
     rename_map = {
         "Hito": "Hito",
         "Hito Ejecutivo": "Hito Ejecutivo",
+        "Inicio": "Inicio",
+        "Termino": "Termino",
         "Monto Restante CLP": "Monto_CLP",
         "Liberacion Inicial 30%": "Liberacion_Inicial",
         "Liberacion Avance 50%": "Liberacion_Avance",
@@ -1465,6 +1472,11 @@ def clean_pmo_matrix_source(raw_pmo: pd.DataFrame | None) -> pd.DataFrame:
             pmo[col] = 0.0
         pmo[col] = pmo[col].apply(parse_money)
 
+    for col in ["Inicio", "Termino"]:
+        if col not in pmo.columns:
+            pmo[col] = pd.NaT
+        pmo[col] = pmo[col].apply(parse_date)
+
     if "Condición de Liberación" not in pmo.columns:
         pmo["Condición de Liberación"] = ""
 
@@ -1474,6 +1486,8 @@ def clean_pmo_matrix_source(raw_pmo: pd.DataFrame | None) -> pd.DataFrame:
         [
             "Hito",
             "Hito Ejecutivo",
+            "Inicio",
+            "Termino",
             "Monto_CLP",
             "Liberacion_Inicial",
             "Liberacion_Avance",
@@ -1505,7 +1519,7 @@ def build_pmo_hito_matrix(
             "Hito Corto",
         ]
         schedule = hito_summary[[col for col in schedule_cols if col in hito_summary.columns]].copy()
-        matrix = source.merge(schedule, on="Hito", how="left")
+        matrix = source.merge(schedule, on="Hito", how="left", suffixes=("", "_Cronograma"))
         matrix["Fuente matriz"] = "Matriz PMO"
     else:
         matrix = hito_summary.copy()
@@ -1519,8 +1533,8 @@ def build_pmo_hito_matrix(
 
     defaults: dict[str, object] = {
         "Partidas": 0,
-        "Inicio": "",
-        "Termino": "",
+        "Inicio": pd.NaT,
+        "Termino": pd.NaT,
         "Duracion_habil": 0,
         "Avance_promedio": 0.0,
         "Pendientes_programacion": 0,
@@ -1530,6 +1544,11 @@ def build_pmo_hito_matrix(
         if col not in matrix.columns:
             matrix[col] = default
         matrix[col] = matrix[col].fillna(default)
+
+    if "Inicio_Cronograma" in matrix.columns:
+        matrix["Inicio"] = matrix["Inicio"].where(matrix["Inicio"].notna(), matrix["Inicio_Cronograma"])
+    if "Termino_Cronograma" in matrix.columns:
+        matrix["Termino"] = matrix["Termino"].where(matrix["Termino"].notna(), matrix["Termino_Cronograma"])
 
     total = float(matrix["Monto_CLP"].sum() or 0)
     matrix["% sobre total"] = np.where(total > 0, matrix["Monto_CLP"] / total, 0)
@@ -1582,8 +1601,14 @@ def pmo_financial_metrics(
         current = matrix.sort_values("Hito Orden").head(1)
     current_row = current.iloc[0] if not current.empty else pd.Series(dtype=object)
     next_row = matrix[matrix["_Inicio"].gt(pd.to_datetime(current_row.get("_Inicio"), errors="coerce"))].sort_values("_Inicio").head(1)
-    launch_rows = df[df["Hito Ejecutivo"].str.contains("Comisionamiento|puesta en marcha", case=False, na=False)]
-    launch_date = launch_rows["Termino"].max() if not launch_rows.empty else pd.NaT
+    matrix_launch = matrix[matrix["Hito"].astype(str).eq("H8")]
+    if matrix_launch.empty:
+        matrix_launch = matrix[matrix["Hito Ejecutivo"].str.contains("Comisionamiento|puesta en marcha", case=False, na=False)]
+    if not matrix_launch.empty and matrix_launch["_Termino"].notna().any():
+        launch_date = matrix_launch["_Termino"].max()
+    else:
+        launch_rows = df[df["Hito Ejecutivo"].str.contains("Comisionamiento|puesta en marcha", case=False, na=False)]
+        launch_date = launch_rows["Termino"].max() if not launch_rows.empty else pd.NaT
     funds_30 = float(matrix.loc[matrix["_Inicio"].between(today, today + pd.Timedelta(days=30), inclusive="both"), "Total_Liberacion"].sum())
     funds_60 = float(matrix.loc[matrix["_Inicio"].between(today, today + pd.Timedelta(days=60), inclusive="both"), "Total_Liberacion"].sum())
     risk = pmo_risk(financial_progress, technical_progress)
