@@ -3229,13 +3229,6 @@ def main() -> None:
         st.exception(exc)
         st.stop()
 
-    pmo_source = pd.DataFrame()
-    try:
-        pmo_source = load_csv(PMO_MATRIX_URL)
-    except Exception as exc:
-        st.warning("No se pudo cargar la fuente financiera de Matriz PMO; se usará el resumen calculado del cronograma.")
-        st.caption(str(exc))
-
     selected_sources = sorted(df["Fuente"].unique())
     selected_hitos = DISPLAY_MILESTONES
     selected_criticidad = "Todas"
@@ -3259,39 +3252,33 @@ def main() -> None:
 
     hito_summary = make_hito_summary(filtered)
 
-    st.subheader("Roadmap y Gantt ejecutivo")
-    roadmap_tab, hitos_tab = st.tabs(["Vista ejecutiva", "Vista hitos"])
-    with roadmap_tab:
-        render_executive_roadmap(filtered, hito_summary, pmo_source)
-        render_hito_span_gantt(filtered)
-        render_release_cutoff_intelligence(filtered)
-        render_pmo_roadmap_matrix(filtered, hito_summary, pmo_source)
-        st.markdown("#### Actividades técnicas por hito")
-        for milestone in DISPLAY_MILESTONES:
-            hito_df = filtered[filtered["Hito Ejecutivo"].eq(milestone)].copy()
-            if hito_df.empty:
-                continue
-            hito_df = hito_df.sort_values(["Es crítica", "Es habilitante", "Inicio"], ascending=[False, False, True])
-            preview = hito_df.head(6)[
-                [
-                    "ID",
-                    "Fuente",
-                    "Categoría/Línea",
-                    "Descripción Técnica / Acción",
-                    "Criticidad",
-                    "Riesgo operacional",
-                    "Inicio Acción",
-                    "Término Acción",
-                    "Monto CLP",
-                ]
+    st.subheader("Vista ejecutiva")
+    render_hito_span_gantt(filtered)
+    render_release_cutoff_intelligence(filtered)
+    st.markdown("#### Actividades técnicas por hito")
+    for milestone in DISPLAY_MILESTONES:
+        hito_df = filtered[filtered["Hito Ejecutivo"].eq(milestone)].copy()
+        if hito_df.empty:
+            continue
+        hito_df = hito_df.sort_values(["Es crítica", "Es habilitante", "Inicio"], ascending=[False, False, True])
+        preview = hito_df.head(6)[
+            [
+                "ID",
+                "Fuente",
+                "Categoría/Línea",
+                "Descripción Técnica / Acción",
+                "Criticidad",
+                "Riesgo operacional",
+                "Inicio Acción",
+                "Término Acción",
+                "Monto CLP",
             ]
-            label = f"{ROADMAP_LABELS.get(milestone, milestone)} · {len(hito_df)} actividades"
-            with st.expander(label, expanded=False):
-                st.dataframe(preview, hide_index=True, use_container_width=True, height=min(320, 70 + 36 * len(preview)))
-                if len(hito_df) > len(preview):
-                    st.caption(f"Se muestran las 6 actividades más relevantes de {len(hito_df)}.")
-    with hitos_tab:
-        render_hitos_financial_view(filtered, hito_summary, pmo_source)
+        ]
+        label = f"{ROADMAP_LABELS.get(milestone, milestone)} · {len(hito_df)} actividades"
+        with st.expander(label, expanded=False):
+            st.dataframe(preview, hide_index=True, use_container_width=True, height=min(320, 70 + 36 * len(preview)))
+            if len(hito_df) > len(preview):
+                st.caption(f"Se muestran las 6 actividades más relevantes de {len(hito_df)}.")
 
     pending_df = filtered[filtered["Pendiente programación"]].copy()
     if not pending_df.empty:
