@@ -1978,6 +1978,161 @@ def render_hitos_table(
     st.dataframe(styler, hide_index=True, use_container_width=True, height=min(520, 82 + 42 * len(table)))
 
 
+def render_hito_span_gantt(df: pd.DataFrame) -> None:
+    scheduled = df[df["Inicio"].notna() & df["Termino"].notna()].copy()
+    if scheduled.empty:
+        return
+
+    hito_ranges = (
+        scheduled.groupby(["Hito", "Hito Ejecutivo", "Hito Corto"], as_index=False)
+        .agg(
+            Inicio_hito=("Inicio", "min"),
+            Termino_hito=("Termino", "max"),
+            Actividades=("ID", "count"),
+            Monto=("Monto CLP Num", "sum"),
+        )
+        .sort_values("Hito")
+    )
+    if hito_ranges.empty:
+        return
+
+    hito_ranges["Orden"] = pd.to_numeric(hito_ranges["Hito"].astype(str).str.extract(r"(\d+)")[0], errors="coerce")
+    hito_ranges = hito_ranges.sort_values(["Orden", "Inicio_hito"])
+    horizon_start = hito_ranges["Inicio_hito"].min()
+    horizon_end = hito_ranges["Termino_hito"].max()
+    horizon_days = max((horizon_end - horizon_start).days, 1)
+    today = pd.Timestamp("today").normalize()
+
+    def pct(date_value: pd.Timestamp) -> float:
+        return max(0.0, min(100.0, ((date_value - horizon_start).days / horizon_days) * 100.0))
+
+    max_amount = max(float(hito_ranges["Monto"].max() or 0), 1.0)
+    critical_hitos = {"H1", "H4", "H8"}
+    gantt_colors = {
+        "H1": "#0B2D42",
+        "H2": "#2F80ED",
+        "H3": "#1D4ED8",
+        "H4": "#DC2626",
+        "H5": "#64748B",
+        "H6": "#0F766E",
+        "H7": "#2563EB",
+        "H8": "#DC2626",
+    }
+    rows = []
+    for _, hito in hito_ranges.iterrows():
+        code = str(hito["Hito"])
+        start = pd.Timestamp(hito["Inicio_hito"])
+        end = pd.Timestamp(hito["Termino_hito"])
+        left = pct(start)
+        width = max(2.5, pct(end) - left)
+        amount = float(hito["Monto"] or 0)
+        amount_width = min(max(amount / max_amount * 100, 8), 100)
+        color = gantt_colors.get(code, "#0F766E")
+        rows.append(
+            f"""
+            <div class="span-row {'critical' if code in critical_hitos else ''}">
+              <div class="span-label">
+                <div class="span-code" style="background:{color};">{html.escape(code)}</div>
+                <div>
+                  <div class="span-name">{html.escape(str(hito["Hito Corto"]))}</div>
+                  <div class="span-meta">{format_date(start)} a {format_date(end)} · {business_days(start, end)} días hábiles</div>
+                </div>
+              </div>
+              <div class="span-track">
+                <div class="span-bar" style="left:{left:.2f}%;width:{width:.2f}%;--bar:{color};">
+                  <span>{html.escape(code)} · {format_clp(amount)}</span>
+                </div>
+              </div>
+              <div class="span-side">
+                <b>{format_clp(amount)}</b>
+                <span>{int(hito["Actividades"])} actividades</span>
+                <div class="amount-track"><i style="width:{amount_width:.0f}%;background:{color};"></i></div>
+              </div>
+            </div>
+            """
+        )
+
+    cut_dates = [
+        ("30 mayo", pd.Timestamp("2026-05-30")),
+        ("30 junio", pd.Timestamp("2026-06-30")),
+        ("30 julio", pd.Timestamp("2026-07-30")),
+        ("30 septiembre", pd.Timestamp("2026-09-30")),
+    ]
+    cut_marks = "".join(
+        f"<div class='cut-mark' style='left:{pct(date):.2f}%;'><span>{html.escape(label)}</span></div>"
+        for label, date in cut_dates
+        if horizon_start <= date <= horizon_end
+    )
+    month_labels = []
+    cursor = pd.Timestamp(horizon_start.year, horizon_start.month, 1)
+    while cursor <= horizon_end:
+        month_labels.append((cursor.strftime("%b %Y"), pct(cursor)))
+        cursor = cursor + pd.DateOffset(months=1)
+    months_html = "".join(
+        f"<span style='left:{left:.2f}%;'>{html.escape(label.title())}</span>" for label, left in month_labels
+    )
+    total_amount = float(hito_ranges["Monto"].sum() or 0)
+    launch_rows = hito_ranges[hito_ranges["Hito"].astype(str).eq("H8")]
+    launch_text = format_date(launch_rows["Termino_hito"].max()) if not launch_rows.empty else format_date(horizon_end)
+    today_left = pct(today)
+
+    html_doc = f"""
+    <style>
+    *{{box-sizing:border-box;}}
+    body{{margin:0;background:transparent;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;color:#0B1633;overflow-x:hidden;}}
+    .span-shell{{background:linear-gradient(180deg,#FFFFFF 0%,#F8FBFD 100%);border:1px solid #DCE6EF;border-radius:14px;padding:18px 20px;box-shadow:0 14px 32px rgba(15,23,42,.06);overflow:hidden;}}
+    .span-head{{display:flex;justify-content:space-between;align-items:flex-start;gap:18px;margin-bottom:16px;}}
+    .span-title{{font-size:21px;line-height:1.1;font-weight:950;color:#23457A;}}
+    .span-sub{{font-size:12px;color:#64748B;line-height:1.38;margin-top:6px;max-width:820px;}}
+    .span-kpis{{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;}}
+    .span-kpi{{background:#FFFFFF;border:1px solid #E2E8F0;border-radius:999px;padding:7px 10px;font-size:11px;font-weight:900;color:#334155;white-space:nowrap;}}
+    .span-axis{{position:relative;margin-left:260px;margin-right:128px;height:32px;border-bottom:1px solid #E2E8F0;}}
+    .span-axis span{{position:absolute;top:4px;transform:translateX(-2px);font-size:10px;font-weight:850;color:#64748B;text-transform:uppercase;white-space:nowrap;}}
+    .span-body{{position:relative;display:grid;gap:9px;padding-top:8px;}}
+    .span-overlay{{position:absolute;left:260px;right:128px;top:0;bottom:0;pointer-events:none;}}
+    .today-span{{position:absolute;top:0;bottom:0;left:{today_left:.2f}%;width:2px;background:#EF4444;box-shadow:0 0 0 5px rgba(239,68,68,.09);z-index:5;}}
+    .today-span span{{position:absolute;top:-25px;left:50%;transform:translateX(-50%);background:#EF4444;color:#FFFFFF;border-radius:999px;padding:4px 9px;font-size:10px;font-weight:950;}}
+    .cut-mark{{position:absolute;top:0;bottom:0;width:1px;background:rgba(15,23,42,.12);}}
+    .cut-mark span{{position:absolute;bottom:-19px;left:5px;font-size:9px;color:#64748B;font-weight:800;white-space:nowrap;}}
+    .span-row{{display:grid;grid-template-columns:250px minmax(260px,1fr) 118px;gap:10px;align-items:center;min-height:58px;position:relative;z-index:10;}}
+    .span-label{{display:flex;align-items:center;gap:10px;min-width:0;}}
+    .span-code{{width:38px;height:38px;border-radius:12px;color:#FFFFFF;font-size:14px;font-weight:950;display:flex;align-items:center;justify-content:center;box-shadow:0 8px 18px rgba(15,23,42,.16);flex:0 0 auto;}}
+    .span-row.critical .span-code{{box-shadow:0 0 0 8px rgba(220,38,38,.10),0 12px 24px rgba(220,38,38,.22);}}
+    .span-name{{font-size:12px;font-weight:950;color:#0B1633;line-height:1.14;}}
+    .span-meta{{font-size:10px;color:#64748B;margin-top:3px;font-weight:750;}}
+    .span-track{{height:42px;border-radius:12px;background:linear-gradient(90deg,rgba(226,232,240,.60),rgba(248,250,252,.35));position:relative;overflow:hidden;border:1px solid #EEF3F7;}}
+    .span-bar{{position:absolute;top:8px;height:24px;border-radius:999px;background:linear-gradient(90deg,var(--bar),color-mix(in srgb,var(--bar) 72%,#FFFFFF));box-shadow:0 10px 22px color-mix(in srgb,var(--bar) 22%,transparent);display:flex;align-items:center;padding:0 10px;min-width:34px;}}
+    .span-row.critical .span-bar{{height:30px;top:5px;box-shadow:0 0 0 5px rgba(220,38,38,.08),0 14px 26px rgba(220,38,38,.20);}}
+    .span-bar span{{color:#FFFFFF;font-size:10px;font-weight:950;white-space:nowrap;text-shadow:0 1px 2px rgba(15,23,42,.24);}}
+    .span-side{{background:#FFFFFF;border:1px solid #E2E8F0;border-radius:11px;padding:8px 9px;box-shadow:0 8px 18px rgba(15,23,42,.04);}}
+    .span-side b{{display:block;font-size:11px;color:#0B1633;white-space:nowrap;}}
+    .span-side span{{display:block;font-size:9px;color:#64748B;margin-top:3px;font-weight:800;}}
+    .amount-track{{height:5px;background:#E2E8F0;border-radius:999px;overflow:hidden;margin-top:6px;}}
+    .amount-track i{{display:block;height:100%;border-radius:999px;}}
+    @media(max-width:980px){{.span-axis{{margin-left:0;margin-right:0;}}.span-row{{grid-template-columns:1fr;}}.span-overlay{{display:none;}}.span-side{{max-width:220px;}}}}
+    </style>
+    <div class="span-shell">
+      <div class="span-head">
+        <div>
+          <div class="span-title">Gantt ejecutivo por rango real de hitos</div>
+          <div class="span-sub">Inicio calculado con la acción más antigua del hito y término con la fecha de acción más lejana del Cronograma Integrado. Permite ver la ventana real de ejecución antes de los cortes de liberación PMO.</div>
+        </div>
+        <div class="span-kpis">
+          <div class="span-kpi">Horizonte {format_date(horizon_start)} · {format_date(horizon_end)}</div>
+          <div class="span-kpi">CAPEX {format_clp(total_amount)}</div>
+          <div class="span-kpi">Puesta en marcha {launch_text}</div>
+        </div>
+      </div>
+      <div class="span-axis">{months_html}</div>
+      <div class="span-body">
+        <div class="span-overlay">{cut_marks}<div class="today-span"><span>HOY</span></div></div>
+        {''.join(rows)}
+      </div>
+    </div>
+    """
+    components.html(html_doc, height=650, scrolling=True)
+
+
 def render_release_cutoff_intelligence(df: pd.DataFrame) -> None:
     cuts = [
         ("Liberación 1", "hasta 30-05-2026", None, pd.Timestamp("2026-05-30"), "#0F766E", "Activación inicial"),
@@ -3075,6 +3230,7 @@ def main() -> None:
     roadmap_tab, hitos_tab = st.tabs(["Vista ejecutiva", "Vista hitos"])
     with roadmap_tab:
         render_executive_roadmap(filtered, hito_summary, pmo_source)
+        render_hito_span_gantt(filtered)
         render_release_cutoff_intelligence(filtered)
         render_pmo_roadmap_matrix(filtered, hito_summary, pmo_source)
         st.markdown("#### Actividades técnicas por hito")
