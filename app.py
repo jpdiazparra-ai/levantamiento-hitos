@@ -2108,6 +2108,42 @@ def render_hitos_financial_view(
         """
         for title, body in memo_blocks
     )
+
+    def format_clp_mm(value: float) -> str:
+        return f"${value / 1_000_000:.1f}MM".replace(".", ",")
+
+    def impact_for(row: pd.Series) -> str:
+        hito = str(row.get("Hito", ""))
+        share = float(row.get("% sobre total", 0) or 0)
+        crit = str(row.get("Criticidad", "Media"))
+        if hito in {"H1", "H4", "H8"}:
+            return "Crítico"
+        if crit == "Alta" or share >= 0.20:
+            return "Alto"
+        if crit == "Media" or share >= 0.08:
+            return "Medio"
+        return "Bajo"
+
+    def impact_class(value: str) -> str:
+        return {"Crítico": "red", "Alto": "amber", "Medio": "blue", "Bajo": "green"}.get(value, "gray")
+
+    def pmo_signal(row: pd.Series, impact: str) -> tuple[str, str]:
+        state = str(row.get("Estado", "Pendiente"))
+        if impact == "Crítico" or str(row.get("Criticidad", "")) == "Alta":
+            return "Riesgo PMO", "red"
+        if state == "En curso" or impact in {"Alto", "Medio"}:
+            return "Seguimiento", "amber"
+        return "En control", "green"
+
+    def bar_cell(value: float, color: str, label: str) -> str:
+        width = min(max(value, 0), 100)
+        return f"""
+        <div class="matrix-bar">
+          <span>{html.escape(label)}</span>
+          <div><i style="width:{width:.0f}%;background:{color};"></i></div>
+        </div>
+        """
+
     matrix_preview = matrix.sort_values("Hito Orden").copy()
     if matrix_preview.empty:
         matrix_preview = matrix.sort_values(["Criticidad", "Monto_CLP"], ascending=[True, False]).copy()
@@ -2117,31 +2153,36 @@ def render_hitos_financial_view(
         state = str(row.get("Estado", "Pendiente"))
         crit = str(row.get("Criticidad", "Media"))
         scenario_name = str(row.get("Escenario recomendado", "Base")).upper()
+        hito_code = str(row.get("Hito", "-"))
+        is_strategic = hito_code in {"H1", "H4", "H8"}
+        impact = impact_for(row)
+        signal, signal_class = pmo_signal(row, impact)
+        capex_pct = float(row.get("% sobre total", 0) or 0) * 100
+        execution_pct = float(row.get("Avance_promedio", 0) or 0) * 100
+        financial_pct = {"CONSERVADOR": 30, "BASE": 80, "CIERRE": 100}.get(scenario_name, 30)
+        capex_value = float(row.get("Monto_CLP", 0) or 0)
+        duration = int(float(row.get("Duracion_habil", 0) or 0))
         state_class = "blue" if state == "En curso" else "gray"
         crit_class = "red" if crit in {"Alta", "Crítica"} else "amber" if crit == "Media" else "green"
         scen_class = "green" if scenario_name == "CIERRE" else "blue" if scenario_name == "BASE" else "amber"
         matrix_rows.append(
             f"""
-            <tr>
-              <td class="hito-code">{html.escape(str(row.get("Hito", "-")))}</td>
-              <td>{html.escape(str(row.get("Hito ejecutivo", row.get("Hito Ejecutivo", "-"))))}</td>
-              <td>{html.escape(str(row.get("Etapa del hito", "-")))}</td>
-              <td><span class="matrix-pill {state_class}">{html.escape(state.upper())}</span></td>
-              <td><span class="matrix-pill {crit_class}">{html.escape(crit.upper())}</span></td>
-              <td>{html.escape(str(row.get("Inicio", "-")))}</td>
-              <td>{html.escape(str(row.get("Término", row.get("Termino", "-"))))}</td>
-              <td>{html.escape(str(row.get("Duración hábil", row.get("Duracion_habil", "-"))))}</td>
-              <td>{html.escape(str(row.get("Monto total", "-")))}</td>
-              <td>{html.escape(str(row.get("% total", "% Total")))}</td>
-              <td>{html.escape(str(row.get("Liberación Inicial", "-")))}</td>
-              <td>{html.escape(str(row.get("Liberación Avance", "-")))}</td>
-              <td>{html.escape(str(row.get("Liberación Cierre", "-")))}</td>
-              <td>{html.escape(str(row.get("Total Liberación", "-")))}</td>
-              <td>{html.escape(str(row.get("Monto crítico próximo", "-")))}</td>
+            <tr class="{'strategic-row' if is_strategic else ''} heat-{impact_class(impact)}">
+              <td class="sticky-col col-hito"><span class="hito-code">{html.escape(hito_code)}</span></td>
+              <td class="sticky-col col-state"><span class="matrix-pill {state_class}">{html.escape(state)}</span></td>
+              <td class="sticky-col col-risk"><span class="matrix-pill {crit_class}">{html.escape(crit)}</span></td>
+              <td class="matrix-name"><b>{html.escape(str(row.get("Hito ejecutivo", row.get("Hito Ejecutivo", "-"))))}</b><small>{html.escape(str(row.get("Condición de Liberación", "-")))}</small></td>
+              <td><span class="matrix-pill blue">{html.escape(str(row.get("Etapa del hito", "-")))}</span></td>
+              <td><span class="matrix-pill {impact_class(impact)}">{html.escape(impact)}</span></td>
+              <td><span class="signal {signal_class}"><i></i>{html.escape(signal)}</span></td>
+              <td>{bar_cell(financial_pct, "#2F80ED", f"{financial_pct:.0f}%")}</td>
+              <td>{bar_cell(execution_pct, "#0F766E", f"{execution_pct:.0f}%")}</td>
+              <td>{bar_cell(capex_pct, "#F59E0B", format_clp_mm(capex_value))}</td>
+              <td>{duration} días</td>
+              <td>{html.escape(format_date(row.get("_Inicio", row.get("Inicio", "-"))))}</td>
+              <td>{html.escape(format_date(row.get("_Termino", row.get("Termino", "-"))))}</td>
               <td><span class="matrix-pill {scen_class}">{html.escape(scenario_name)}</span></td>
-              <td>{html.escape(str(row.get("Decisión requerida", "-")))}</td>
-              <td>{html.escape(str(row.get("Condición de Liberación", "-")))}</td>
-              <td>{html.escape(str(row.get("Comentario ejecutivo", "-")))}</td>
+              <td class="decision-cell">{html.escape(str(row.get("Decisión requerida", "-")))}</td>
             </tr>
             """
         )
@@ -2154,6 +2195,66 @@ def render_hitos_financial_view(
     launch_remaining = "-"
     if pd.notna(launch_date):
         launch_remaining = f"{max((pd.Timestamp(launch_date).normalize() - pd.Timestamp('today').normalize()).days, 0)} días restantes"
+
+    critical_count = int(matrix["Hito"].astype(str).isin(["H1", "H4", "H8"]).sum())
+    next_unlock = "H2"
+    if isinstance(next_row, pd.Series) and not next_row.empty:
+        next_unlock = str(next_row.get("Hito", "H2"))
+    decision_cards = [
+        {
+            "tone": "red",
+            "icon": "!",
+            "title": "Aprobación H1",
+            "subtitle": "Liberación inicial para continuidad técnica",
+            "amount": format_clp_mm(cons),
+            "deadline": "Inmediato",
+            "dependency": "Equipo técnico y PMO",
+            "risk": "Crítico",
+            "cta": "Requiere aprobación",
+        },
+        {
+            "tone": "amber",
+            "icon": "✓",
+            "title": "Validar transición",
+            "subtitle": f"Dependencias antes de {next_unlock}",
+            "amount": format_clp_mm(critical_30),
+            "deadline": "30 días",
+            "dependency": "Ruta técnica crítica",
+            "risk": "Seguimiento",
+            "cta": "Validación técnica",
+        },
+        {
+            "tone": "green",
+            "icon": "↗",
+            "title": "Control PMO",
+            "subtitle": "Seguimiento de continuidad operacional",
+            "amount": format_clp_mm(critical_60),
+            "deadline": "60 días",
+            "dependency": "Fondos avance y cierre",
+            "risk": risk.title(),
+            "cta": "Seguimiento PMO",
+        },
+    ]
+    decision_cards_html = "".join(
+        f"""
+        <div class="decision-card {card['tone']}">
+          <div class="semaphore"></div>
+          <div class="decision-icon">{html.escape(card['icon'])}</div>
+          <div class="decision-copy">
+            <b>{html.escape(card['title'])}</b>
+            <p>{html.escape(card['subtitle'])}</p>
+            <div class="decision-meta">
+              <span><small>Monto</small>{html.escape(card['amount'])}</span>
+              <span><small>Plazo</small>{html.escape(card['deadline'])}</span>
+              <span><small>Riesgo</small>{html.escape(card['risk'])}</span>
+            </div>
+            <div class="decision-dep">Dependencia: {html.escape(card['dependency'])}</div>
+            <div class="decision-cta">{html.escape(card['cta'])}</div>
+          </div>
+        </div>
+        """
+        for card in decision_cards
+    )
 
     html_doc = f"""
         <style>
@@ -2250,24 +2351,60 @@ def render_hitos_financial_view(
         .decision-tooltip b{{display:block;font-size:12px;margin-bottom:8px;color:#FFFFFF;}}
         .decision-tooltip span{{display:block;font-size:11px;line-height:1.35;color:#DDE8F3;margin-top:4px;}}
         .ref-mile:hover .decision-tooltip{{opacity:1;transform:translateX(-50%) translateY(0);}}
-        .ref-bottom{{display:grid;grid-template-columns:270px 1fr;gap:16px;align-items:start;}}
+        .ref-bottom{{display:grid;grid-template-columns:330px 1fr;gap:16px;align-items:start;}}
         .ref-decisions{{display:grid;gap:10px;}}
-        .ref-decision{{background:#FFFFFF;border:1px solid #F3B4B4;border-radius:10px;padding:13px 14px;display:grid;grid-template-columns:34px 1fr;gap:10px;}}
-        .ref-icon{{width:30px;height:30px;border-radius:999px;color:#FFFFFF;display:flex;align-items:center;justify-content:center;font-weight:900;}}
-        .ref-decision b{{font-size:12px;color:#E11D48;}}
-        .ref-decision p{{font-size:11px;color:#334155;line-height:1.35;margin:3px 0 0 0;}}
-        .matrix-scroll{{overflow:auto;border:1px solid #E2E8F0;border-radius:10px;}}
-        .pmo-matrix{{width:100%;min-width:1240px;border-collapse:collapse;background:#FFFFFF;font-size:10px;color:#0B1633;}}
-        .pmo-matrix th{{background:#F8FAFC;color:#0B1633;font-size:9px;text-transform:uppercase;letter-spacing:.035em;border-bottom:1px solid #E2E8F0;border-right:1px solid #E2E8F0;padding:11px 10px;text-align:center;}}
-        .pmo-matrix td{{border-bottom:1px solid #E2E8F0;border-right:1px solid #EDF2F7;padding:10px 10px;text-align:center;vertical-align:middle;}}
-        .pmo-matrix td:nth-child(2),.pmo-matrix td:nth-child(17),.pmo-matrix td:nth-child(18),.pmo-matrix td:nth-child(19){{text-align:left;line-height:1.3;}}
-        .hito-code{{font-size:15px;font-weight:950;color:#0B1633;}}
+        .decision-card{{position:relative;display:grid;grid-template-columns:42px 1fr;gap:11px;background:#FFFFFF;border:1px solid #E2E8F0;border-radius:14px;padding:13px 13px 13px 17px;box-shadow:0 12px 24px rgba(15,23,42,.05);overflow:hidden;}}
+        .decision-card .semaphore{{position:absolute;left:0;top:0;bottom:0;width:5px;background:var(--tone);}}
+        .decision-card.red{{--tone:#E11D48;}}
+        .decision-card.amber{{--tone:#F59E0B;}}
+        .decision-card.green{{--tone:#10B981;}}
+        .decision-icon{{width:38px;height:38px;border-radius:12px;background:color-mix(in srgb,var(--tone) 14%,#FFFFFF);color:var(--tone);display:flex;align-items:center;justify-content:center;font-size:19px;font-weight:950;box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--tone) 28%,#FFFFFF);}}
+        .decision-copy b{{display:block;font-size:13px;color:#0B1633;line-height:1.15;}}
+        .decision-copy p{{font-size:11px;color:#475569;line-height:1.35;margin:4px 0 9px 0;}}
+        .decision-meta{{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;}}
+        .decision-meta span{{background:#F8FAFC;border:1px solid #E8EEF5;border-radius:8px;padding:6px 7px;font-size:11px;font-weight:900;color:#0B1633;}}
+        .decision-meta small{{display:block;font-size:8px;text-transform:uppercase;letter-spacing:.04em;color:#64748B;margin-bottom:2px;}}
+        .decision-dep{{font-size:10px;color:#64748B;margin-top:8px;}}
+        .decision-cta{{display:inline-flex;margin-top:8px;border-radius:999px;padding:5px 9px;background:var(--tone);color:#FFFFFF;font-size:10px;font-weight:950;}}
+        .matrix-summary{{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px;margin-bottom:12px;}}
+        .summary-tile{{background:linear-gradient(145deg,#FFFFFF,#F9FBFD);border:1px solid #E2E8F0;border-radius:12px;padding:10px 12px;box-shadow:0 10px 20px rgba(15,23,42,.045);}}
+        .summary-tile small{{display:block;font-size:9px;text-transform:uppercase;letter-spacing:.04em;color:#64748B;font-weight:850;}}
+        .summary-tile b{{display:block;font-size:16px;color:#0B1633;margin-top:5px;}}
+        .matrix-scroll{{overflow:auto;border:1px solid #E2E8F0;border-radius:12px;max-height:470px;background:#FFFFFF;}}
+        .pmo-matrix{{width:100%;min-width:1360px;border-collapse:separate;border-spacing:0;background:#FFFFFF;font-size:11px;color:#0B1633;}}
+        .pmo-matrix th{{position:sticky;top:0;z-index:20;background:#F8FAFC;color:#334155;font-size:10px;letter-spacing:0;border-bottom:1px solid #DCE6EF;padding:12px 10px;text-align:center;white-space:nowrap;}}
+        .pmo-matrix td{{border-bottom:1px solid #EEF3F7;padding:12px 10px;text-align:center;vertical-align:middle;background:#FFFFFF;}}
+        .pmo-matrix tr:hover td{{background:#F8FBFF;}}
+        .pmo-matrix .sticky-col{{position:sticky;z-index:15;background:inherit;box-shadow:1px 0 0 #E8EEF5;}}
+        .pmo-matrix th.sticky-col{{z-index:25;}}
+        .col-hito{{left:0;width:64px;min-width:64px;}}
+        .col-state{{left:64px;width:104px;min-width:104px;}}
+        .col-risk{{left:168px;width:104px;min-width:104px;}}
+        .matrix-name{{text-align:left!important;min-width:260px;}}
+        .matrix-name b{{display:block;font-size:12px;color:#0B1633;line-height:1.25;}}
+        .matrix-name small{{display:block;font-size:10px;color:#64748B;line-height:1.25;margin-top:4px;}}
+        .strategic-row td{{background:#FFFBF5;}}
+        .hito-code{{display:inline-flex;align-items:center;justify-content:center;width:36px;height:30px;border-radius:10px;background:#0B2D42;color:#FFFFFF;font-size:14px;font-weight:950;}}
+        .strategic-row .hito-code{{background:#E11D48;box-shadow:0 0 0 5px rgba(225,29,72,.10);}}
         .matrix-pill{{display:inline-flex;border-radius:5px;padding:4px 8px;font-size:9px;font-weight:950;white-space:nowrap;}}
         .matrix-pill.blue{{background:#DBEAFE;color:#2563EB;}}
         .matrix-pill.gray{{background:#E2E8F0;color:#64748B;}}
         .matrix-pill.red{{background:#FEE2E2;color:#E11D48;}}
         .matrix-pill.amber{{background:#FEF3C7;color:#D97706;}}
         .matrix-pill.green{{background:#D1FAE5;color:#047857;}}
+        .signal{{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:5px 8px;font-size:10px;font-weight:900;white-space:nowrap;}}
+        .signal i{{width:8px;height:8px;border-radius:999px;display:inline-block;}}
+        .signal.green{{background:#D1FAE5;color:#047857;}}.signal.green i{{background:#10B981;}}
+        .signal.amber{{background:#FEF3C7;color:#B45309;}}.signal.amber i{{background:#F59E0B;}}
+        .signal.red{{background:#FEE2E2;color:#BE123C;}}.signal.red i{{background:#E11D48;}}
+        .matrix-bar{{min-width:118px;text-align:left;}}
+        .matrix-bar span{{display:block;font-size:10px;color:#334155;font-weight:900;margin-bottom:5px;}}
+        .matrix-bar div{{height:7px;background:#E2E8F0;border-radius:999px;overflow:hidden;}}
+        .matrix-bar i{{display:block;height:100%;border-radius:999px;}}
+        .decision-cell{{text-align:left!important;min-width:200px;color:#334155;line-height:1.3;}}
+        .heat-red td{{box-shadow:inset 0 0 0 999px rgba(225,29,72,.018);}}
+        .heat-amber td{{box-shadow:inset 0 0 0 999px rgba(245,158,11,.018);}}
+        .heat-blue td{{box-shadow:inset 0 0 0 999px rgba(47,128,237,.014);}}
         .matrix-foot{{font-size:10px;color:#64748B;margin-top:10px;display:flex;gap:28px;align-items:center;}}
         @media(max-width:1320px){{.ref-kpi-groups{{grid-template-columns:1fr 1fr;}}.ref-band{{grid-template-columns:1fr 1fr;}}.ref-band-block:nth-child(2){{border-right:0;}}}}
         @media(max-width:1200px){{.ref-main,.ref-bottom{{grid-template-columns:1fr;}}}}
@@ -2355,21 +2492,26 @@ def render_hitos_financial_view(
             <div class="ref-panel">
               <div class="ref-panel-title">Decisiones requeridas</div>
               <div class="ref-decisions">
-                <div class="ref-decision"><div class="ref-icon" style="background:#FCA5A5;">▣</div><div><b>Decisión financiera inmediata</b><p>Aprobar liberación inicial del {html.escape(current_hito_label)} por {format_clp(cons)}.</p></div></div>
-                <div class="ref-decision" style="border-color:#FCD34D;"><div class="ref-icon" style="background:#F59E0B;">▣</div><div><b style="color:#D97706;">Decisión técnica pendiente</b><p>Validar dependencias críticas antes de sostener avance del próximo hito.</p></div></div>
-                <div class="ref-decision"><div class="ref-icon" style="background:#FB7185;">!</div><div><b>Riesgo si no se libera financiamiento</b><p>Riesgo de desaceleración, aumento de costos y retraso en puesta en marcha.</p></div></div>
+                {decision_cards_html}
               </div>
             </div>
             <div class="ref-panel">
               <div class="ref-panel-title">Matriz PMO de hitos</div>
+              <div class="matrix-summary">
+                <div class="summary-tile"><small>Hitos críticos</small><b>{critical_count}</b></div>
+                <div class="summary-tile"><small>CAPEX comprometido</small><b>{format_clp_mm(total)}</b></div>
+                <div class="summary-tile"><small>Brecha operacional</small><b>{format_clp_mm(float(metrics["breach"]))}</b></div>
+                <div class="summary-tile"><small>Riesgo PMO</small><b>{html.escape(risk)}</b></div>
+                <div class="summary-tile"><small>Próximo desbloqueo</small><b>{html.escape(next_unlock)}</b></div>
+              </div>
               <div class="matrix-scroll">
                 <table class="pmo-matrix">
                   <thead>
                     <tr>
-                      <th>Hito</th><th>Hito ejecutivo</th><th>Etapa</th><th>Estado</th><th>Criticidad</th>
-                      <th>Inicio</th><th>Término</th><th>Dur. hábil</th><th>Monto restante CLP</th><th>% total</th>
-                      <th>Inicial</th><th>Avance</th><th>Cierre</th><th>Total</th><th>Monto crítico próximo</th>
-                      <th>Escenario recomendado</th><th>Decisión requerida</th><th>Condición de liberación</th><th>Comentario ejecutivo</th>
+                      <th class="sticky-col col-hito">Hito</th><th class="sticky-col col-state">Estado</th><th class="sticky-col col-risk">Criticidad</th>
+                      <th>Hito ejecutivo</th><th>Etapa</th><th>Impacto operativo</th><th>Indicador PMO</th>
+                      <th>Av. financiero</th><th>Ejecución</th><th>CAPEX restante</th><th>Duración</th>
+                      <th>Inicio</th><th>Término</th><th>Escenario</th><th>Decisión requerida</th>
                     </tr>
                   </thead>
                   <tbody>{''.join(matrix_rows)}</tbody>
