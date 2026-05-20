@@ -2328,7 +2328,9 @@ def render_hitos_financial_view(
         .scenario-mini-timeline span.on{{background:#FFFFFF;color:var(--scenario);box-shadow:inset 0 0 0 1px var(--scenario);}}
         .scenario-bullets{{margin:12px 0 0 0;padding-left:16px;color:#25364F;font-size:11px;line-height:1.42;}}
         .scenario-bullets li{{margin:3px 0;}}
-        .ref-timeline{{background:#FFFFFF;border:1px solid #E2E8F0;border-radius:12px;padding:16px 18px 18px 18px;margin-bottom:12px;box-shadow:0 12px 24px rgba(15,23,42,.05);overflow:visible;}}
+        .control-stack{{display:grid;gap:14px;margin-top:2px;}}
+        .control-panel{{background:#FFFFFF;border:1px solid #E2E8F0;border-radius:12px;padding:16px 18px 18px 18px;box-shadow:0 12px 24px rgba(15,23,42,.05);overflow:visible;}}
+        .ref-timeline{{margin-bottom:0;}}
         .timeline-head{{display:flex;justify-content:space-between;gap:20px;align-items:center;}}
         .timeline-legend{{display:flex;gap:22px;align-items:center;font-size:11px;color:#334155;}}
         .legend-dot{{display:inline-block;width:12px;height:12px;border-radius:999px;margin-right:6px;vertical-align:-1px;}}
@@ -2351,9 +2353,8 @@ def render_hitos_financial_view(
         .decision-tooltip b{{display:block;font-size:12px;margin-bottom:8px;color:#FFFFFF;}}
         .decision-tooltip span{{display:block;font-size:11px;line-height:1.35;color:#DDE8F3;margin-top:4px;}}
         .ref-mile:hover .decision-tooltip{{opacity:1;transform:translateX(-50%) translateY(0);}}
-        .ref-bottom{{display:grid;grid-template-columns:330px 1fr;gap:16px;align-items:start;}}
-        .ref-decisions{{display:grid;gap:10px;}}
-        .decision-card{{position:relative;display:grid;grid-template-columns:42px 1fr;gap:11px;background:#FFFFFF;border:1px solid #E2E8F0;border-radius:14px;padding:13px 13px 13px 17px;box-shadow:0 12px 24px rgba(15,23,42,.05);overflow:hidden;}}
+        .ref-decisions{{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;}}
+        .decision-card{{position:relative;display:grid;grid-template-columns:42px 1fr;gap:11px;background:#FFFFFF;border:1px solid #E2E8F0;border-radius:14px;padding:13px 13px 13px 17px;box-shadow:0 10px 20px rgba(15,23,42,.045);overflow:hidden;min-height:154px;}}
         .decision-card .semaphore{{position:absolute;left:0;top:0;bottom:0;width:5px;background:var(--tone);}}
         .decision-card.red{{--tone:#E11D48;}}
         .decision-card.amber{{--tone:#F59E0B;}}
@@ -2370,8 +2371,8 @@ def render_hitos_financial_view(
         .summary-tile{{background:linear-gradient(145deg,#FFFFFF,#F9FBFD);border:1px solid #E2E8F0;border-radius:12px;padding:10px 12px;box-shadow:0 10px 20px rgba(15,23,42,.045);}}
         .summary-tile small{{display:block;font-size:9px;text-transform:uppercase;letter-spacing:.04em;color:#64748B;font-weight:850;}}
         .summary-tile b{{display:block;font-size:16px;color:#0B1633;margin-top:5px;}}
-        .matrix-scroll{{overflow:auto;border:1px solid #E2E8F0;border-radius:12px;max-height:470px;background:#FFFFFF;}}
-        .pmo-matrix{{width:100%;min-width:1360px;border-collapse:separate;border-spacing:0;background:#FFFFFF;font-size:11px;color:#0B1633;}}
+        .matrix-scroll{{overflow:auto;border:1px solid #E2E8F0;border-radius:12px;max-height:520px;background:#FFFFFF;}}
+        .pmo-matrix{{width:100%;min-width:1480px;border-collapse:separate;border-spacing:0;background:#FFFFFF;font-size:11px;color:#0B1633;}}
         .pmo-matrix th{{position:sticky;top:0;z-index:20;background:#F8FAFC;color:#334155;font-size:10px;letter-spacing:0;border-bottom:1px solid #DCE6EF;padding:12px 10px;text-align:center;white-space:nowrap;}}
         .pmo-matrix td{{border-bottom:1px solid #EEF3F7;padding:12px 10px;text-align:center;vertical-align:middle;background:#FFFFFF;}}
         .pmo-matrix tr:hover td{{background:#F8FBFF;}}
@@ -2407,7 +2408,7 @@ def render_hitos_financial_view(
         .heat-blue td{{box-shadow:inset 0 0 0 999px rgba(47,128,237,.014);}}
         .matrix-foot{{font-size:10px;color:#64748B;margin-top:10px;display:flex;gap:28px;align-items:center;}}
         @media(max-width:1320px){{.ref-kpi-groups{{grid-template-columns:1fr 1fr;}}.ref-band{{grid-template-columns:1fr 1fr;}}.ref-band-block:nth-child(2){{border-right:0;}}}}
-        @media(max-width:1200px){{.ref-main,.ref-bottom{{grid-template-columns:1fr;}}}}
+        @media(max-width:1200px){{.ref-main{{grid-template-columns:1fr;}}.ref-decisions{{grid-template-columns:1fr;}}}}
         </style>
         <div class="ref-wrap">
           <div class="ref-top">
@@ -2471,31 +2472,25 @@ def render_hitos_financial_view(
               </div>
             </div>
           </div>
-          <div class="ref-timeline">
-            <div class="timeline-head">
-              <div class="ref-panel-title">Roadmap de decisión H1 → H8</div>
-              <div class="timeline-legend">
-                <span><i class="legend-dot" style="background:#10B981;"></i>Ejecutado</span>
-                <span><i class="legend-dot" style="background:#2F80ED;"></i>En curso</span>
-                <span><i class="legend-dot" style="background:#94A3B8;"></i>Pendiente</span>
-                <span><i class="legend-dot" style="background:#EF4444;"></i>Crítico</span>
+          <div class="control-stack">
+            <div class="control-panel ref-timeline">
+              <div class="timeline-head">
+                <div class="ref-panel-title">Roadmap de decisión H1 → H8</div>
+                <div class="timeline-legend">
+                  <span><i class="legend-dot" style="background:#10B981;"></i>Ejecutado</span>
+                  <span><i class="legend-dot" style="background:#2F80ED;"></i>En curso</span>
+                  <span><i class="legend-dot" style="background:#94A3B8;"></i>Pendiente</span>
+                  <span><i class="legend-dot" style="background:#EF4444;"></i>Crítico</span>
+                </div>
+              </div>
+              <div class="ref-stage"><div style="background:#DDF3F7;">Liberación inicial</div><div style="background:#FBF0D5;">Ingeniería y fabricación</div><div style="background:#DDF4EA;">Integración y cierre</div></div>
+              <div class="decision-roadmap" style="--today:{today_pos:.2f}%;--progress:{progress_width:.2f}%;">
+                <div class="today-line"><span>HOY</span></div>
+                <div class="decision-track"><div class="decision-progress"></div></div>
+                <div class="ref-line">{''.join(timeline_items)}</div>
               </div>
             </div>
-            <div class="ref-stage"><div style="background:#DDF3F7;">Liberación inicial</div><div style="background:#FBF0D5;">Ingeniería y fabricación</div><div style="background:#DDF4EA;">Integración y cierre</div></div>
-            <div class="decision-roadmap" style="--today:{today_pos:.2f}%;--progress:{progress_width:.2f}%;">
-              <div class="today-line"><span>HOY</span></div>
-              <div class="decision-track"><div class="decision-progress"></div></div>
-              <div class="ref-line">{''.join(timeline_items)}</div>
-            </div>
-          </div>
-          <div class="ref-bottom">
-            <div class="ref-panel">
-              <div class="ref-panel-title">Decisiones requeridas</div>
-              <div class="ref-decisions">
-                {decision_cards_html}
-              </div>
-            </div>
-            <div class="ref-panel">
+            <div class="control-panel">
               <div class="ref-panel-title">Matriz PMO de hitos</div>
               <div class="matrix-summary">
                 <div class="summary-tile"><small>Hitos críticos</small><b>{critical_count}</b></div>
@@ -2519,10 +2514,16 @@ def render_hitos_financial_view(
               </div>
               <div class="matrix-foot"><span>Criticidad: <b style="color:#E11D48;">● Alta</b> <b style="color:#F59E0B;">● Media</b> <b style="color:#10B981;">● Baja</b></span><span>Escenario recomendado calculado según criticidad e impacto en puesta en marcha.</span></div>
             </div>
+            <div class="control-panel">
+              <div class="ref-panel-title">Decisiones requeridas</div>
+              <div class="ref-decisions">
+                {decision_cards_html}
+              </div>
+            </div>
           </div>
         </div>
         """
-    components.html(html_doc, height=1280, scrolling=True)
+    components.html(html_doc, height=1480, scrolling=True)
     with st.expander("Ver matriz PMO completa", expanded=False):
         render_hitos_table(df, hito_summary, pmo_source)
 
