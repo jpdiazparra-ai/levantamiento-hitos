@@ -2712,6 +2712,11 @@ def main() -> None:
     roadmap_tab, hitos_tab = st.tabs(["Vista ejecutiva", "Vista hitos"])
     with roadmap_tab:
         render_executive_roadmap(filtered, hito_summary, pmo_source)
+        st.markdown("#### Roadmap de decisión H1 → H8")
+        pmo_matrix = build_pmo_hito_matrix(filtered, hito_summary, pmo_source)
+        st.plotly_chart(build_hitos_timeline(hito_summary, pmo_matrix), use_container_width=True)
+        st.markdown("#### Matriz PMO de hitos")
+        render_hitos_table(filtered, hito_summary, pmo_source)
         st.markdown("#### Actividades técnicas por hito")
         for milestone in DISPLAY_MILESTONES:
             hito_df = filtered[filtered["Hito Ejecutivo"].eq(milestone)].copy()
