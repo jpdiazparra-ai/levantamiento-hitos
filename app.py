@@ -3540,9 +3540,8 @@ def main() -> None:
         st.warning("No hay actividades para los filtros seleccionados.")
         st.stop()
 
-    render_board_kpis(filtered)
-    render_expandable_activity_gantt(filtered)
     render_release_cutoff_intelligence(filtered)
+    render_expandable_activity_gantt(filtered)
     render_hito_span_gantt(filtered)
 
     pending_df = filtered[filtered["Pendiente programación"]].copy()
