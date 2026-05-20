@@ -809,7 +809,12 @@ def roadmap_month_labels(start: pd.Timestamp, end: pd.Timestamp) -> list[str]:
     return labels[:4] if labels else []
 
 
-def render_executive_roadmap(df: pd.DataFrame) -> None:
+def render_executive_roadmap(
+    df: pd.DataFrame,
+    hito_summary: pd.DataFrame,
+    pmo_source: pd.DataFrame | None = None,
+) -> None:
+    pmo_matrix = build_pmo_hito_matrix(df, hito_summary, pmo_source).sort_values("Hito Orden").copy()
     horizon_start, horizon_end = horizon_dates(df)
     horizon_days = max((horizon_end - horizon_start).days, 1)
     today = pd.Timestamp("today").normalize()
@@ -827,29 +832,31 @@ def render_executive_roadmap(df: pd.DataFrame) -> None:
         months.append("")
 
     rows = []
-    for milestone in DISPLAY_MILESTONES:
+    for _, hito in pmo_matrix.iterrows():
+        milestone = str(hito.get("Hito Ejecutivo", ""))
         hito_df = df[df["Hito Ejecutivo"].eq(milestone)].copy()
-        scheduled = hito_df[~hito_df["Pendiente programación"]].copy()
-        overlapping = scheduled[(scheduled["Termino"] >= horizon_start) & (scheduled["Inicio"] <= horizon_end)]
-        if overlapping.empty and not scheduled.empty:
-            overlapping = scheduled.tail(1)
-        start = overlapping["Inicio"].min() if not overlapping.empty else horizon_start
-        end = overlapping["Termino"].max() if not overlapping.empty else horizon_start + pd.Timedelta(days=7)
-        start = max(pd.Timestamp(start), horizon_start)
-        end = min(max(pd.Timestamp(end), start + pd.Timedelta(days=1)), horizon_end)
+        raw_start = pd.to_datetime(hito.get("_Inicio", pd.NaT), errors="coerce")
+        raw_end = pd.to_datetime(hito.get("_Termino", pd.NaT), errors="coerce")
+        if pd.isna(raw_start) or pd.isna(raw_end):
+            scheduled = hito_df[~hito_df["Pendiente programación"]].copy()
+            raw_start = scheduled["Inicio"].min() if not scheduled.empty else horizon_start
+            raw_end = scheduled["Termino"].max() if not scheduled.empty else horizon_start + pd.Timedelta(days=7)
+        start = max(pd.Timestamp(raw_start), horizon_start)
+        end = min(max(pd.Timestamp(raw_end), start + pd.Timedelta(days=1)), horizon_end)
         left = pct(start)
         width = max(3.0, pct(end) - left)
-        amount = float(hito_df["Monto CLP Num"].sum() or 0)
-        critical = int(hito_df["Es crítica"].sum()) if not hito_df.empty else 0
+        amount = float(hito.get("Total_Liberacion", 0) or hito.get("Monto_CLP", 0) or 0)
+        initial = float(hito.get("Liberacion_Inicial", 0) or 0)
+        advance = float(hito.get("Liberacion_Avance", 0) or 0)
+        close = float(hito.get("Liberacion_Cierre", 0) or 0)
+        criticality = str(hito.get("Criticidad", "Media"))
+        status = str(hito.get("Estado", "Pendiente"))
+        condition = str(hito.get("Condición de Liberación", "")).strip()
+        risk = "alto" if criticality == "Alta" else "medio" if criticality == "Media" else "controlado"
         next_count = int(hito_df["Es próxima"].sum()) if not hito_df.empty else 0
-        risk = (
-            "alto" if critical >= 3 else
-            "medio" if critical >= 1 else
-            "controlado"
-        )
         badges = [
-            f"<span class='roadmap-badge high'>Riesgo {risk}</span>" if critical else "<span class='roadmap-badge'>Riesgo controlado</span>",
-            f"<span class='roadmap-badge next'>{next_count} próximas</span>" if next_count else "",
+            f"<span class='roadmap-badge high'>Riesgo {risk}</span>" if criticality in {"Alta", "Media"} else "<span class='roadmap-badge'>Riesgo controlado</span>",
+            f"<span class='roadmap-badge next'>{html.escape(status)}</span>",
             f"<span class='roadmap-badge'>{format_clp(amount)}</span>",
         ]
         rows.append(
@@ -859,12 +866,14 @@ def render_executive_roadmap(df: pd.DataFrame) -> None:
                 <div class="roadmap-icon">{html.escape(ROADMAP_ICONS.get(milestone, "PMO"))}</div>
                 <div>
                   <div class="roadmap-name">{html.escape(ROADMAP_LABELS.get(milestone, milestone))}</div>
-                  <div class="roadmap-meta">{len(hito_df)} actividades · {format_date(start)} a {format_date(end)}</div>
+                  <div class="roadmap-meta">{html.escape(str(hito.get("Hito", "")))} · {format_date(raw_start)} a {format_date(raw_end)}</div>
+                  <div class="roadmap-meta">Inicial {format_clp(initial)} · Avance {format_clp(advance)} · Cierre {format_clp(close)}</div>
                 </div>
               </div>
               <div class="roadmap-track">
                 <div class="roadmap-bar" style="left:{left:.2f}%;width:{width:.2f}%;"></div>
                 <div class="roadmap-badges" style="left:{min(left + width + 1.2, 76):.2f}%;">{''.join(badges)}</div>
+                <div class="roadmap-condition" style="left:{max(left, 1):.2f}%;width:{min(max(width, 18), 70):.2f}%;">{html.escape(condition or 'Condición PMO por definir')}</div>
               </div>
             </div>
             """
@@ -1022,7 +1031,7 @@ def render_executive_roadmap(df: pd.DataFrame) -> None:
         }
         .roadmap-track {
             position: relative;
-            height: 44px;
+            height: 56px;
             border-left: 1px solid #EEF2F6;
             background:
                 linear-gradient(90deg, transparent 0%, transparent 24.8%, rgba(226,232,240,.78) 25%, transparent 25.2%, transparent 49.8%, rgba(226,232,240,.78) 50%, transparent 50.2%, transparent 74.8%, rgba(226,232,240,.78) 75%, transparent 75.2%);
@@ -1056,6 +1065,16 @@ def render_executive_roadmap(df: pd.DataFrame) -> None:
         }
         .roadmap-badge.high { color: #B91C1C; border-color: rgba(220,38,38,.28); }
         .roadmap-badge.next { color: #0F766E; border-color: rgba(15,118,110,.28); }
+        .roadmap-condition {
+            position: absolute;
+            top: 39px;
+            color: #475569;
+            font-size: 10px;
+            font-weight: 750;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
         .roadmap-caption {
             color: #64748B;
             font-size: 12px;
@@ -1070,7 +1089,7 @@ def render_executive_roadmap(df: pd.DataFrame) -> None:
           <div class="roadmap-titlebar">
             <div>
               <h3>Roadmap ejecutivo de convergencia operacional</h3>
-              <p>Los hitos muestran la transición desde ingeniería y fabricación hacia integración, control de riesgo y puesta en marcha.</p>
+              <p>Hitos H1-H8 alimentados por Matriz PMO: liberación de fondos, condición de desbloqueo y convergencia hacia puesta en marcha.</p>
             </div>
             <div class="pill">Horizonte {format_date(horizon_start)} · {format_date(horizon_end)}</div>
           </div>
@@ -1083,7 +1102,7 @@ def render_executive_roadmap(df: pd.DataFrame) -> None:
             {''.join(rows)}
           </div>
           <div class="roadmap-caption">
-            Ventana turquesa: próximos 30 días. Las barras gruesas priorizan la historia ejecutiva del proyecto; el detalle técnico queda disponible bajo demanda.
+            Fuente financiera: Matriz PMO de hitos. Ventana turquesa: próximos 30 días. Las barras posicionan cada hito en el cronograma operacional y muestran su liberación total asociada.
           </div>
         </div>
     """
@@ -2678,7 +2697,7 @@ def main() -> None:
     st.subheader("Roadmap y Gantt ejecutivo")
     roadmap_tab, hitos_tab = st.tabs(["Vista ejecutiva", "Vista hitos"])
     with roadmap_tab:
-        render_executive_roadmap(filtered)
+        render_executive_roadmap(filtered, hito_summary, pmo_source)
         st.markdown("#### Actividades técnicas por hito")
         for milestone in DISPLAY_MILESTONES:
             hito_df = filtered[filtered["Hito Ejecutivo"].eq(milestone)].copy()
