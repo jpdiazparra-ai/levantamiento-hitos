@@ -2259,9 +2259,9 @@ def render_hitos_financial_view(
     html_doc = f"""
         <style>
         *{{box-sizing:border-box;}}
-        body{{margin:0;background:transparent;}}
-        .ref-wrap{{background:#F7F9FC;border:1px solid #E1E8EF;border-radius:8px;padding:22px 0 24px 0;color:#0B1633;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;}}
-        .dashboard-shell{{max-width:1450px;margin:0 auto;padding:0 24px;}}
+        body{{margin:0;background:transparent;overflow-x:hidden;}}
+        .ref-wrap{{background:#F7F9FC;border:1px solid #E1E8EF;border-radius:8px;padding:22px 0 24px 0;color:#0B1633;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;overflow-x:hidden;}}
+        .dashboard-shell{{max-width:1450px;margin:0 auto;padding:0 24px;overflow-x:hidden;}}
         .ref-top{{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px;}}
         .ref-title{{font-size:30px;font-weight:900;color:#0B1633;line-height:1.05;margin:0;}}
         .ref-sub{{font-size:14px;color:#607086;margin-top:9px;}}
@@ -2279,7 +2279,7 @@ def render_hitos_financial_view(
         .ref-critical{{font-size:24px;font-weight:900;color:#FF5B6E;display:flex;gap:12px;align-items:center;}}
         .ref-rec{{font-size:13px;line-height:1.45;color:#FFFFFF;max-width:560px;}}
         .ref-action-badge{{display:inline-flex;margin-top:10px;background:#FBBF24;color:#1F2937;border-radius:999px;padding:8px 14px;font-size:12px;font-weight:950;box-shadow:0 10px 20px rgba(251,191,36,.24);}}
-        .ref-kpi-groups{{display:grid;grid-template-columns:1.35fr .95fr .7fr 1fr;gap:20px;margin-bottom:16px;}}
+        .ref-kpi-groups{{display:grid;grid-template-columns:1.35fr .95fr .7fr 1fr;gap:18px;margin-bottom:16px;min-width:0;}}
         .kpi-group{{background:#FFFFFF;border:1px solid #E2E8F0;border-top:3px solid var(--group);border-radius:14px;padding:12px;box-shadow:0 12px 24px rgba(15,23,42,.052);}}
         .kpi-group.priority{{box-shadow:0 16px 34px rgba(15,23,42,.075);}}
         .kpi-group-head{{display:flex;align-items:center;gap:8px;margin:0 0 10px 2px;}}
@@ -2297,8 +2297,8 @@ def render_hitos_financial_view(
         .kpi-group.priority .ref-kpi-value{{font-size:18px;}}
         .ref-kpi-note{{font-size:10px;color:#52647A;line-height:1.35;margin-top:7px;}}
         .ref-kpi.risk .ref-kpi-value{{color:#E11D48;font-size:20px;letter-spacing:.02em;}}
-        .pmo-flow{{width:100%;max-width:100%;margin:0 auto;display:grid;gap:14px;}}
-        .ref-main{{display:grid;grid-template-columns:.38fr .62fr;gap:14px;margin:0;align-items:stretch;width:100%;}}
+        .pmo-flow{{width:100%;max-width:100%;margin:0 auto;display:grid;gap:14px;min-width:0;overflow-x:hidden;}}
+        .ref-main{{display:grid;grid-template-columns:.36fr .64fr;gap:14px;margin:0;align-items:stretch;width:100%;min-width:0;}}
         .ref-panel,.control-panel{{background:#FFFFFF;border:1px solid #E2E8F0;border-radius:12px;padding:18px 20px;box-shadow:0 12px 24px rgba(15,23,42,.05);}}
         .ref-panel-title{{font-size:14px;font-weight:850;color:#23457A;letter-spacing:0;margin-bottom:14px;}}
         .memo-card{{background:linear-gradient(145deg,#FFFFFF,#FAFCFF);}}
@@ -2307,7 +2307,7 @@ def render_hitos_financial_view(
         .memo-row:last-child{{border-bottom:0;padding-bottom:0;}}
         .memo-row b{{display:block;font-size:12px;color:#0B2D42;margin-bottom:4px;}}
         .memo-row p{{font-size:12px;line-height:1.45;color:#334155;margin:0;}}
-        .ref-scenarios{{display:grid;grid-template-columns:.92fr 1.18fr .92fr;gap:16px;align-items:stretch;}}
+        .ref-scenarios{{display:grid;grid-template-columns:.9fr 1.2fr .9fr;gap:14px;align-items:stretch;min-width:0;}}
         .ref-scenario{{position:relative;border:1px solid #DCE6F0;border-top:4px solid var(--scenario);border-radius:14px;background:linear-gradient(145deg,#FFFFFF,#FCFEFF);padding:16px 18px 14px 18px;min-height:244px;box-shadow:0 12px 24px rgba(15,23,42,.045);}}
         .ref-scenario.featured{{border:2px solid #2F80ED;border-top-width:4px;box-shadow:0 0 0 5px rgba(47,128,237,.10),0 24px 52px rgba(47,128,237,.22);transform:translateY(-5px);}}
         .scenario-tag{{position:absolute;right:14px;top:12px;background:#2F80ED;color:#FFFFFF;border-radius:999px;padding:6px 11px;font-size:10px;font-weight:950;letter-spacing:.02em;box-shadow:0 9px 18px rgba(47,128,237,.22);}}
@@ -2316,9 +2316,9 @@ def render_hitos_financial_view(
         .ref-scenario-head b{{font-size:16px;}}
         .ref-scenario-head span{{display:block;font-size:12px;color:#52647A;margin-top:2px;}}
         .scenario-amount{{font-size:23px;color:#0B1633;font-weight:950;margin-top:15px;letter-spacing:-.01em;}}
-        .scenario-metrics{{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:12px;}}
-        .scenario-metrics div{{background:#F8FAFC;border:1px solid #E8EEF5;border-radius:9px;padding:8px 7px;}}
-        .scenario-metrics span{{display:block;font-size:13px;font-weight:950;color:#0B1633;line-height:1.1;white-space:nowrap;}}
+        .scenario-metrics{{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px;margin-top:12px;}}
+        .scenario-metrics div{{background:#F8FAFC;border:1px solid #E8EEF5;border-radius:9px;padding:8px 6px;min-width:0;}}
+        .scenario-metrics span{{display:block;font-size:12px;font-weight:950;color:#0B1633;line-height:1.1;white-space:normal;word-break:break-word;}}
         .scenario-metrics small{{display:block;font-size:9px;color:#64748B;margin-top:4px;line-height:1.15;}}
         .scenario-coverage{{margin-top:13px;}}
         .coverage-label{{display:flex;justify-content:space-between;align-items:center;font-size:10px;color:#52647A;font-weight:800;}}
@@ -2330,15 +2330,15 @@ def render_hitos_financial_view(
         .scenario-mini-timeline span.on{{background:#FFFFFF;color:var(--scenario);box-shadow:inset 0 0 0 1px var(--scenario);}}
         .scenario-bullets{{margin:12px 0 0 0;padding-left:16px;color:#25364F;font-size:11px;line-height:1.42;}}
         .scenario-bullets li{{margin:3px 0;}}
-        .control-stack{{display:grid;gap:14px;margin:0;width:100%;}}
-        .control-panel{{overflow:visible;}}
+        .control-stack{{display:grid;gap:14px;margin:0;width:100%;min-width:0;overflow-x:hidden;}}
+        .control-panel{{overflow:hidden;min-width:0;}}
         .ref-timeline{{margin-bottom:0;}}
-        .timeline-head{{display:flex;justify-content:space-between;gap:20px;align-items:center;}}
-        .timeline-legend{{display:flex;gap:22px;align-items:center;font-size:11px;color:#334155;}}
+        .timeline-head{{display:flex;justify-content:space-between;gap:16px;align-items:center;min-width:0;}}
+        .timeline-legend{{display:flex;gap:16px;align-items:center;font-size:11px;color:#334155;flex-wrap:wrap;justify-content:flex-end;}}
         .legend-dot{{display:inline-block;width:12px;height:12px;border-radius:999px;margin-right:6px;vertical-align:-1px;}}
         .ref-stage{{display:grid;grid-template-columns:1.45fr 3.2fr 2.1fr;gap:10px;margin:10px 0 22px 0;}}
         .ref-stage div{{height:28px;border-radius:8px;font-size:11px;font-weight:850;display:flex;align-items:center;justify-content:center;color:#334155;}}
-        .decision-roadmap{{position:relative;padding:22px 6px 8px 6px;overflow:visible;}}
+        .decision-roadmap{{position:relative;padding:22px 6px 8px 6px;overflow:visible;max-width:100%;}}
         .today-line{{position:absolute;top:2px;bottom:16px;left:var(--today);width:2px;background:#EF4444;z-index:5;box-shadow:0 0 0 4px rgba(239,68,68,.10);}}
         .today-line span{{position:absolute;top:-22px;left:50%;transform:translateX(-50%);background:#EF4444;color:#FFFFFF;border-radius:999px;padding:4px 8px;font-size:10px;font-weight:900;white-space:nowrap;}}
         .decision-track{{position:absolute;left:18px;right:18px;top:44px;height:6px;border-radius:999px;background:#E2E8F0;box-shadow:inset 0 1px 2px rgba(15,23,42,.06);}}
@@ -2350,12 +2350,12 @@ def render_hitos_financial_view(
         .ref-mile.critical .ref-node::after{{content:"";position:absolute;inset:-11px;border-radius:999px;border:1px solid rgba(239,68,68,.32);}}
         .ref-mile-title{{font-size:11px;color:#243B53;line-height:1.22;min-height:30px;max-width:118px;margin:0 auto;font-weight:750;}}
         .ref-mile-status{{display:inline-flex;border-radius:999px;padding:4px 8px;font-size:9px;font-weight:900;margin-top:7px;}}
-        .decision-tooltip{{position:absolute;z-index:40;left:50%;bottom:92px;transform:translateX(-50%) translateY(6px);width:230px;background:#08253B;color:#FFFFFF;border-radius:10px;padding:12px 13px;text-align:left;box-shadow:0 18px 38px rgba(8,37,59,.28);opacity:0;pointer-events:none;transition:opacity .16s ease,transform .16s ease;}}
+        .decision-tooltip{{position:absolute;z-index:40;left:50%;bottom:92px;transform:translateX(-50%) translateY(6px);width:210px;background:#08253B;color:#FFFFFF;border-radius:10px;padding:12px 13px;text-align:left;box-shadow:0 18px 38px rgba(8,37,59,.28);opacity:0;pointer-events:none;transition:opacity .16s ease,transform .16s ease;}}
         .decision-tooltip::after{{content:"";position:absolute;left:50%;bottom:-7px;transform:translateX(-50%);border-left:7px solid transparent;border-right:7px solid transparent;border-top:7px solid #08253B;}}
         .decision-tooltip b{{display:block;font-size:12px;margin-bottom:8px;color:#FFFFFF;}}
         .decision-tooltip span{{display:block;font-size:11px;line-height:1.35;color:#DDE8F3;margin-top:4px;}}
         .ref-mile:hover .decision-tooltip{{opacity:1;transform:translateX(-50%) translateY(0);}}
-        .ref-decisions{{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;}}
+        .ref-decisions{{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;min-width:0;}}
         .decision-card{{position:relative;display:grid;grid-template-columns:42px 1fr;gap:11px;background:#FFFFFF;border:1px solid #E2E8F0;border-radius:14px;padding:13px 13px 13px 17px;box-shadow:0 10px 20px rgba(15,23,42,.045);overflow:hidden;min-height:154px;}}
         .decision-card .semaphore{{position:absolute;left:0;top:0;bottom:0;width:5px;background:var(--tone);}}
         .decision-card.red{{--tone:#E11D48;}}
@@ -2369,48 +2369,48 @@ def render_hitos_financial_view(
         .decision-meta small{{display:block;font-size:8px;text-transform:uppercase;letter-spacing:.04em;color:#64748B;margin-bottom:2px;}}
         .decision-dep{{font-size:10px;color:#64748B;margin-top:8px;}}
         .decision-cta{{display:inline-flex;margin-top:8px;border-radius:999px;padding:5px 9px;background:var(--tone);color:#FFFFFF;font-size:10px;font-weight:950;}}
-        .matrix-summary{{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px;margin-bottom:12px;}}
+        .matrix-summary{{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px;margin-bottom:12px;min-width:0;}}
         .summary-tile{{background:linear-gradient(145deg,#FFFFFF,#F9FBFD);border:1px solid #E2E8F0;border-radius:12px;padding:10px 12px;box-shadow:0 10px 20px rgba(15,23,42,.045);}}
         .summary-tile small{{display:block;font-size:9px;text-transform:uppercase;letter-spacing:.04em;color:#64748B;font-weight:850;}}
         .summary-tile b{{display:block;font-size:16px;color:#0B1633;margin-top:5px;}}
-        .matrix-scroll{{overflow:auto;border:1px solid #E2E8F0;border-radius:12px;max-height:520px;background:#FFFFFF;}}
-        .pmo-matrix{{width:100%;min-width:1480px;border-collapse:separate;border-spacing:0;background:#FFFFFF;font-size:11px;color:#0B1633;}}
-        .pmo-matrix th{{position:sticky;top:0;z-index:20;background:#F8FAFC;color:#334155;font-size:10px;letter-spacing:0;border-bottom:1px solid #DCE6EF;padding:12px 10px;text-align:center;white-space:nowrap;}}
-        .pmo-matrix td{{border-bottom:1px solid #EEF3F7;padding:12px 10px;text-align:center;vertical-align:middle;background:#FFFFFF;}}
+        .matrix-scroll{{overflow-x:hidden;overflow-y:auto;border:1px solid #E2E8F0;border-radius:12px;max-height:520px;background:#FFFFFF;width:100%;}}
+        .pmo-matrix{{width:100%;min-width:0;table-layout:fixed;border-collapse:separate;border-spacing:0;background:#FFFFFF;font-size:9px;color:#0B1633;}}
+        .pmo-matrix th{{position:sticky;top:0;z-index:20;background:#F8FAFC;color:#334155;font-size:8px;letter-spacing:0;border-bottom:1px solid #DCE6EF;padding:9px 5px;text-align:center;white-space:normal;line-height:1.15;word-break:break-word;}}
+        .pmo-matrix td{{border-bottom:1px solid #EEF3F7;padding:10px 5px;text-align:center;vertical-align:middle;background:#FFFFFF;line-height:1.22;word-break:break-word;}}
         .pmo-matrix tr:hover td{{background:#F8FBFF;}}
-        .pmo-matrix .sticky-col{{position:sticky;z-index:15;background:inherit;box-shadow:1px 0 0 #E8EEF5;}}
+        .pmo-matrix .sticky-col{{position:static;z-index:15;background:inherit;box-shadow:none;}}
         .pmo-matrix th.sticky-col{{z-index:25;}}
-        .col-hito{{left:0;width:64px;min-width:64px;}}
-        .col-state{{left:64px;width:104px;min-width:104px;}}
-        .col-risk{{left:168px;width:104px;min-width:104px;}}
-        .matrix-name{{text-align:left!important;min-width:260px;}}
-        .matrix-name b{{display:block;font-size:12px;color:#0B1633;line-height:1.25;}}
-        .matrix-name small{{display:block;font-size:10px;color:#64748B;line-height:1.25;margin-top:4px;}}
+        .col-hito{{width:4.2%;}}
+        .col-state{{width:7%;}}
+        .col-risk{{width:7%;}}
+        .matrix-name{{text-align:left!important;width:17%;}}
+        .matrix-name b{{display:block;font-size:10px;color:#0B1633;line-height:1.2;}}
+        .matrix-name small{{display:block;font-size:8px;color:#64748B;line-height:1.2;margin-top:3px;}}
         .strategic-row td{{background:#FFFBF5;}}
-        .hito-code{{display:inline-flex;align-items:center;justify-content:center;width:36px;height:30px;border-radius:10px;background:#0B2D42;color:#FFFFFF;font-size:14px;font-weight:950;}}
+        .hito-code{{display:inline-flex;align-items:center;justify-content:center;width:30px;height:26px;border-radius:9px;background:#0B2D42;color:#FFFFFF;font-size:12px;font-weight:950;}}
         .strategic-row .hito-code{{background:#E11D48;box-shadow:0 0 0 5px rgba(225,29,72,.10);}}
-        .matrix-pill{{display:inline-flex;border-radius:5px;padding:4px 8px;font-size:9px;font-weight:950;white-space:nowrap;}}
+        .matrix-pill{{display:inline-flex;border-radius:5px;padding:4px 6px;font-size:8px;font-weight:950;white-space:normal;justify-content:center;}}
         .matrix-pill.blue{{background:#DBEAFE;color:#2563EB;}}
         .matrix-pill.gray{{background:#E2E8F0;color:#64748B;}}
         .matrix-pill.red{{background:#FEE2E2;color:#E11D48;}}
         .matrix-pill.amber{{background:#FEF3C7;color:#D97706;}}
         .matrix-pill.green{{background:#D1FAE5;color:#047857;}}
-        .signal{{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:5px 8px;font-size:10px;font-weight:900;white-space:nowrap;}}
+        .signal{{display:inline-flex;align-items:center;gap:5px;border-radius:999px;padding:5px 7px;font-size:8px;font-weight:900;white-space:normal;justify-content:center;}}
         .signal i{{width:8px;height:8px;border-radius:999px;display:inline-block;}}
         .signal.green{{background:#D1FAE5;color:#047857;}}.signal.green i{{background:#10B981;}}
         .signal.amber{{background:#FEF3C7;color:#B45309;}}.signal.amber i{{background:#F59E0B;}}
         .signal.red{{background:#FEE2E2;color:#BE123C;}}.signal.red i{{background:#E11D48;}}
-        .matrix-bar{{min-width:118px;text-align:left;}}
-        .matrix-bar span{{display:block;font-size:10px;color:#334155;font-weight:900;margin-bottom:5px;}}
+        .matrix-bar{{text-align:left;}}
+        .matrix-bar span{{display:block;font-size:8px;color:#334155;font-weight:900;margin-bottom:5px;}}
         .matrix-bar div{{height:7px;background:#E2E8F0;border-radius:999px;overflow:hidden;}}
         .matrix-bar i{{display:block;height:100%;border-radius:999px;}}
-        .decision-cell{{text-align:left!important;min-width:200px;color:#334155;line-height:1.3;}}
+        .decision-cell{{text-align:left!important;color:#334155;line-height:1.25;}}
         .heat-red td{{box-shadow:inset 0 0 0 999px rgba(225,29,72,.018);}}
         .heat-amber td{{box-shadow:inset 0 0 0 999px rgba(245,158,11,.018);}}
         .heat-blue td{{box-shadow:inset 0 0 0 999px rgba(47,128,237,.014);}}
-        .matrix-foot{{font-size:10px;color:#64748B;margin-top:10px;display:flex;gap:28px;align-items:center;}}
-        @media(max-width:1320px){{.ref-kpi-groups{{grid-template-columns:1fr 1fr;}}.ref-band{{grid-template-columns:1fr 1fr;}}.ref-band-block:nth-child(2){{border-right:0;}}}}
-        @media(max-width:1200px){{.ref-main{{grid-template-columns:1fr;}}.ref-decisions{{grid-template-columns:1fr;}}}}
+        .matrix-foot{{font-size:10px;color:#64748B;margin-top:10px;display:flex;gap:20px;align-items:center;flex-wrap:wrap;}}
+        @media(max-width:1320px){{.ref-kpi-groups{{grid-template-columns:1fr 1fr;}}.ref-band{{grid-template-columns:1fr 1fr;}}.ref-band-block:nth-child(2){{border-right:0;}}.ref-scenarios{{grid-template-columns:1fr;}}}}
+        @media(max-width:1200px){{.ref-main{{grid-template-columns:1fr;}}.ref-decisions{{grid-template-columns:1fr;}}.matrix-summary{{grid-template-columns:1fr 1fr;}}}}
         </style>
         <div class="ref-wrap">
           <div class="dashboard-shell">
