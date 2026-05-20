@@ -2133,6 +2133,95 @@ def render_hito_span_gantt(df: pd.DataFrame) -> None:
     components.html(html_doc, height=650, scrolling=True)
 
 
+def render_board_kpis(df: pd.DataFrame) -> None:
+    scheduled = df[df["Inicio"].notna()].copy()
+    if scheduled.empty:
+        return
+
+    cuts = [
+        ("Liberación 1", None, pd.Timestamp("2026-05-30")),
+        ("Liberación 2", pd.Timestamp("2026-05-30"), pd.Timestamp("2026-06-30")),
+        ("Liberación 3", pd.Timestamp("2026-06-30"), pd.Timestamp("2026-07-30")),
+        ("Liberación 4", pd.Timestamp("2026-07-30"), pd.Timestamp("2026-09-30")),
+    ]
+    release_totals: list[tuple[str, float]] = []
+    for name, start_cut, end_cut in cuts:
+        if start_cut is None:
+            window = scheduled[scheduled["Inicio"].le(end_cut)]
+        else:
+            window = scheduled[scheduled["Inicio"].gt(start_cut) & scheduled["Inicio"].le(end_cut)]
+        release_totals.append((name, float(window["Monto CLP Num"].sum() or 0)))
+
+    total_release = sum(amount for _, amount in release_totals)
+    first_two = sum(amount for _, amount in release_totals[:2])
+    max_release_name, max_release_amount = max(release_totals, key=lambda item: item[1])
+    launch_rows = df[df["Hito"].astype(str).eq("H8") & df["Termino"].notna()]
+    launch_date = launch_rows["Termino"].max() if not launch_rows.empty else df["Termino"].dropna().max()
+    launch_text = format_date(launch_date) if pd.notna(launch_date) else "Por definir"
+    launch_context = "Condicionada a liberar fondos en la ventana crítica"
+
+    def money_mm(value: float) -> str:
+        return f"${value / 1_000_000:.1f}MM".replace(".", ",")
+
+    cards = [
+        {
+            "label": "CAPEX requerido para continuidad",
+            "value": money_mm(total_release),
+            "context": "Capital del horizonte para sostener ejecución técnica.",
+            "accent": "#0B2D42",
+            "metric": f"{len(scheduled)} partidas programadas",
+        },
+        {
+            "label": "Ventana crítica de liberación",
+            "value": money_mm(first_two),
+            "context": f"Primeros dos cortes hasta 30-06. Mayor concentración: {max_release_name} {money_mm(max_release_amount)}.",
+            "accent": "#F59E0B",
+            "metric": "Riesgo de timing financiero",
+        },
+        {
+            "label": "Fecha estimada de puesta en marcha",
+            "value": launch_text,
+            "context": launch_context,
+            "accent": "#0F766E",
+            "metric": "Hito H8 operacional",
+        },
+    ]
+    cards_html = "".join(
+        f"""
+        <div class="board-kpi" style="--accent:{card['accent']};">
+          <div class="kpi-top">
+            <span>{html.escape(card["label"])}</span>
+            <i></i>
+          </div>
+          <div class="kpi-value">{html.escape(card["value"])}</div>
+          <div class="kpi-context">{html.escape(card["context"])}</div>
+          <div class="kpi-foot">{html.escape(card["metric"])}</div>
+        </div>
+        """
+        for card in cards
+    )
+
+    html_doc = f"""
+    <style>
+    *{{box-sizing:border-box;}}
+    body{{margin:0;background:transparent;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;color:#0B1633;overflow-x:hidden;}}
+    .board-kpi-shell{{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin:0 0 14px 0;}}
+    .board-kpi{{background:linear-gradient(180deg,#FFFFFF 0%,#FAFCFE 100%);border:1px solid #DCE6EF;border-top:4px solid var(--accent);border-radius:14px;padding:17px 18px;box-shadow:0 14px 32px rgba(15,23,42,.06);min-height:168px;position:relative;overflow:hidden;}}
+    .board-kpi::after{{content:"";position:absolute;right:-34px;top:-46px;width:118px;height:118px;border-radius:999px;background:color-mix(in srgb,var(--accent) 12%,transparent);}}
+    .kpi-top{{display:flex;justify-content:space-between;gap:12px;align-items:center;position:relative;z-index:2;}}
+    .kpi-top span{{font-size:12px;font-weight:950;color:#334155;letter-spacing:.01em;line-height:1.2;}}
+    .kpi-top i{{width:34px;height:34px;border-radius:11px;background:color-mix(in srgb,var(--accent) 13%,#FFFFFF);border:1px solid color-mix(in srgb,var(--accent) 20%,#DCE6EF);position:relative;flex:0 0 auto;}}
+    .kpi-top i::before{{content:"";position:absolute;inset:9px;border-radius:999px;background:var(--accent);box-shadow:0 0 0 5px color-mix(in srgb,var(--accent) 12%,transparent);}}
+    .kpi-value{{font-size:32px;font-weight:950;color:#0B1633;letter-spacing:-.02em;margin-top:18px;position:relative;z-index:2;line-height:1;}}
+    .kpi-context{{font-size:12px;color:#64748B;line-height:1.35;margin-top:10px;max-width:92%;position:relative;z-index:2;}}
+    .kpi-foot{{display:inline-flex;margin-top:15px;border-radius:999px;padding:6px 9px;background:color-mix(in srgb,var(--accent) 10%,#FFFFFF);color:var(--accent);font-size:10px;font-weight:950;position:relative;z-index:2;}}
+    @media(max-width:980px){{.board-kpi-shell{{grid-template-columns:1fr;}}}}
+    </style>
+    <div class="board-kpi-shell">{cards_html}</div>
+    """
+    components.html(html_doc, height=210, scrolling=False)
+
+
 def render_release_cutoff_intelligence(df: pd.DataFrame) -> None:
     cuts = [
         ("Liberación 1", "hasta 30-05-2026", None, pd.Timestamp("2026-05-30"), "#0F766E", "Activación inicial"),
@@ -3413,6 +3502,7 @@ def main() -> None:
     hito_summary = make_hito_summary(filtered)
 
     st.subheader("Vista ejecutiva")
+    render_board_kpis(filtered)
     render_hito_span_gantt(filtered)
     render_release_cutoff_intelligence(filtered)
     render_expandable_activity_gantt(filtered)
