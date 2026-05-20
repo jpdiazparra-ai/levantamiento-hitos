@@ -2296,8 +2296,9 @@ def render_hitos_financial_view(
         .kpi-group.priority .ref-kpi-value{{font-size:18px;}}
         .ref-kpi-note{{font-size:10px;color:#52647A;line-height:1.35;margin-top:7px;}}
         .ref-kpi.risk .ref-kpi-value{{color:#E11D48;font-size:20px;letter-spacing:.02em;}}
-        .ref-main{{display:grid;grid-template-columns:.82fr 1.55fr;gap:16px;margin-bottom:14px;align-items:stretch;}}
-        .ref-panel{{background:#FFFFFF;border:1px solid #E2E8F0;border-radius:12px;padding:18px 20px;box-shadow:0 12px 24px rgba(15,23,42,.05);}}
+        .pmo-flow{{width:100%;max-width:100%;margin:0 auto;display:grid;gap:14px;}}
+        .ref-main{{display:grid;grid-template-columns:.82fr 1.55fr;gap:14px;margin:0;align-items:stretch;width:100%;}}
+        .ref-panel,.control-panel{{background:#FFFFFF;border:1px solid #E2E8F0;border-radius:12px;padding:18px 20px;box-shadow:0 12px 24px rgba(15,23,42,.05);}}
         .ref-panel-title{{font-size:14px;font-weight:850;color:#23457A;letter-spacing:0;margin-bottom:14px;}}
         .memo-card{{background:linear-gradient(145deg,#FFFFFF,#FAFCFF);}}
         .memo-row{{border-bottom:1px solid #E8EEF5;padding:9px 0;}}
@@ -2328,8 +2329,8 @@ def render_hitos_financial_view(
         .scenario-mini-timeline span.on{{background:#FFFFFF;color:var(--scenario);box-shadow:inset 0 0 0 1px var(--scenario);}}
         .scenario-bullets{{margin:12px 0 0 0;padding-left:16px;color:#25364F;font-size:11px;line-height:1.42;}}
         .scenario-bullets li{{margin:3px 0;}}
-        .control-stack{{display:grid;gap:14px;margin-top:2px;}}
-        .control-panel{{background:#FFFFFF;border:1px solid #E2E8F0;border-radius:12px;padding:16px 18px 18px 18px;box-shadow:0 12px 24px rgba(15,23,42,.05);overflow:visible;}}
+        .control-stack{{display:grid;gap:14px;margin:0;width:100%;}}
+        .control-panel{{overflow:visible;}}
         .ref-timeline{{margin-bottom:0;}}
         .timeline-head{{display:flex;justify-content:space-between;gap:20px;align-items:center;}}
         .timeline-legend{{display:flex;gap:22px;align-items:center;font-size:11px;color:#334155;}}
@@ -2458,21 +2459,22 @@ def render_hitos_financial_view(
                 ref_kpi("Riesgo PMO", risk, "Atención inmediata" if risk == "ALTO" else "Seguimiento activo", "⬟", risk_color, "risk"),
             ], "risk-group")}
           </div>
-          <div class="ref-main">
-            <div class="ref-panel memo-card">
-              <div class="ref-panel-title">Memo ejecutivo del período</div>
-              {memo_html}
-            </div>
-            <div class="ref-panel">
-              <div class="ref-panel-title">Escenarios de liberación de fondos</div>
-              <div class="ref-scenarios">
-                {scenario("Escenario mínimo", "Solo liberación inicial", cons, (cons / current_total if current_total else 0), ["Activa continuidad mínima", "No cubre avance técnico", "Requiere control semanal"], "Alto", "30 días", "#F59E0B")}
-                {scenario("Escenario base recomendado", "Inicial + avance", base, (base / current_total if current_total else 0), ["Cubre ruta técnica crítica", "Reduce riesgo de pausa", "Sostiene ejecución PMO"], "Medio", "60 días", "#2F80ED", True)}
-                {scenario("Escenario cierre", "Liberación total del hito", close, (close / current_total if current_total else 0), ["Cubre cierre completo", "Minimiza interrupciones", "Asegura continuidad operacional"], "Bajo", "90+ días", "#10B981")}
+          <div class="pmo-flow">
+            <div class="ref-main">
+              <div class="ref-panel memo-card">
+                <div class="ref-panel-title">Memo ejecutivo del período</div>
+                {memo_html}
+              </div>
+              <div class="ref-panel">
+                <div class="ref-panel-title">Escenarios de liberación de fondos</div>
+                <div class="ref-scenarios">
+                  {scenario("Escenario mínimo", "Solo liberación inicial", cons, (cons / current_total if current_total else 0), ["Activa continuidad mínima", "No cubre avance técnico", "Requiere control semanal"], "Alto", "30 días", "#F59E0B")}
+                  {scenario("Escenario base recomendado", "Inicial + avance", base, (base / current_total if current_total else 0), ["Cubre ruta técnica crítica", "Reduce riesgo de pausa", "Sostiene ejecución PMO"], "Medio", "60 días", "#2F80ED", True)}
+                  {scenario("Escenario cierre", "Liberación total del hito", close, (close / current_total if current_total else 0), ["Cubre cierre completo", "Minimiza interrupciones", "Asegura continuidad operacional"], "Bajo", "90+ días", "#10B981")}
+                </div>
               </div>
             </div>
-          </div>
-          <div class="control-stack">
+            <div class="control-stack">
             <div class="control-panel ref-timeline">
               <div class="timeline-head">
                 <div class="ref-panel-title">Roadmap de decisión H1 → H8</div>
@@ -2519,6 +2521,7 @@ def render_hitos_financial_view(
               <div class="ref-decisions">
                 {decision_cards_html}
               </div>
+            </div>
             </div>
           </div>
         </div>
