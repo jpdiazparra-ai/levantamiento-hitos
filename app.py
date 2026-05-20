@@ -2166,11 +2166,11 @@ def render_release_cutoff_intelligence(df: pd.DataFrame) -> None:
     def money_mm(value: float) -> str:
         return f"${value / 1_000_000:.1f}MM".replace(".", ",")
 
-    def stage_card(panel: dict[str, object]) -> str:
+    def stage_card(panel: dict[str, object], idx: int) -> str:
         color = str(panel["color"])
         width = min(max(float(panel["total"]) / max_total * 100, 3), 100)
         return f"""
-        <div class="release-stage" style="--accent:{color};">
+        <button class="release-stage {'active' if idx == 0 else ''}" data-stage="{idx}" style="--accent:{color};" type="button">
           <div class="stage-top">
             <div>
               <div class="stage-title">{html.escape(str(panel["title"]))}</div>
@@ -2180,7 +2180,8 @@ def render_release_cutoff_intelligence(df: pd.DataFrame) -> None:
           </div>
           <div class="stage-meta"><span>{int(panel["hitos"])} hitos activos</span><span>{int(panel["partidas"])} partidas</span></div>
           <div class="stage-track"><i style="width:{width:.0f}%;"></i></div>
-        </div>
+          <div class="stage-action">Ver detalle completo</div>
+        </button>
         """
 
     def detail_rows(panel: dict[str, object]) -> str:
@@ -2204,6 +2205,19 @@ def render_release_cutoff_intelligence(df: pd.DataFrame) -> None:
             )
         return "".join(rows)
 
+    detail_panels = "".join(
+        f"""
+        <div class="release-panel {'active' if idx == 0 else ''}" data-panel="{idx}">
+          <div class="panel-head">
+            <div><b>{html.escape(str(panel["title"]))}</b><small>{html.escape(str(panel["date"]))} · {html.escape(str(panel["thesis"]))}</small></div>
+            <span>{money_mm(float(panel["total"]))} · {int(panel["partidas"])} partidas</span>
+          </div>
+          <div class="release-list">{detail_rows(panel)}</div>
+        </div>
+        """
+        for idx, panel in enumerate(panels)
+    )
+
     html_doc = f"""
     <style>
     *{{box-sizing:border-box;}}
@@ -2214,7 +2228,9 @@ def render_release_cutoff_intelligence(df: pd.DataFrame) -> None:
     .release-sub{{font-size:12px;color:#64748B;margin-top:6px;line-height:1.35;max-width:820px;}}
     .release-badge{{border:1px solid #DCE6EF;background:#FFFFFF;border-radius:999px;padding:7px 10px;color:#475569;font-size:11px;font-weight:850;white-space:nowrap;}}
     .stage-grid{{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:14px;}}
-    .release-stage{{background:#FFFFFF;border:1px solid #E2E8F0;border-top:4px solid var(--accent);border-radius:12px;padding:14px 15px;box-shadow:0 10px 20px rgba(15,23,42,.045);}}
+    .release-stage{{appearance:none;text-align:left;width:100%;background:#FFFFFF;border:1px solid #E2E8F0;border-top:4px solid var(--accent);border-radius:12px;padding:14px 15px;box-shadow:0 10px 20px rgba(15,23,42,.045);cursor:pointer;transition:transform .16s ease,border-color .16s ease,box-shadow .16s ease;}}
+    .release-stage:hover{{transform:translateY(-2px);box-shadow:0 16px 28px rgba(15,23,42,.075);}}
+    .release-stage.active{{border-color:color-mix(in srgb,var(--accent) 48%,#E2E8F0);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 14%,transparent),0 18px 34px rgba(15,23,42,.09);}}
     .stage-top{{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;}}
     .stage-title{{font-size:13px;font-weight:950;color:#0B1633;}}
     .stage-date{{font-size:11px;color:#64748B;margin-top:4px;}}
@@ -2223,30 +2239,47 @@ def render_release_cutoff_intelligence(df: pd.DataFrame) -> None:
     .stage-meta span{{background:color-mix(in srgb,var(--accent) 12%,#FFFFFF);color:var(--accent);border-radius:999px;padding:5px 8px;font-size:10px;font-weight:900;}}
     .stage-track{{height:8px;background:#E2E8F0;border-radius:999px;overflow:hidden;margin-top:12px;}}
     .stage-track i{{display:block;height:100%;background:var(--accent);border-radius:999px;}}
-    .micro-grid{{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;}}
-    .release-panel{{background:#FFFFFF;border:1px solid #E2E8F0;border-radius:12px;overflow:hidden;}}
-    .panel-head{{padding:12px 13px;border-bottom:1px solid #E8EEF5;display:flex;justify-content:space-between;gap:10px;align-items:center;}}
-    .panel-head b{{font-size:12px;color:#0B1633;}}.panel-head span{{font-size:11px;color:#64748B;font-weight:800;}}
-    .release-list{{padding:8px 10px 10px 10px;display:grid;gap:7px;max-height:340px;overflow:auto;}}
-    .release-row{{display:grid;grid-template-columns:40px minmax(0,1.25fr) minmax(80px,.75fr) 78px;gap:8px;align-items:center;padding:8px;border:1px solid #EEF3F7;border-radius:10px;background:#FBFCFE;}}
+    .stage-action{{font-size:10px;font-weight:950;color:var(--accent);margin-top:10px;letter-spacing:.01em;}}
+    .release-detail-stack{{display:grid;gap:12px;}}
+    .release-panel{{display:none;background:#FFFFFF;border:1px solid #E2E8F0;border-radius:12px;overflow:hidden;box-shadow:0 12px 24px rgba(15,23,42,.045);}}
+    .release-panel.active{{display:block;}}
+    .panel-head{{padding:14px 15px;border-bottom:1px solid #E8EEF5;display:flex;justify-content:space-between;gap:10px;align-items:center;background:linear-gradient(180deg,#FFFFFF,#FAFCFE);}}
+    .panel-head b{{display:block;font-size:13px;color:#0B1633;}}.panel-head small{{display:block;font-size:11px;color:#64748B;margin-top:3px;font-weight:750;}}.panel-head span{{font-size:12px;color:#0B1633;font-weight:950;white-space:nowrap;}}
+    .release-list{{padding:10px 12px 12px 12px;display:grid;gap:8px;max-height:430px;overflow:auto;}}
+    .release-row{{display:grid;grid-template-columns:44px minmax(0,1.45fr) minmax(120px,.85fr) 96px;gap:10px;align-items:center;padding:10px;border:1px solid #EEF3F7;border-radius:10px;background:#FBFCFE;}}
     .release-hito{{width:30px;height:28px;border-radius:9px;background:#0B2D42;color:#FFFFFF;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:950;}}
     .release-copy b{{display:block;font-size:11px;color:#0B1633;line-height:1.15;}}.release-copy span{{display:block;font-size:9px;color:#64748B;margin-top:3px;line-height:1.15;}}
     .release-bar{{height:7px;background:#E2E8F0;border-radius:999px;overflow:hidden;}}.release-bar i{{display:block;height:100%;border-radius:999px;}}
     .release-amount{{font-size:10px;font-weight:950;color:#0B1633;text-align:right;white-space:nowrap;}}
     .release-empty{{font-size:12px;color:#64748B;padding:14px;}}
-    @media(max-width:1180px){{.stage-grid{{grid-template-columns:repeat(2,minmax(0,1fr));}}.micro-grid{{grid-template-columns:1fr;}}}}
+    @media(max-width:1180px){{.stage-grid{{grid-template-columns:repeat(2,minmax(0,1fr));}}}}
     @media(max-width:720px){{.stage-grid{{grid-template-columns:1fr;}}}}
     </style>
-    <div class="release-shell">
+    <div class="release-shell" id="release-shell-main">
       <div class="release-head">
         <div><div class="release-title">Liberación macro y micro por corte PMO</div><div class="release-sub">Distribución por fecha de inicio contra cortes PMO 30-05, 30-06, 30-07, 30-08 y 30-09. La Liberación 4 consolida todo el remanente del horizonte entre 31-07 y 30-09.</div></div>
         <div class="release-badge">Fuente: Cronograma Integrado</div>
       </div>
-      <div class="stage-grid">{''.join(stage_card(panel) for panel in panels)}</div>
-      <div class="micro-grid">{''.join(f'<div class="release-panel"><div class="panel-head"><b>{html.escape(str(panel["title"]))}</b><span>{html.escape(str(panel["date"]))}</span></div><div class="release-list">{detail_rows(panel)}</div></div>' for panel in panels)}</div>
+      <div class="stage-grid">{''.join(stage_card(panel, idx) for idx, panel in enumerate(panels))}</div>
+      <div class="release-detail-stack">{detail_panels}</div>
     </div>
+    <script>
+    (() => {{
+      const root = document.getElementById("release-shell-main");
+      if (!root) return;
+      const cards = Array.from(root.querySelectorAll(".release-stage"));
+      const panels = Array.from(root.querySelectorAll(".release-panel"));
+      cards.forEach((card) => {{
+        card.addEventListener("click", () => {{
+          const selected = card.getAttribute("data-stage");
+          cards.forEach((item) => item.classList.toggle("active", item.getAttribute("data-stage") === selected));
+          panels.forEach((panel) => panel.classList.toggle("active", panel.getAttribute("data-panel") === selected));
+        }});
+      }});
+    }})();
+    </script>
     """
-    components.html(html_doc, height=620, scrolling=True)
+    components.html(html_doc, height=700, scrolling=True)
 
 
 def render_pmo_roadmap_matrix(
