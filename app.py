@@ -2676,7 +2676,7 @@ def main() -> None:
     hito_summary = make_hito_summary(filtered)
 
     st.subheader("Roadmap y Gantt ejecutivo")
-    roadmap_tab, technical_tab, hitos_tab = st.tabs(["Vista ejecutiva", "Vista técnica", "Vista hitos"])
+    roadmap_tab, hitos_tab = st.tabs(["Vista ejecutiva", "Vista hitos"])
     with roadmap_tab:
         render_executive_roadmap(filtered)
         st.markdown("#### Actividades técnicas por hito")
@@ -2702,9 +2702,7 @@ def main() -> None:
             with st.expander(label, expanded=False):
                 st.dataframe(preview, hide_index=True, use_container_width=True, height=min(320, 70 + 36 * len(preview)))
                 if len(hito_df) > len(preview):
-                    st.caption(f"Se muestran las 6 actividades más relevantes de {len(hito_df)}. Usa la vista técnica para ver todo el detalle.")
-    with technical_tab:
-        st.plotly_chart(build_gantt(filtered, zoom=zoom_timeline), use_container_width=True)
+                    st.caption(f"Se muestran las 6 actividades más relevantes de {len(hito_df)}.")
     with hitos_tab:
         render_hitos_financial_view(filtered, hito_summary, pmo_source)
 
