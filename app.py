@@ -2145,23 +2145,30 @@ def render_board_kpis(df: pd.DataFrame) -> None:
         ("Liberación 4", pd.Timestamp("2026-07-30"), pd.Timestamp("2026-09-30")),
     ]
     release_totals: list[tuple[str, float]] = []
+    release_windows: dict[str, pd.DataFrame] = {}
     for name, start_cut, end_cut in cuts:
         if start_cut is None:
             window = scheduled[scheduled["Inicio"].le(end_cut)]
         else:
             window = scheduled[scheduled["Inicio"].gt(start_cut) & scheduled["Inicio"].le(end_cut)]
+        release_windows[name] = window.copy()
         release_totals.append((name, float(window["Monto CLP Num"].sum() or 0)))
 
     total_release = sum(amount for _, amount in release_totals)
-    first_two = sum(amount for _, amount in release_totals[:2])
-    max_release_name, max_release_amount = max(release_totals, key=lambda item: item[1])
+    release_1 = release_totals[0][1] if release_totals else 0.0
+
+    def money_mm(value: float) -> str:
+        return f"${value / 1_000_000:.1f}MM".replace(".", ",")
+
+    release_2 = release_windows.get("Liberación 2", pd.DataFrame())
+    release_2_detail = ""
+    if not release_2.empty:
+        top_hitos = release_2.groupby("Hito")["Monto CLP Num"].sum().sort_values(ascending=False).head(3)
+        release_2_detail = ", ".join(f"{hito} {money_mm(float(amount))}" for hito, amount in top_hitos.items())
     launch_rows = df[df["Hito"].astype(str).eq("H8") & df["Termino"].notna()]
     launch_date = launch_rows["Termino"].max() if not launch_rows.empty else df["Termino"].dropna().max()
     launch_text = format_date(launch_date) if pd.notna(launch_date) else "Por definir"
     launch_context = "Condicionada a liberar fondos en la ventana crítica"
-
-    def money_mm(value: float) -> str:
-        return f"${value / 1_000_000:.1f}MM".replace(".", ",")
 
     cards = [
         {
@@ -2173,8 +2180,8 @@ def render_board_kpis(df: pd.DataFrame) -> None:
         },
         {
             "label": "Ventana crítica de liberación",
-            "value": money_mm(first_two),
-            "context": f"Primeros dos cortes hasta 30-06. Mayor concentración: {max_release_name} {money_mm(max_release_amount)}.",
+            "value": money_mm(release_1),
+            "context": f"Liberación 1 activa continuidad inmediata. Liberación 2 cubre {release_2_detail}.",
             "accent": "#F59E0B",
             "metric": "Riesgo de timing financiero",
         },
