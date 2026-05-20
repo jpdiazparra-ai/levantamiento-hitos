@@ -1980,21 +1980,26 @@ def render_hitos_table(
 
 def render_release_cutoff_intelligence(df: pd.DataFrame) -> None:
     cuts = [
-        ("Liberación inicial", "30-05-2026", pd.Timestamp("2026-05-30"), "Liberación Inicial Num", "#0F766E", "Activación financiera"),
-        ("Liberación avance", "30-06-2026", pd.Timestamp("2026-06-30"), "Liberación Avance Num", "#2F80ED", "Continuidad técnica"),
-        ("Liberación cierre", "30-07-2026", pd.Timestamp("2026-07-30"), "Liberación Cierre Num", "#F59E0B", "Cierre de etapa"),
+        ("Liberación 1", "hasta 30-05-2026", None, pd.Timestamp("2026-05-30"), "#0F766E", "Activación inicial"),
+        ("Liberación 2", "31-05 a 30-06-2026", pd.Timestamp("2026-05-30"), pd.Timestamp("2026-06-30"), "#2F80ED", "Continuidad técnica"),
+        ("Liberación 3", "01-07 a 30-07-2026", pd.Timestamp("2026-06-30"), pd.Timestamp("2026-07-30"), "#F59E0B", "Integración operacional"),
+        ("Liberación 4", "31-07 a 30-09-2026", pd.Timestamp("2026-07-30"), pd.Timestamp("2026-09-30"), "#DC2626", "Cierre del horizonte"),
     ]
     panels: list[dict[str, object]] = []
     max_amount = 1.0
-    for title, date_label, cut_date, amount_col, color, thesis in cuts:
-        active = df[df["Inicio"].le(cut_date) & df["Termino"].ge(cut_date)].copy()
-        if active.empty:
+    scheduled = df[df["Inicio"].notna()].copy()
+    for title, date_label, start_cut, end_cut, color, thesis in cuts:
+        if start_cut is None:
+            window = scheduled[scheduled["Inicio"].le(end_cut)].copy()
+        else:
+            window = scheduled[scheduled["Inicio"].gt(start_cut) & scheduled["Inicio"].le(end_cut)].copy()
+        if window.empty:
             detail = pd.DataFrame(columns=["Hito", "Hito Corto", "Categoría/Línea", "Partidas", "Monto"])
             total = 0.0
         else:
             detail = (
-                active.groupby(["Hito", "Hito Corto", "Categoría/Línea"], as_index=False)
-                .agg(Partidas=("ID", "count"), Monto=(amount_col, "sum"))
+                window.groupby(["Hito", "Hito Corto", "Categoría/Línea"], as_index=False)
+                .agg(Partidas=("ID", "count"), Monto=("Monto CLP Num", "sum"))
                 .sort_values(["Monto", "Hito"], ascending=[False, True])
             )
             total = float(detail["Monto"].sum() or 0)
@@ -2053,7 +2058,7 @@ def render_release_cutoff_intelligence(df: pd.DataFrame) -> None:
     .release-title{{font-size:20px;font-weight:950;color:#23457A;line-height:1.1;}}
     .release-sub{{font-size:12px;color:#64748B;margin-top:6px;line-height:1.35;max-width:820px;}}
     .release-badge{{border:1px solid #DCE6EF;background:#FFFFFF;border-radius:999px;padding:7px 10px;color:#475569;font-size:11px;font-weight:850;white-space:nowrap;}}
-    .stage-grid{{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-bottom:14px;}}
+    .stage-grid{{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:14px;}}
     .release-stage{{background:#FFFFFF;border:1px solid #E2E8F0;border-top:4px solid var(--accent);border-radius:12px;padding:14px 15px;box-shadow:0 10px 20px rgba(15,23,42,.045);}}
     .stage-top{{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;}}
     .stage-title{{font-size:13px;font-weight:950;color:#0B1633;}}
@@ -2063,7 +2068,7 @@ def render_release_cutoff_intelligence(df: pd.DataFrame) -> None:
     .stage-meta span{{background:color-mix(in srgb,var(--accent) 12%,#FFFFFF);color:var(--accent);border-radius:999px;padding:5px 8px;font-size:10px;font-weight:900;}}
     .stage-track{{height:8px;background:#E2E8F0;border-radius:999px;overflow:hidden;margin-top:12px;}}
     .stage-track i{{display:block;height:100%;background:var(--accent);border-radius:999px;}}
-    .micro-grid{{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;}}
+    .micro-grid{{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;}}
     .release-panel{{background:#FFFFFF;border:1px solid #E2E8F0;border-radius:12px;overflow:hidden;}}
     .panel-head{{padding:12px 13px;border-bottom:1px solid #E8EEF5;display:flex;justify-content:space-between;gap:10px;align-items:center;}}
     .panel-head b{{font-size:12px;color:#0B1633;}}.panel-head span{{font-size:11px;color:#64748B;font-weight:800;}}
@@ -2074,11 +2079,12 @@ def render_release_cutoff_intelligence(df: pd.DataFrame) -> None:
     .release-bar{{height:7px;background:#E2E8F0;border-radius:999px;overflow:hidden;}}.release-bar i{{display:block;height:100%;border-radius:999px;}}
     .release-amount{{font-size:10px;font-weight:950;color:#0B1633;text-align:right;white-space:nowrap;}}
     .release-empty{{font-size:12px;color:#64748B;padding:14px;}}
-    @media(max-width:1180px){{.stage-grid,.micro-grid{{grid-template-columns:1fr;}}}}
+    @media(max-width:1180px){{.stage-grid{{grid-template-columns:repeat(2,minmax(0,1fr));}}.micro-grid{{grid-template-columns:1fr;}}}}
+    @media(max-width:720px){{.stage-grid{{grid-template-columns:1fr;}}}}
     </style>
     <div class="release-shell">
       <div class="release-head">
-        <div><div class="release-title">Liberación macro y micro por corte PMO</div><div class="release-sub">Cruce de fechas de actividad contra cortes 30-05, 30-06 y 30-07. Cada bloque muestra hitos activos, categorías y monto específico a liberar en la etapa correspondiente.</div></div>
+        <div><div class="release-title">Liberación macro y micro por corte PMO</div><div class="release-sub">Distribución por fecha de inicio contra cortes PMO 30-05, 30-06, 30-07, 30-08 y 30-09. La Liberación 4 consolida todo el remanente del horizonte entre 31-07 y 30-09.</div></div>
         <div class="release-badge">Fuente: Cronograma Integrado</div>
       </div>
       <div class="stage-grid">{''.join(stage_card(panel) for panel in panels)}</div>
