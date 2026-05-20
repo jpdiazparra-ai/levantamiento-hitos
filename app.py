@@ -447,32 +447,32 @@ def add_css() -> None:
         div[data-testid="stMetric"] label { color: #64748B; font-weight: 700; }
         div[data-testid="stMetricValue"] { color: var(--navy); font-weight: 800; }
         .hero {
-            background: linear-gradient(135deg, #FFFFFF 0%, #EEF7F7 52%, #E8EEF5 100%);
-            border: 1px solid #DCE8EF;
+            background: linear-gradient(135deg, #FFFFFF 0%, #F8FAFC 58%, #EEF3F8 100%);
+            border: 1px solid #E2E8F0;
             border-radius: 10px;
-            padding: 24px 28px;
-            margin-bottom: 18px;
-            box-shadow: 0 14px 30px rgba(15,23,42,.06);
+            padding: 16px 22px;
+            margin-bottom: 14px;
+            box-shadow: 0 10px 22px rgba(15,23,42,.045);
         }
         .hero-kicker {
-            color: var(--teal);
-            font-size: 12px;
+            color: #475569;
+            font-size: 11px;
             font-weight: 800;
             letter-spacing: .12em;
             text-transform: uppercase;
-            margin-bottom: 8px;
+            margin-bottom: 6px;
         }
         .hero-title {
-            color: var(--navy);
-            font-size: 34px;
-            line-height: 1.08;
+            color: #0B1B3A;
+            font-size: 28px;
+            line-height: 1.12;
             font-weight: 850;
-            margin: 0 0 10px 0;
+            margin: 0 0 6px 0;
         }
         .hero-copy {
             color: #475569;
-            font-size: 15px;
-            line-height: 1.55;
+            font-size: 14px;
+            line-height: 1.42;
             max-width: 1080px;
         }
         .section-note {
@@ -708,12 +708,9 @@ def render_hero() -> None:
     st.markdown(
         """
         <div class="hero">
-            <div class="hero-kicker">Dashboard ejecutivo | Fluxial Wind 10 kW</div>
-            <div class="hero-title">Avance tecnico, financiero y operacional del piloto eolico vertical</div>
-            <div class="hero-copy">
-                Vista integrada del cronograma de cuatro meses para presentar continuidad tecnica, uso de fondos,
-                secuencia de integracion y condiciones habilitantes para comisionamiento y puesta en marcha.
-            </div>
+            <div class="hero-kicker">FLUXIAL WIND · PILOTO 10 KW</div>
+            <div class="hero-title">Control ejecutivo de integración y continuidad operacional</div>
+            <div class="hero-copy">Seguimiento técnico, financiero y PMO del piloto eólico vertical.</div>
         </div>
         """,
         unsafe_allow_html=True,
@@ -2232,9 +2229,9 @@ def render_board_kpis(df: pd.DataFrame) -> None:
 def render_release_cutoff_intelligence(df: pd.DataFrame) -> None:
     cuts = [
         ("Liberación 1", "hasta 30-05-2026", None, pd.Timestamp("2026-05-30"), "#0F766E", "Activación inicial"),
-        ("Liberación 2", "31-05 a 30-06-2026", pd.Timestamp("2026-05-30"), pd.Timestamp("2026-06-30"), "#2F80ED", "Continuidad técnica"),
-        ("Liberación 3", "01-07 a 30-07-2026", pd.Timestamp("2026-06-30"), pd.Timestamp("2026-07-30"), "#F59E0B", "Integración operacional"),
-        ("Liberación 4", "31-07 a 30-09-2026", pd.Timestamp("2026-07-30"), pd.Timestamp("2026-09-30"), "#DC2626", "Cierre del horizonte"),
+        ("Liberación 2", "31-05 a 30-06-2026", pd.Timestamp("2026-05-30"), pd.Timestamp("2026-06-30"), "#2563EB", "Continuidad técnica"),
+        ("Liberación 3", "01-07 a 30-07-2026", pd.Timestamp("2026-06-30"), pd.Timestamp("2026-07-30"), "#B7791F", "Integración operacional"),
+        ("Liberación 4", "31-07 a 30-09-2026", pd.Timestamp("2026-07-30"), pd.Timestamp("2026-09-30"), "#7F1D1D", "Cierre del horizonte"),
     ]
     panels: list[dict[str, object]] = []
     max_amount = 1.0
@@ -2250,7 +2247,15 @@ def render_release_cutoff_intelligence(df: pd.DataFrame) -> None:
         else:
             detail = (
                 window.groupby(["Hito", "Hito Corto", "Categoría/Línea"], as_index=False)
-                .agg(Partidas=("ID", "count"), Monto=("Monto CLP Num", "sum"))
+                .agg(
+                    Partidas=("ID", "count"),
+                    Monto=("Monto CLP Num", "sum"),
+                    AvanceFisico=("Avance Num", "mean"),
+                    Criticas=("Es crítica", "sum"),
+                    Habilitantes=("Es habilitante", "sum"),
+                    Inicio=("Inicio", "min"),
+                    Termino=("Termino", "max"),
+                )
                 .sort_values(["Monto", "Hito"], ascending=[False, True])
             )
             total = float(detail["Monto"].sum() or 0)
@@ -2268,16 +2273,16 @@ def render_release_cutoff_intelligence(df: pd.DataFrame) -> None:
         return f"""
         <button class="release-stage {'active' if idx == 0 else ''}" data-stage="{idx}" style="--accent:{color};" type="button">
           <div class="stage-date">{html.escape(str(panel["date"]))}</div>
-          <div class="stage-title">{html.escape(str(panel["title"]))}</div>
-          <div class="stage-thesis">{html.escape(str(panel["thesis"]))}</div>
+          <div class="stage-title">{html.escape(str(panel["thesis"]))}</div>
           <div class="stage-total">{money_mm(float(panel["total"]))}</div>
+          <div class="stage-detail">{int(panel["hitos"])} hitos · {int(panel["partidas"])} partidas</div>
           <div class="stage-rule"></div>
           <div class="stage-meta">
-            <span><i class="meta-icon">◎</i><b>{int(panel["hitos"])}</b><small>hitos activos</small></span>
-            <span><i class="meta-icon">▤</i><b>{int(panel["partidas"])}</b><small>partidas</small></span>
+            <span><i class="meta-icon">◎</i><small>Hitos activos</small></span>
+            <span><i class="meta-icon">▤</i><small>Partidas</small></span>
           </div>
           <div class="stage-track"><i style="width:{width:.0f}%;"></i></div>
-          <div class="stage-action">Ver detalle completo <b>›</b></div>
+          <div class="stage-action">Detalle PMO <b>→</b></div>
         </button>
         """
 
@@ -2298,13 +2303,35 @@ def render_release_cutoff_intelligence(df: pd.DataFrame) -> None:
         rows = []
         for _, row in detail.iterrows():
             amount = float(row["Monto"] or 0)
-            width = min(max(amount / max_amount * 100, 4), 100)
+            physical = float(row.get("AvanceFisico", 0) or 0)
+            financial = min(max(amount / max(float(panel["total"] or 0), 1), 0), 1)
+            risk = "Crítico" if int(row.get("Criticas", 0) or 0) else "Alto" if int(row.get("Habilitantes", 0) or 0) else "Medio" if amount >= max_amount * 0.35 else "Bajo"
+            state = "Riesgo operacional" if risk == "Crítico" else "En ejecución" if physical > 0 else "Esperando liberación"
+            dependency = "Depende de liberación PMO" if physical == 0 else "En ruta de ejecución"
+            impact = (
+                "Bloquea puesta en marcha"
+                if str(row["Hito"]) == "H8" or risk == "Crítico"
+                else "Condiciona integración eléctrica"
+                if str(row["Hito"]) == "H7"
+                else "Habilita montaje rotor"
+                if str(row["Hito"]) in {"H4", "H6"}
+                else "Reduce riesgo de atraso operacional"
+            )
+            risk_class = {"Bajo": "low", "Medio": "medium", "Alto": "high", "Crítico": "critical"}.get(risk, "medium")
             rows.append(
                 f"""
                 <div class="release-row">
                   <div class="release-hito">{html.escape(str(row["Hito"]))}</div>
-                  <div class="release-copy"><b>{html.escape(str(row["Categoría/Línea"]))}</b><span>{html.escape(str(row["Hito Corto"]))} · {int(row["Partidas"])} partidas</span></div>
-                  <div class="release-bar"><i style="width:{width:.0f}%;background:{color};"></i></div>
+                  <div class="release-copy"><b>{html.escape(str(row["Categoría/Línea"]))}</b><span>{html.escape(str(row["Hito Corto"]))} · {int(row["Partidas"])} partidas · {html.escape(dependency)}</span></div>
+                  <div class="release-metrics">
+                    <div class="mini-bar"><span>Físico {format_pct(physical)}</span><i><b style="width:{physical * 100:.0f}%;"></b></i></div>
+                    <div class="mini-bar"><span>Financiero {format_pct(financial)}</span><i><b style="width:{financial * 100:.0f}%;"></b></i></div>
+                  </div>
+                  <div class="release-pmo">
+                    <span class="risk {risk_class}">{html.escape(risk)}</span>
+                    <span class="state">{html.escape(state)}</span>
+                  </div>
+                  <div class="release-impact">{html.escape(impact)}</div>
                   <div class="release-amount">{format_clp(amount)}</div>
                 </div>
                 """
@@ -2315,7 +2342,7 @@ def render_release_cutoff_intelligence(df: pd.DataFrame) -> None:
         f"""
         <div class="release-panel {'active' if idx == 0 else ''}" data-panel="{idx}">
           <div class="panel-head">
-            <div><b>{html.escape(str(panel["title"]))}</b><small>{html.escape(str(panel["date"]))} · {html.escape(str(panel["thesis"]))}</small></div>
+            <div><b>Control operacional por hito</b><small>{html.escape(str(panel["date"]))} · {html.escape(str(panel["thesis"]))}</small></div>
             <span>{money_mm(float(panel["total"]))} · {int(panel["partidas"])} partidas</span>
           </div>
           <div class="release-list">{detail_rows(panel)}</div>
@@ -2328,61 +2355,66 @@ def render_release_cutoff_intelligence(df: pd.DataFrame) -> None:
     <style>
     *{{box-sizing:border-box;}}
     body{{margin:0;background:transparent;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;color:#0B1633;overflow-x:hidden;}}
-    .release-shell{{background:linear-gradient(180deg,#FFFFFF 0%,#F8FBFD 100%);border:1px solid #E2E8F0;border-radius:14px;padding:22px 20px 18px 20px;box-shadow:0 14px 32px rgba(15,23,42,.055);overflow:hidden;}}
-    .release-head{{display:flex;justify-content:space-between;gap:18px;align-items:flex-start;margin-bottom:34px;}}
-    .release-title{{font-size:25px;font-weight:950;color:#0B2D63;line-height:1.08;letter-spacing:-.02em;}}
-    .release-sub{{font-size:14px;color:#64748B;margin-top:9px;line-height:1.42;max-width:840px;}}
-    .release-badge{{border:1px solid #DCE6EF;background:#FFFFFF;border-radius:999px;padding:10px 18px;color:#0B1633;font-size:14px;font-weight:950;white-space:nowrap;box-shadow:0 8px 18px rgba(15,23,42,.04);}}
-    .release-flow{{position:relative;margin:0 0 16px 0;padding-top:64px;}}
-    .release-line{{position:absolute;left:4px;right:4px;top:28px;height:2px;background:#B8B8B8;box-shadow:0 1px 3px rgba(15,23,42,.16);}}
-    .release-line::before,.release-line::after{{content:"";position:absolute;top:50%;width:12px;height:12px;border-radius:999px;background:#B8B8B8;transform:translateY(-50%);}}
+    .release-shell{{background:#F8FAFC;border:1px solid #E2E8F0;border-radius:14px;padding:20px;box-shadow:0 12px 28px rgba(15,23,42,.045);overflow:hidden;}}
+    .release-head{{display:flex;justify-content:space-between;gap:18px;align-items:flex-start;margin-bottom:28px;}}
+    .release-title{{font-size:24px;font-weight:950;color:#0B1B3A;line-height:1.08;letter-spacing:-.02em;}}
+    .release-sub{{font-size:13px;color:#475569;margin-top:8px;line-height:1.42;max-width:760px;}}
+    .release-badge{{border:1px solid #E2E8F0;background:#FFFFFF;border-radius:999px;padding:9px 16px;color:#0B1B3A;font-size:13px;font-weight:900;white-space:nowrap;}}
+    .release-flow{{position:relative;margin:0 0 16px 0;padding-top:50px;}}
+    .release-line{{position:absolute;left:4px;right:4px;top:24px;height:1px;background:#CBD5E1;}}
+    .release-line::before,.release-line::after{{content:"";position:absolute;top:50%;width:8px;height:8px;border-radius:999px;background:#CBD5E1;transform:translateY(-50%);}}
     .release-line::before{{left:-1px;}}.release-line::after{{right:-1px;}}
     .release-nodes{{position:absolute;left:0;right:0;top:0;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));align-items:center;z-index:5;}}
     .release-node-wrap{{display:flex;justify-content:center;position:relative;}}
-    .release-node-wrap::after{{content:"";position:absolute;top:58px;width:1px;height:34px;background:color-mix(in srgb,var(--accent) 38%,#DCE6EF);}}
-    .release-node{{width:58px;height:58px;border-radius:999px;background:var(--accent);color:#FFFFFF;font-size:24px;font-weight:950;display:flex;align-items:center;justify-content:center;box-shadow:0 0 0 9px #FFFFFF,0 0 0 12px color-mix(in srgb,var(--accent) 48%,#FFFFFF),0 12px 26px color-mix(in srgb,var(--accent) 24%,transparent);}}
-    .stage-grid{{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:52px;margin-bottom:20px;}}
-    .release-stage{{appearance:none;text-align:center;width:100%;background:rgba(255,255,255,.96);border:1px solid color-mix(in srgb,var(--accent) 52%,#DCE6EF);border-radius:14px;padding:13px 24px 18px 24px;box-shadow:0 12px 26px rgba(15,23,42,.045);cursor:pointer;transition:transform .16s ease,border-color .16s ease,box-shadow .16s ease;position:relative;min-height:300px;}}
-    .release-stage:not(:last-child)::after{{content:"›";position:absolute;right:-43px;top:45%;width:38px;height:38px;border-radius:999px;background:var(--accent);color:#FFFFFF;font-size:34px;line-height:34px;font-weight:650;display:flex;align-items:center;justify-content:center;box-shadow:0 10px 20px color-mix(in srgb,var(--accent) 24%,transparent);}}
-    .release-stage:hover{{transform:translateY(-3px);box-shadow:0 18px 34px rgba(15,23,42,.08);}}
-    .release-stage.active{{box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 15%,transparent),0 20px 38px rgba(15,23,42,.09);}}
-    .stage-date{{display:inline-flex;align-items:center;justify-content:center;margin:0 auto 27px auto;border-radius:999px;padding:9px 24px;background:color-mix(in srgb,var(--accent) 11%,#EFF6FF);color:var(--accent);font-size:14px;font-weight:950;white-space:nowrap;}}
-    .stage-title{{font-size:21px;font-weight:950;color:var(--accent);line-height:1.05;}}
-    .stage-thesis{{font-size:15px;color:#0B1633;margin-top:8px;font-weight:800;line-height:1.25;}}
-    .stage-total{{font-size:31px;font-weight:950;color:#0B1633;margin-top:18px;letter-spacing:-.03em;line-height:1;}}
-    .stage-rule{{height:1px;background:#E2E8F0;margin:20px 0 17px 0;}}
-    .stage-meta{{display:grid;grid-template-columns:1fr 1fr;gap:0;margin:0 0 18px 0;}}
-    .stage-meta span{{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;min-height:58px;color:#0B1633;}}
+    .release-node-wrap::after{{content:"";position:absolute;top:42px;width:1px;height:24px;background:#E2E8F0;}}
+    .release-node{{width:42px;height:42px;border-radius:999px;background:var(--accent);color:#FFFFFF;font-size:18px;font-weight:950;display:flex;align-items:center;justify-content:center;box-shadow:0 0 0 5px #FFFFFF,0 6px 16px rgba(15,23,42,.10);}}
+    .stage-grid{{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px;margin-bottom:14px;}}
+    .release-stage{{appearance:none;text-align:left;width:100%;background:#FFFFFF;border:1px solid #E2E8F0;border-top:4px solid var(--accent);border-radius:12px;padding:15px 16px;box-shadow:0 8px 20px rgba(15,23,42,.04);cursor:pointer;transition:transform .16s ease,border-color .16s ease,box-shadow .16s ease;position:relative;min-height:230px;}}
+    .release-stage:hover{{transform:translateY(-2px);box-shadow:0 14px 24px rgba(15,23,42,.065);}}
+    .release-stage.active{{border-color:#CBD5E1;box-shadow:0 0 0 3px rgba(11,27,58,.045),0 14px 26px rgba(15,23,42,.06);}}
+    .stage-date{{display:inline-flex;align-items:center;justify-content:center;border-radius:999px;padding:7px 12px;background:#F1F5F9;color:#475569;font-size:12px;font-weight:850;white-space:nowrap;}}
+    .stage-title{{font-size:18px;font-weight:950;color:#0B1B3A;line-height:1.08;margin-top:18px;}}
+    .stage-total{{font-size:26px;font-weight:950;color:#0B1633;margin-top:13px;letter-spacing:-.03em;line-height:1;}}
+    .stage-detail{{font-size:12px;color:#475569;font-weight:850;margin-top:8px;}}
+    .stage-rule{{height:1px;background:#E2E8F0;margin:14px 0 12px 0;}}
+    .stage-meta{{display:grid;grid-template-columns:1fr 1fr;gap:0;margin:0 0 12px 0;}}
+    .stage-meta span{{display:flex;align-items:center;gap:7px;min-height:28px;color:#475569;}}
     .stage-meta span:first-child{{border-right:1px solid #DCE6EF;}}
-    .stage-meta b{{font-size:26px;color:var(--accent);line-height:1;font-weight:950;}}
-    .stage-meta small{{font-size:11px;color:#0B1633;font-weight:850;}}
-    .meta-icon{{width:32px;height:32px;border-radius:999px;background:#F5F7FA;color:#64748B;font-style:normal;font-size:19px;display:flex;align-items:center;justify-content:center;margin-bottom:3px;}}
-    .stage-track{{height:11px;background:#E2E8F0;border-radius:999px;overflow:hidden;margin-top:2px;box-shadow:inset 0 1px 2px rgba(15,23,42,.08);}}
-    .stage-track i{{display:block;height:100%;background:var(--accent);border-radius:999px;box-shadow:0 8px 16px color-mix(in srgb,var(--accent) 24%,transparent);}}
-    .stage-action{{font-size:13px;font-weight:950;color:var(--accent);margin-top:22px;letter-spacing:.01em;}}
-    .stage-action b{{font-size:24px;vertical-align:-2px;margin-left:6px;}}
+    .stage-meta small{{font-size:11px;color:#475569;font-weight:850;}}
+    .meta-icon{{width:22px;height:22px;border-radius:999px;background:#F8FAFC;color:#475569;font-style:normal;font-size:14px;display:flex;align-items:center;justify-content:center;}}
+    .stage-track{{height:8px;background:#E2E8F0;border-radius:999px;overflow:hidden;margin-top:4px;}}
+    .stage-track i{{display:block;height:100%;background:var(--accent);border-radius:999px;}}
+    .stage-action{{font-size:12px;font-weight:950;color:#0B1B3A;margin-top:14px;letter-spacing:.01em;}}
+    .stage-action b{{font-size:14px;margin-left:4px;}}
     .release-detail-stack{{display:grid;gap:12px;}}
-    .release-panel{{display:none;background:#FFFFFF;border:1px solid #E2E8F0;border-radius:12px;overflow:hidden;box-shadow:0 12px 24px rgba(15,23,42,.045);}}
+    .release-panel{{display:none;background:#FFFFFF;border:1px solid #E2E8F0;border-radius:12px;overflow:hidden;box-shadow:0 10px 22px rgba(15,23,42,.04);}}
     .release-panel.active{{display:block;}}
     .panel-head{{padding:14px 15px;border-bottom:1px solid #E8EEF5;display:flex;justify-content:space-between;gap:10px;align-items:center;background:linear-gradient(180deg,#FFFFFF,#FAFCFE);}}
-    .panel-head b{{display:block;font-size:13px;color:#0B1633;}}.panel-head small{{display:block;font-size:11px;color:#64748B;margin-top:3px;font-weight:750;}}.panel-head span{{font-size:12px;color:#0B1633;font-weight:950;white-space:nowrap;}}
+    .panel-head b{{display:block;font-size:14px;color:#0B1B3A;}}.panel-head small{{display:block;font-size:11px;color:#64748B;margin-top:3px;font-weight:750;}}.panel-head span{{font-size:12px;color:#0B1633;font-weight:950;white-space:nowrap;}}
     .release-list{{padding:10px 12px 12px 12px;display:grid;gap:8px;max-height:430px;overflow:auto;}}
-    .release-row{{display:grid;grid-template-columns:44px minmax(0,1.45fr) minmax(120px,.85fr) 96px;gap:10px;align-items:center;padding:10px;border:1px solid #EEF3F7;border-radius:10px;background:#FBFCFE;}}
-    .release-hito{{width:30px;height:28px;border-radius:9px;background:#0B2D42;color:#FFFFFF;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:950;}}
+    .release-row{{display:grid;grid-template-columns:42px minmax(0,1.25fr) minmax(150px,.85fr) 132px minmax(120px,.7fr) 94px;gap:10px;align-items:center;padding:10px;border:1px solid #EEF3F7;border-radius:10px;background:#FBFCFE;}}
+    .release-hito{{width:30px;height:28px;border-radius:8px;background:#0B1B3A;color:#FFFFFF;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:950;}}
     .release-copy b{{display:block;font-size:11px;color:#0B1633;line-height:1.15;}}.release-copy span{{display:block;font-size:9px;color:#64748B;margin-top:3px;line-height:1.15;}}
-    .release-bar{{height:7px;background:#E2E8F0;border-radius:999px;overflow:hidden;}}.release-bar i{{display:block;height:100%;border-radius:999px;}}
+    .release-metrics{{display:grid;gap:5px;}}
+    .mini-bar span{{display:block;font-size:9px;color:#475569;font-weight:850;margin-bottom:3px;}}
+    .mini-bar i{{display:block;height:5px;background:#E2E8F0;border-radius:999px;overflow:hidden;}}
+    .mini-bar b{{display:block;height:100%;background:#0B1B3A;border-radius:999px;}}
+    .release-pmo{{display:flex;gap:5px;flex-wrap:wrap;}}
+    .risk,.state{{display:inline-flex;border-radius:999px;padding:5px 7px;font-size:9px;font-weight:900;background:#F1F5F9;color:#475569;}}
+    .risk.low{{color:#0F766E;background:#EAF6F2;}}.risk.medium{{color:#8A5A16;background:#FBF4E7;}}.risk.high{{color:#7F1D1D;background:#F8EAEA;}}.risk.critical{{color:#7F1D1D;background:#F4DCDC;}}
+    .release-impact{{font-size:10px;color:#475569;font-weight:800;line-height:1.2;}}
     .release-amount{{font-size:10px;font-weight:950;color:#0B1633;text-align:right;white-space:nowrap;}}
     .release-empty{{font-size:12px;color:#64748B;padding:14px;}}
-    .release-legend{{display:flex;gap:34px;justify-content:center;align-items:center;color:#64748B;font-size:13px;font-weight:850;margin:10px 0 18px 0;}}
+    .release-legend{{display:flex;gap:22px;justify-content:center;align-items:center;color:#64748B;font-size:12px;font-weight:850;margin:10px 0 16px 0;background:#FFFFFF;border:1px solid #E2E8F0;border-radius:999px;padding:8px 12px;}}
     .release-legend span{{display:flex;align-items:center;gap:8px;}}
-    .legend-icon{{width:28px;height:28px;border-radius:999px;background:#F5F7FA;display:flex;align-items:center;justify-content:center;color:#64748B;font-size:18px;}}
-    .legend-line{{width:48px;height:7px;border:2px solid #94A3B8;border-radius:999px;}}
+    .legend-icon{{width:22px;height:22px;border-radius:999px;background:#F8FAFC;display:flex;align-items:center;justify-content:center;color:#475569;font-size:14px;}}
+    .legend-line{{width:42px;height:6px;border:1px solid #94A3B8;border-radius:999px;}}
     @media(max-width:1180px){{.stage-grid{{grid-template-columns:repeat(2,minmax(0,1fr));gap:18px;}}.release-stage:not(:last-child)::after{{display:none;}}.release-nodes{{display:none;}}.release-line{{display:none;}}.release-flow{{padding-top:0;}}}}
     @media(max-width:720px){{.stage-grid{{grid-template-columns:1fr;}}.release-head{{flex-direction:column;}}}}
     </style>
     <div class="release-shell" id="release-shell-main">
       <div class="release-head">
-        <div><div class="release-title">Liberación macro y micro por corte PMO</div><div class="release-sub">Distribución por fecha de inicio contra cortes PMO 30-05, 30-06, 30-07, 30-08 y 30-09. La Liberación 4 consolida todo el remanente del horizonte entre 31-07 y 30-09.</div></div>
+        <div><div class="release-title">Arquitectura de liberación PMO</div><div class="release-sub">Distribución financiera alineada a hitos críticos y continuidad operacional del piloto.</div></div>
         <div class="release-badge">Fuente: Cronograma Integrado</div>
       </div>
       <div class="release-flow">
@@ -2390,7 +2422,7 @@ def render_release_cutoff_intelligence(df: pd.DataFrame) -> None:
         <div class="release-nodes">{release_nodes}</div>
         <div class="stage-grid">{''.join(stage_card(panel, idx) for idx, panel in enumerate(panels))}</div>
       </div>
-      <div class="release-legend"><span><i class="legend-icon">◎</i>Hitos activos</span><span><i class="legend-icon">▤</i>Partidas</span><span><i class="legend-line"></i>Avance de ejecución</span></div>
+      <div class="release-legend"><span><i class="legend-icon">◎</i>Hitos activos</span><span><i class="legend-icon">▤</i>Partidas</span><span><i class="legend-line"></i>Avance de ejecución</span><span>Montos en millones de pesos chilenos CLP</span></div>
       <div class="release-detail-stack">{detail_panels}</div>
     </div>
     <script>
