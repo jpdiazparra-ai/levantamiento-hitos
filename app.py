@@ -1953,6 +1953,228 @@ def render_hitos_table(
     st.dataframe(styler, hide_index=True, use_container_width=True, height=min(520, 82 + 42 * len(table)))
 
 
+def render_pmo_roadmap_matrix(
+    df: pd.DataFrame,
+    hito_summary: pd.DataFrame,
+    pmo_source: pd.DataFrame | None = None,
+) -> None:
+    metrics = pmo_financial_metrics(df, hito_summary, pmo_source)
+    matrix = metrics["matrix"].copy().sort_values("Hito Orden")
+    technical_pct = float(metrics["technical_progress"])
+    risk = str(metrics["risk"]).upper()
+    total = float(metrics["total_capex"])
+    next_row = metrics["next_row"]
+
+    def format_clp_mm(value: float) -> str:
+        return f"${value / 1_000_000:.1f}MM".replace(".", ",")
+
+    critical_hitos = {"H1", "H4", "H8"}
+    status_label = {"Ejecutado": "Ejecutado", "En curso": "En curso", "Pendiente": "Pendiente"}
+    status_color = {"Ejecutado": "#10B981", "En curso": "#2F80ED", "Pendiente": "#94A3B8"}
+    timeline_start = matrix["_Inicio"].dropna().min() if "_Inicio" in matrix else pd.NaT
+    timeline_end = matrix["_Termino"].dropna().max() if "_Termino" in matrix else pd.NaT
+    today_dt = pd.Timestamp("today").normalize()
+    today_pos = 0.0
+    if pd.notna(timeline_start) and pd.notna(timeline_end) and timeline_end > timeline_start:
+        today_pos = float((today_dt - timeline_start).days / max((timeline_end - timeline_start).days, 1))
+        today_pos = min(max(today_pos, 0.0), 1.0) * 100
+    progress_width = min(max(technical_pct * 100, 2), 100)
+
+    timeline_items = []
+    previous_hito = ""
+    for _, row in matrix.iterrows():
+        crit = str(row.get("Criticidad", "Media"))
+        stt = str(row.get("Estado", "Pendiente"))
+        hito_code = str(row.get("Hito", "-"))
+        is_critical = hito_code in critical_hitos
+        dot_color = "#EF4444" if is_critical else status_color.get(stt, "#94A3B8")
+        dependency = "Inicio del programa" if not previous_hito else f"Depende de cierre técnico y financiero de {previous_hito}"
+        previous_hito = hito_code
+        timeline_items.append(
+            f"""
+            <div class="ref-mile {'critical' if is_critical else ''}">
+              <div class="ref-node" style="background:{dot_color};">{html.escape(hito_code)}</div>
+              <div class="decision-tooltip">
+                <b>{html.escape(hito_code)} · {html.escape(str(row.get("Hito Corto", "-")))}</b>
+                <span>CAPEX asociado: {html.escape(str(row.get("Monto total", "-")))}</span>
+                <span>Riesgo: {'Crítico' if is_critical else html.escape(crit)}</span>
+                <span>Dependencia: {html.escape(dependency)}</span>
+                <span>Fondos requeridos: {html.escape(str(row.get("Total Liberación", "-")))}</span>
+              </div>
+              <div class="ref-mile-title">{html.escape(str(row.get("Hito Corto", "-")))}</div>
+              <div class="ref-mile-status" style="color:{dot_color};background:{dot_color}18;">{html.escape(status_label.get(stt, stt).upper())}</div>
+            </div>
+            """
+        )
+
+    def impact_for(row: pd.Series) -> str:
+        hito = str(row.get("Hito", ""))
+        share = float(row.get("% sobre total", 0) or 0)
+        crit = str(row.get("Criticidad", "Media"))
+        if hito in {"H1", "H4", "H8"}:
+            return "Crítico"
+        if crit == "Alta" or share >= 0.20:
+            return "Alto"
+        if crit == "Media" or share >= 0.08:
+            return "Medio"
+        return "Bajo"
+
+    def impact_class(value: str) -> str:
+        return {"Crítico": "red", "Alto": "amber", "Medio": "blue", "Bajo": "green"}.get(value, "gray")
+
+    def pmo_signal(row: pd.Series, impact: str) -> tuple[str, str]:
+        state = str(row.get("Estado", "Pendiente"))
+        if impact == "Crítico" or str(row.get("Criticidad", "")) == "Alta":
+            return "Riesgo PMO", "red"
+        if state == "En curso" or impact in {"Alto", "Medio"}:
+            return "Seguimiento", "amber"
+        return "En control", "green"
+
+    def bar_cell(value: float, color: str, label: str) -> str:
+        width = min(max(value, 0), 100)
+        return f"""
+        <div class="matrix-bar">
+          <span>{html.escape(label)}</span>
+          <div><i style="width:{width:.0f}%;background:{color};"></i></div>
+        </div>
+        """
+
+    matrix_rows = []
+    for _, row in matrix.iterrows():
+        state = str(row.get("Estado", "Pendiente"))
+        crit = str(row.get("Criticidad", "Media"))
+        scenario_name = str(row.get("Escenario recomendado", "Base")).upper()
+        hito_code = str(row.get("Hito", "-"))
+        impact = impact_for(row)
+        signal, signal_class = pmo_signal(row, impact)
+        capex_pct = float(row.get("% sobre total", 0) or 0) * 100
+        execution_pct = float(row.get("Avance_promedio", 0) or 0) * 100
+        financial_pct = {"CONSERVADOR": 30, "BASE": 80, "CIERRE": 100}.get(scenario_name, 30)
+        capex_value = float(row.get("Monto_CLP", 0) or 0)
+        duration = int(float(row.get("Duracion_habil", 0) or 0))
+        state_class = "blue" if state == "En curso" else "gray"
+        crit_class = "red" if crit in {"Alta", "Crítica"} else "amber" if crit == "Media" else "green"
+        scen_class = "green" if scenario_name == "CIERRE" else "blue" if scenario_name == "BASE" else "amber"
+        matrix_rows.append(
+            f"""
+            <tr class="{'strategic-row' if hito_code in {'H1', 'H4', 'H8'} else ''} heat-{impact_class(impact)}">
+              <td><span class="hito-code">{html.escape(hito_code)}</span></td>
+              <td><span class="matrix-pill {state_class}">{html.escape(state)}</span></td>
+              <td><span class="matrix-pill {crit_class}">{html.escape(crit)}</span></td>
+              <td class="matrix-name"><b>{html.escape(str(row.get("Hito Ejecutivo", "-")))}</b><small>{html.escape(str(row.get("Condición de Liberación", "-")))}</small></td>
+              <td><span class="matrix-pill blue">{html.escape(str(row.get("Etapa del hito", "-")))}</span></td>
+              <td><span class="matrix-pill {impact_class(impact)}">{html.escape(impact)}</span></td>
+              <td><span class="signal {signal_class}"><i></i>{html.escape(signal)}</span></td>
+              <td>{bar_cell(financial_pct, "#2F80ED", f"{financial_pct:.0f}%")}</td>
+              <td>{bar_cell(execution_pct, "#0F766E", f"{execution_pct:.0f}%")}</td>
+              <td>{bar_cell(capex_pct, "#F59E0B", format_clp_mm(capex_value))}</td>
+              <td>{duration} días</td>
+              <td>{html.escape(format_date(row.get("_Inicio", row.get("Inicio", "-"))))}</td>
+              <td>{html.escape(format_date(row.get("_Termino", row.get("Termino", "-"))))}</td>
+              <td><span class="matrix-pill {scen_class}">{html.escape(scenario_name)}</span></td>
+              <td class="decision-cell">{html.escape(str(row.get("Decisión requerida", "-")))}</td>
+            </tr>
+            """
+        )
+
+    critical_count = int(matrix["Hito"].astype(str).isin(["H1", "H4", "H8"]).sum())
+    next_unlock = str(next_row.get("Hito", "H2")) if isinstance(next_row, pd.Series) and not next_row.empty else "H2"
+    html_doc = f"""
+    <style>
+    *{{box-sizing:border-box;}}
+    body{{margin:0;background:transparent;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;color:#0B1633;overflow-x:hidden;}}
+    .pmo-mini{{display:grid;gap:14px;background:#F7F9FC;padding:0;overflow-x:hidden;}}
+    .control-panel{{background:#FFFFFF;border:1px solid #E2E8F0;border-radius:12px;padding:18px 20px;box-shadow:0 12px 24px rgba(15,23,42,.05);overflow:hidden;min-width:0;}}
+    .ref-panel-title{{font-size:18px;font-weight:900;color:#23457A;letter-spacing:0;margin-bottom:14px;}}
+    .timeline-head{{display:flex;justify-content:space-between;gap:16px;align-items:center;min-width:0;}}
+    .timeline-legend{{display:flex;gap:16px;align-items:center;font-size:13px;color:#334155;flex-wrap:wrap;justify-content:flex-end;}}
+    .legend-dot{{display:inline-block;width:12px;height:12px;border-radius:999px;margin-right:6px;vertical-align:-1px;}}
+    .ref-stage{{display:grid;grid-template-columns:1.45fr 3.2fr 2.1fr;gap:10px;margin:12px 0 36px 0;}}
+    .ref-stage div{{height:31px;border-radius:8px;font-size:12px;font-weight:900;display:flex;align-items:center;justify-content:center;color:#334155;}}
+    .decision-roadmap{{position:relative;padding:22px 6px 14px 6px;overflow:visible;max-width:100%;}}
+    .today-line{{position:absolute;top:-4px;bottom:18px;left:var(--today);width:2px;background:#EF4444;z-index:5;box-shadow:0 0 0 5px rgba(239,68,68,.10);}}
+    .today-line span{{position:absolute;top:-24px;left:50%;transform:translateX(-50%);background:#EF4444;color:#FFFFFF;border-radius:999px;padding:5px 10px;font-size:11px;font-weight:950;white-space:nowrap;}}
+    .decision-track{{position:absolute;left:24px;right:24px;top:46px;height:7px;border-radius:999px;background:#E2E8F0;box-shadow:inset 0 1px 2px rgba(15,23,42,.06);}}
+    .decision-progress{{height:100%;width:var(--progress);border-radius:999px;background:linear-gradient(90deg,#0F766E,#2F80ED);box-shadow:0 6px 14px rgba(47,128,237,.18);}}
+    .ref-line{{position:relative;display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:8px;padding-top:0;margin-top:24px;z-index:10;}}
+    .ref-mile{{text-align:center;position:relative;min-height:126px;overflow:visible;}}
+    .ref-node{{width:42px;height:42px;border-radius:999px;color:#FFFFFF;font-weight:950;display:flex;align-items:center;justify-content:center;margin:0 auto 10px auto;box-shadow:0 7px 14px rgba(15,23,42,.18);position:relative;z-index:3;font-size:18px;}}
+    .ref-mile.critical .ref-node{{width:56px;height:56px;margin-top:-7px;margin-bottom:3px;box-shadow:0 0 0 10px rgba(239,68,68,.12),0 15px 30px rgba(239,68,68,.24);}}
+    .ref-mile.critical .ref-node::after{{content:"";position:absolute;inset:-12px;border-radius:999px;border:1px solid rgba(239,68,68,.32);}}
+    .ref-mile-title{{font-size:13px;color:#243B53;line-height:1.15;min-height:34px;max-width:132px;margin:0 auto;font-weight:850;}}
+    .ref-mile-status{{display:inline-flex;border-radius:999px;padding:5px 10px;font-size:10px;font-weight:950;margin-top:8px;}}
+    .decision-tooltip{{position:absolute;z-index:40;left:50%;bottom:116px;transform:translateX(-50%) translateY(6px);width:235px;background:#08253B;color:#FFFFFF;border-radius:10px;padding:12px 13px;text-align:left;box-shadow:0 18px 38px rgba(8,37,59,.28);opacity:0;pointer-events:none;transition:opacity .16s ease,transform .16s ease;}}
+    .decision-tooltip::after{{content:"";position:absolute;left:50%;bottom:-7px;transform:translateX(-50%);border-left:7px solid transparent;border-right:7px solid transparent;border-top:7px solid #08253B;}}
+    .decision-tooltip b{{display:block;font-size:12px;margin-bottom:8px;color:#FFFFFF;}}
+    .decision-tooltip span{{display:block;font-size:11px;line-height:1.35;color:#DDE8F3;margin-top:4px;}}
+    .ref-mile:hover .decision-tooltip{{opacity:1;transform:translateX(-50%) translateY(0);}}
+    .matrix-summary{{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px;margin-bottom:12px;min-width:0;}}
+    .summary-tile{{background:linear-gradient(145deg,#FFFFFF,#F9FBFD);border:1px solid #E2E8F0;border-radius:12px;padding:13px 14px;box-shadow:0 10px 20px rgba(15,23,42,.045);}}
+    .summary-tile small{{display:block;font-size:10px;text-transform:uppercase;letter-spacing:.04em;color:#64748B;font-weight:850;}}
+    .summary-tile b{{display:block;font-size:20px;color:#0B1633;margin-top:5px;}}
+    .matrix-scroll{{overflow-x:hidden;overflow-y:auto;border:1px solid #E2E8F0;border-radius:12px;max-height:570px;background:#FFFFFF;width:100%;}}
+    .pmo-matrix{{width:100%;min-width:0;table-layout:fixed;border-collapse:separate;border-spacing:0;background:#FFFFFF;font-size:9px;color:#0B1633;}}
+    .pmo-matrix th{{position:sticky;top:0;z-index:20;background:#F8FAFC;color:#334155;font-size:8px;letter-spacing:0;border-bottom:1px solid #DCE6EF;padding:10px 5px;text-align:center;white-space:normal;line-height:1.15;word-break:break-word;}}
+    .pmo-matrix td{{border-bottom:1px solid #EEF3F7;padding:12px 5px;text-align:center;vertical-align:middle;background:#FFFFFF;line-height:1.22;word-break:break-word;}}
+    .strategic-row td{{background:#FFFBF5;}}
+    .hito-code{{display:inline-flex;align-items:center;justify-content:center;width:35px;height:32px;border-radius:10px;background:#0B2D42;color:#FFFFFF;font-size:14px;font-weight:950;}}
+    .strategic-row .hito-code{{background:#E11D48;box-shadow:0 0 0 6px rgba(225,29,72,.10);}}
+    .matrix-name{{text-align:left!important;width:17%;}}
+    .matrix-name b{{display:block;font-size:10px;color:#0B1633;line-height:1.2;}}
+    .matrix-name small{{display:block;font-size:8px;color:#64748B;line-height:1.2;margin-top:3px;}}
+    .matrix-pill{{display:inline-flex;border-radius:5px;padding:4px 6px;font-size:8px;font-weight:950;white-space:normal;justify-content:center;}}
+    .matrix-pill.blue{{background:#DBEAFE;color:#2563EB;}}.matrix-pill.gray{{background:#E2E8F0;color:#64748B;}}.matrix-pill.red{{background:#FEE2E2;color:#E11D48;}}.matrix-pill.amber{{background:#FEF3C7;color:#D97706;}}.matrix-pill.green{{background:#D1FAE5;color:#047857;}}
+    .signal{{display:inline-flex;align-items:center;gap:5px;border-radius:999px;padding:5px 7px;font-size:8px;font-weight:900;white-space:normal;justify-content:center;}}
+    .signal i{{width:8px;height:8px;border-radius:999px;display:inline-block;}}.signal.green{{background:#D1FAE5;color:#047857;}}.signal.green i{{background:#10B981;}}.signal.amber{{background:#FEF3C7;color:#B45309;}}.signal.amber i{{background:#F59E0B;}}.signal.red{{background:#FEE2E2;color:#BE123C;}}.signal.red i{{background:#E11D48;}}
+    .matrix-bar{{text-align:left;}}.matrix-bar span{{display:block;font-size:8px;color:#334155;font-weight:900;margin-bottom:5px;}}.matrix-bar div{{height:7px;background:#E2E8F0;border-radius:999px;overflow:hidden;}}.matrix-bar i{{display:block;height:100%;border-radius:999px;}}
+    .decision-cell{{text-align:left!important;color:#334155;line-height:1.25;}}
+    .matrix-foot{{font-size:10px;color:#64748B;margin-top:10px;display:flex;gap:20px;align-items:center;flex-wrap:wrap;}}
+    </style>
+    <div class="pmo-mini">
+      <div class="control-panel">
+        <div class="timeline-head">
+          <div class="ref-panel-title">Roadmap de decisión H1 → H8</div>
+          <div class="timeline-legend">
+            <span><i class="legend-dot" style="background:#10B981;"></i>Ejecutado</span>
+            <span><i class="legend-dot" style="background:#2F80ED;"></i>En curso</span>
+            <span><i class="legend-dot" style="background:#94A3B8;"></i>Pendiente</span>
+            <span><i class="legend-dot" style="background:#EF4444;"></i>Crítico</span>
+          </div>
+        </div>
+        <div class="ref-stage"><div style="background:#DDF3F7;">Liberación inicial</div><div style="background:#FBF0D5;">Ingeniería y fabricación</div><div style="background:#DDF4EA;">Integración y cierre</div></div>
+        <div class="decision-roadmap" style="--today:{today_pos:.2f}%;--progress:{progress_width:.2f}%;">
+          <div class="today-line"><span>HOY</span></div>
+          <div class="decision-track"><div class="decision-progress"></div></div>
+          <div class="ref-line">{''.join(timeline_items)}</div>
+        </div>
+      </div>
+      <div class="control-panel">
+        <div class="ref-panel-title">Matriz PMO de hitos</div>
+        <div class="matrix-summary">
+          <div class="summary-tile"><small>Hitos críticos</small><b>{critical_count}</b></div>
+          <div class="summary-tile"><small>CAPEX comprometido</small><b>{format_clp_mm(total)}</b></div>
+          <div class="summary-tile"><small>Brecha operacional</small><b>{format_clp_mm(float(metrics["breach"]))}</b></div>
+          <div class="summary-tile"><small>Riesgo PMO</small><b>{html.escape(risk)}</b></div>
+          <div class="summary-tile"><small>Próximo desbloqueo</small><b>{html.escape(next_unlock)}</b></div>
+        </div>
+        <div class="matrix-scroll">
+          <table class="pmo-matrix">
+            <thead>
+              <tr>
+                <th>Hito</th><th>Estado</th><th>Criticidad</th><th>Hito ejecutivo</th><th>Etapa</th><th>Impacto operativo</th><th>Indicador PMO</th>
+                <th>Av. financiero</th><th>Ejecución</th><th>CAPEX restante</th><th>Duración</th><th>Inicio</th><th>Término</th><th>Escenario</th><th>Decisión requerida</th>
+              </tr>
+            </thead>
+            <tbody>{''.join(matrix_rows)}</tbody>
+          </table>
+        </div>
+        <div class="matrix-foot"><span>Fuente: Matriz PMO de hitos</span><span>Criticidad: <b style="color:#E11D48;">● Alta</b> <b style="color:#F59E0B;">● Media</b> <b style="color:#10B981;">● Baja</b></span></div>
+      </div>
+    </div>
+    """
+    components.html(html_doc, height=1020, scrolling=True)
+
+
 def hitos_executive_reading(df: pd.DataFrame, hito_summary: pd.DataFrame) -> str:
     total = float(df["Monto CLP Num"].sum() or 0)
     concentration = hito_summary.sort_values("Monto_CLP", ascending=False).head(1)
@@ -2712,11 +2934,7 @@ def main() -> None:
     roadmap_tab, hitos_tab = st.tabs(["Vista ejecutiva", "Vista hitos"])
     with roadmap_tab:
         render_executive_roadmap(filtered, hito_summary, pmo_source)
-        st.markdown("#### Roadmap de decisión H1 → H8")
-        pmo_matrix = build_pmo_hito_matrix(filtered, hito_summary, pmo_source)
-        st.plotly_chart(build_hitos_timeline(hito_summary, pmo_matrix), use_container_width=True)
-        st.markdown("#### Matriz PMO de hitos")
-        render_hitos_table(filtered, hito_summary, pmo_source)
+        render_pmo_roadmap_matrix(filtered, hito_summary, pmo_source)
         st.markdown("#### Actividades técnicas por hito")
         for milestone in DISPLAY_MILESTONES:
             hito_df = filtered[filtered["Hito Ejecutivo"].eq(milestone)].copy()
