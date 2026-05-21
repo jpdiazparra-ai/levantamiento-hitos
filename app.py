@@ -2301,10 +2301,13 @@ def render_release_cutoff_intelligence(df: pd.DataFrame) -> None:
         if not isinstance(detail, pd.DataFrame) or detail.empty:
             return '<div class="release-empty">Sin partidas activas en este corte.</div>'
         rows = []
+        panel_total = max(float(panel["total"] or 0), 1)
+        critical_count = int((detail.get("Criticas", pd.Series(dtype=float)).fillna(0) > 0).sum())
+        habilitating_count = int((detail.get("Habilitantes", pd.Series(dtype=float)).fillna(0) > 0).sum())
         for _, row in detail.iterrows():
             amount = float(row["Monto"] or 0)
             physical = float(row.get("AvanceFisico", 0) or 0)
-            financial = min(max(amount / max(float(panel["total"] or 0), 1), 0), 1)
+            financial = min(max(amount / panel_total, 0), 1)
             risk = "Crítico" if int(row.get("Criticas", 0) or 0) else "Alto" if int(row.get("Habilitantes", 0) or 0) else "Medio" if amount >= max_amount * 0.35 else "Bajo"
             state = "Riesgo operacional" if risk == "Crítico" else "En ejecución" if physical > 0 else "Esperando liberación"
             dependency = "Depende de liberación PMO" if physical == 0 else "En ruta de ejecución"
@@ -2321,8 +2324,14 @@ def render_release_cutoff_intelligence(df: pd.DataFrame) -> None:
             rows.append(
                 f"""
                 <div class="release-row">
-                  <div class="release-hito">{html.escape(str(row["Hito"]))}</div>
-                  <div class="release-copy"><b>{html.escape(str(row["Categoría/Línea"]))}</b><span>{html.escape(str(row["Hito Corto"]))} · {int(row["Partidas"])} partidas · {html.escape(dependency)}</span></div>
+                  <div class="release-key">
+                    <div class="release-hito">{html.escape(str(row["Hito"]))}</div>
+                    <span>{html.escape(str(row["Hito Corto"]))}</span>
+                  </div>
+                  <div class="release-copy">
+                    <b>{html.escape(str(row["Categoría/Línea"]))}</b>
+                    <span>{int(row["Partidas"])} partidas · {format_date(row.get("Inicio"))} a {format_date(row.get("Termino"))}</span>
+                  </div>
                   <div class="release-metrics">
                     <div class="mini-bar"><span>Físico {format_pct(physical)}</span><i><b style="width:{physical * 100:.0f}%;"></b></i></div>
                     <div class="mini-bar"><span>Financiero {format_pct(financial)}</span><i><b style="width:{financial * 100:.0f}%;"></b></i></div>
@@ -2331,12 +2340,23 @@ def render_release_cutoff_intelligence(df: pd.DataFrame) -> None:
                     <span class="risk {risk_class}">{html.escape(risk)}</span>
                     <span class="state">{html.escape(state)}</span>
                   </div>
-                  <div class="release-impact">{html.escape(impact)}</div>
+                  <div class="release-impact"><b>{html.escape(impact)}</b><span>{html.escape(dependency)}</span></div>
                   <div class="release-amount">{format_clp(amount)}</div>
                 </div>
                 """
             )
-        return "".join(rows)
+        return f"""
+        <div class="release-control-summary">
+          <div><small>Monto del corte</small><b>{money_mm(float(panel["total"]))}</b></div>
+          <div><small>Frentes PMO</small><b>{len(detail)}</b></div>
+          <div><small>Riesgo crítico</small><b>{critical_count}</b></div>
+          <div><small>Habilitantes</small><b>{habilitating_count}</b></div>
+        </div>
+        <div class="release-table-head">
+          <span>Hito</span><span>Componente técnico</span><span>Avance</span><span>Riesgo / estado</span><span>Impacto operacional</span><span>Monto</span>
+        </div>
+        {''.join(rows)}
+        """
 
     detail_panels = "".join(
         f"""
@@ -2394,27 +2414,36 @@ def render_release_cutoff_intelligence(df: pd.DataFrame) -> None:
     .panel-head b{{display:block;font-size:14px;color:#0B1B3A;}}.panel-head small{{display:block;font-size:11px;color:#64748B;margin-top:3px;font-weight:750;}}.panel-head span{{font-size:12px;color:#0B1633;font-weight:950;white-space:nowrap;}}.panel-head i{{font-style:normal;font-size:16px;margin-left:4px;color:#475569;display:inline-block;transition:transform .16s ease;}}
     .release-panel.expanded .panel-head{{border-bottom:1px solid #E8EEF5;}}
     .release-panel.expanded .panel-head i{{transform:rotate(180deg);}}
-    .release-list{{padding:10px 12px 12px 12px;display:none;gap:8px;max-height:430px;overflow:auto;}}
+    .release-list{{padding:12px;display:none;gap:8px;max-height:520px;overflow:auto;background:#FAFCFE;}}
     .release-panel.expanded .release-list{{display:grid;}}
-    .release-row{{display:grid;grid-template-columns:42px minmax(0,1.25fr) minmax(150px,.85fr) 132px minmax(120px,.7fr) 94px;gap:10px;align-items:center;padding:10px;border:1px solid #EEF3F7;border-radius:10px;background:#FBFCFE;}}
-    .release-hito{{width:30px;height:28px;border-radius:8px;background:#0B1B3A;color:#FFFFFF;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:950;}}
-    .release-copy b{{display:block;font-size:11px;color:#0B1633;line-height:1.15;}}.release-copy span{{display:block;font-size:9px;color:#64748B;margin-top:3px;line-height:1.15;}}
+    .release-control-summary{{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-bottom:4px;}}
+    .release-control-summary div{{background:#FFFFFF;border:1px solid #E2E8F0;border-radius:11px;padding:10px 11px;box-shadow:0 8px 18px rgba(15,23,42,.035);}}
+    .release-control-summary small{{display:block;font-size:9px;color:#64748B;font-weight:900;text-transform:uppercase;letter-spacing:.04em;}}
+    .release-control-summary b{{display:block;margin-top:5px;font-size:15px;color:#0B1633;font-weight:950;}}
+    .release-table-head{{display:grid;grid-template-columns:108px minmax(0,1.25fr) minmax(150px,.78fr) 142px minmax(140px,.8fr) 104px;gap:10px;padding:8px 11px;background:#EEF4F8;border:1px solid #DCE6EF;border-radius:10px;color:#475569;font-size:9px;font-weight:950;text-transform:uppercase;letter-spacing:.04em;position:sticky;top:0;z-index:2;}}
+    .release-row{{display:grid;grid-template-columns:108px minmax(0,1.25fr) minmax(150px,.78fr) 142px minmax(140px,.8fr) 104px;gap:10px;align-items:center;padding:11px;border:1px solid #E8EEF5;border-radius:12px;background:#FFFFFF;box-shadow:0 8px 18px rgba(15,23,42,.028);transition:transform .14s ease,box-shadow .14s ease,border-color .14s ease;}}
+    .release-row:hover{{transform:translateY(-1px);border-color:#CBD5E1;box-shadow:0 12px 24px rgba(15,23,42,.055);}}
+    .release-key{{display:flex;align-items:center;gap:8px;min-width:0;}}
+    .release-key span{{font-size:9px;color:#64748B;font-weight:850;line-height:1.1;}}
+    .release-hito{{width:34px;height:32px;border-radius:10px;background:#0B1B3A;color:#FFFFFF;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:950;box-shadow:0 8px 16px rgba(15,23,42,.14);flex:0 0 auto;}}
+    .release-copy b{{display:block;font-size:11px;color:#0B1633;line-height:1.15;}}.release-copy span{{display:block;font-size:9px;color:#64748B;margin-top:4px;line-height:1.15;font-weight:750;}}
     .release-metrics{{display:grid;gap:5px;}}
-    .mini-bar span{{display:block;font-size:9px;color:#475569;font-weight:850;margin-bottom:3px;}}
-    .mini-bar i{{display:block;height:5px;background:#E2E8F0;border-radius:999px;overflow:hidden;}}
-    .mini-bar b{{display:block;height:100%;background:#0B1B3A;border-radius:999px;}}
+    .mini-bar span{{display:flex;justify-content:space-between;font-size:9px;color:#475569;font-weight:850;margin-bottom:3px;}}
+    .mini-bar i{{display:block;height:6px;background:#E2E8F0;border-radius:999px;overflow:hidden;}}
+    .mini-bar b{{display:block;height:100%;background:linear-gradient(90deg,#0B1B3A,#0F766E);border-radius:999px;}}
     .release-pmo{{display:flex;gap:5px;flex-wrap:wrap;}}
     .risk,.state{{display:inline-flex;border-radius:999px;padding:5px 7px;font-size:9px;font-weight:900;background:#F1F5F9;color:#475569;}}
     .risk.low{{color:#0F766E;background:#EAF6F2;}}.risk.medium{{color:#8A5A16;background:#FBF4E7;}}.risk.high{{color:#7F1D1D;background:#F8EAEA;}}.risk.critical{{color:#7F1D1D;background:#F4DCDC;}}
-    .release-impact{{font-size:10px;color:#475569;font-weight:800;line-height:1.2;}}
-    .release-amount{{font-size:10px;font-weight:950;color:#0B1633;text-align:right;white-space:nowrap;}}
+    .release-impact{{font-size:10px;color:#475569;font-weight:800;line-height:1.2;}}.release-impact b{{display:block;color:#0B1633;font-size:10px;}}.release-impact span{{display:block;margin-top:3px;color:#64748B;font-size:9px;}}
+    .release-amount{{font-size:11px;font-weight:950;color:#0B1633;text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums;}}
     .release-empty{{font-size:12px;color:#64748B;padding:14px;}}
     .release-legend{{display:flex;gap:22px;justify-content:center;align-items:center;color:#64748B;font-size:12px;font-weight:850;margin:10px 0 16px 0;background:#FFFFFF;border:1px solid #E2E8F0;border-radius:999px;padding:8px 12px;}}
     .release-legend span{{display:flex;align-items:center;gap:8px;}}
     .legend-icon{{width:22px;height:22px;border-radius:999px;background:#F8FAFC;display:flex;align-items:center;justify-content:center;color:#475569;font-size:14px;}}
     .legend-line{{width:42px;height:6px;border:1px solid #94A3B8;border-radius:999px;}}
     @media(max-width:1180px){{.stage-grid{{grid-template-columns:repeat(2,minmax(0,1fr));gap:18px;}}.release-stage:not(:last-child)::after{{display:none;}}.release-nodes{{display:none;}}.release-line{{display:none;}}.release-flow{{padding-top:0;}}}}
-    @media(max-width:720px){{.stage-grid{{grid-template-columns:1fr;}}.release-head{{flex-direction:column;}}}}
+    @media(max-width:920px){{.release-table-head{{display:none;}}.release-row{{grid-template-columns:1fr;}}.release-amount{{text-align:left;}}.release-control-summary{{grid-template-columns:repeat(2,minmax(0,1fr));}}}}
+    @media(max-width:720px){{.stage-grid{{grid-template-columns:1fr;}}.release-head{{flex-direction:column;}}.release-control-summary{{grid-template-columns:1fr;}}}}
     </style>
     <div class="release-shell" id="release-shell-main">
       <div class="release-head">
@@ -2455,7 +2484,7 @@ def render_release_cutoff_intelligence(df: pd.DataFrame) -> None:
     }})();
     </script>
     """
-    components.html(html_doc, height=700, scrolling=True)
+    components.html(html_doc, height=760, scrolling=True)
 
 
 def render_expandable_activity_gantt(df: pd.DataFrame) -> None:
@@ -3827,7 +3856,6 @@ def main() -> None:
     render_release_cutoff_intelligence(filtered)
     render_expandable_activity_gantt(filtered)
     render_project_timeline_conditions(filtered, pmo_source)
-    render_hito_span_gantt(filtered)
 
     pending_df = filtered[filtered["Pendiente programación"]].copy()
     if not pending_df.empty:
