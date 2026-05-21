@@ -2153,6 +2153,8 @@ def render_board_kpis(df: pd.DataFrame) -> None:
 
     total_release = sum(amount for _, amount in release_totals)
     release_1 = release_totals[0][1] if release_totals else 0.0
+    release_2_amount = release_totals[1][1] if len(release_totals) > 1 else 0.0
+    critical_window = release_1 + release_2_amount
 
     def money_mm(value: float) -> str:
         return f"${value / 1_000_000:.1f}MM".replace(".", ",")
@@ -2162,32 +2164,50 @@ def render_board_kpis(df: pd.DataFrame) -> None:
     if not release_2.empty:
         top_hitos = release_2.groupby("Hito")["Monto CLP Num"].sum().sort_values(ascending=False).head(3)
         release_2_detail = ", ".join(f"{hito} {money_mm(float(amount))}" for hito, amount in top_hitos.items())
-    launch_rows = df[df["Hito"].astype(str).eq("H8") & df["Termino"].notna()]
-    launch_date = launch_rows["Termino"].max() if not launch_rows.empty else df["Termino"].dropna().max()
-    launch_text = format_date(launch_date) if pd.notna(launch_date) else "Por definir"
-    launch_context = "Condicionada a liberar fondos en la ventana crítica"
+    weighted_progress = (
+        float((scheduled["Monto CLP Num"] * scheduled["Avance Num"]).sum() / total_release)
+        if total_release
+        else 0.0
+    )
+    critical_pending = int((scheduled["Es crítica"] & (scheduled["Avance Num"] < 1)).sum())
+    financial_pressure = critical_window / total_release if total_release else 0.0
+    if critical_pending >= 10 or (weighted_progress > financial_pressure and critical_pending > 0):
+        risk_value = "ALTO"
+        risk_context = "Brecha entre avance técnico, hitos críticos y liberación financiera."
+        risk_metric = f"{critical_pending} partidas críticas pendientes"
+        risk_color = "#7F1D1D"
+    elif critical_pending > 0:
+        risk_value = "MEDIO"
+        risk_context = "Continuidad condicionada a liberar fondos de los próximos cortes."
+        risk_metric = f"Avance ponderado {format_pct(weighted_progress)}"
+        risk_color = "#B7791F"
+    else:
+        risk_value = "BAJO"
+        risk_context = "Liberaciones alineadas con la continuidad técnica del periodo."
+        risk_metric = "Sin bloqueos críticos activos"
+        risk_color = "#0F766E"
 
     cards = [
         {
-            "label": "CAPEX requerido para continuidad",
+            "label": "CAPEX de continuidad",
             "value": money_mm(total_release),
-            "context": "Capital del horizonte para sostener ejecución técnica.",
+            "context": "Capital requerido para sostener integración y puesta en marcha.",
             "accent": "#0B2D42",
             "metric": f"{len(scheduled)} partidas programadas",
         },
         {
-            "label": "Ventana crítica de liberación",
-            "value": money_mm(release_1),
-            "context": f"Liberación 1 activa continuidad inmediata. Liberación 2 cubre {release_2_detail}.",
-            "accent": "#F59E0B",
-            "metric": "Riesgo de timing financiero",
+            "label": "Ventana crítica PMO",
+            "value": money_mm(critical_window),
+            "context": f"Liberación 1 + Liberación 2. La segunda cubre {release_2_detail or 'fondos de continuidad técnica'}.",
+            "accent": "#B7791F",
+            "metric": "Decisión financiera inmediata",
         },
         {
-            "label": "Fecha estimada de puesta en marcha",
-            "value": launch_text,
-            "context": launch_context,
-            "accent": "#0F766E",
-            "metric": "Hito H8 operacional",
+            "label": "Riesgo de continuidad",
+            "value": risk_value,
+            "context": risk_context,
+            "accent": risk_color,
+            "metric": risk_metric,
         },
     ]
     cards_html = "".join(
@@ -3853,6 +3873,7 @@ def main() -> None:
         st.warning("No hay actividades para los filtros seleccionados.")
         st.stop()
 
+    render_board_kpis(filtered)
     render_release_cutoff_intelligence(filtered)
     render_expandable_activity_gantt(filtered)
     render_project_timeline_conditions(filtered, pmo_source)
