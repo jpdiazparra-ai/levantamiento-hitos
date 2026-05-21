@@ -2341,10 +2341,10 @@ def render_release_cutoff_intelligence(df: pd.DataFrame) -> None:
     detail_panels = "".join(
         f"""
         <div class="release-panel {'active' if idx == 0 else ''}" data-panel="{idx}">
-          <div class="panel-head">
+          <button class="panel-head" type="button">
             <div><b>Control operacional por hito</b><small>{html.escape(str(panel["date"]))} · {html.escape(str(panel["thesis"]))}</small></div>
-            <span>{money_mm(float(panel["total"]))} · {int(panel["partidas"])} partidas</span>
-          </div>
+            <span>{money_mm(float(panel["total"]))} · {int(panel["partidas"])} partidas · Desplegar tabla PMO <i>⌄</i></span>
+          </button>
           <div class="release-list">{detail_rows(panel)}</div>
         </div>
         """
@@ -2389,9 +2389,13 @@ def render_release_cutoff_intelligence(df: pd.DataFrame) -> None:
     .release-detail-stack{{display:grid;gap:12px;}}
     .release-panel{{display:none;background:#FFFFFF;border:1px solid #E2E8F0;border-radius:12px;overflow:hidden;box-shadow:0 10px 22px rgba(15,23,42,.04);}}
     .release-panel.active{{display:block;}}
-    .panel-head{{padding:14px 15px;border-bottom:1px solid #E8EEF5;display:flex;justify-content:space-between;gap:10px;align-items:center;background:linear-gradient(180deg,#FFFFFF,#FAFCFE);}}
-    .panel-head b{{display:block;font-size:14px;color:#0B1B3A;}}.panel-head small{{display:block;font-size:11px;color:#64748B;margin-top:3px;font-weight:750;}}.panel-head span{{font-size:12px;color:#0B1633;font-weight:950;white-space:nowrap;}}
-    .release-list{{padding:10px 12px 12px 12px;display:grid;gap:8px;max-height:430px;overflow:auto;}}
+    .panel-head{{appearance:none;width:100%;border:0;padding:14px 15px;display:flex;justify-content:space-between;gap:10px;align-items:center;background:linear-gradient(180deg,#FFFFFF,#FAFCFE);cursor:pointer;text-align:left;}}
+    .panel-head:hover{{background:#F8FAFC;}}
+    .panel-head b{{display:block;font-size:14px;color:#0B1B3A;}}.panel-head small{{display:block;font-size:11px;color:#64748B;margin-top:3px;font-weight:750;}}.panel-head span{{font-size:12px;color:#0B1633;font-weight:950;white-space:nowrap;}}.panel-head i{{font-style:normal;font-size:16px;margin-left:4px;color:#475569;display:inline-block;transition:transform .16s ease;}}
+    .release-panel.expanded .panel-head{{border-bottom:1px solid #E8EEF5;}}
+    .release-panel.expanded .panel-head i{{transform:rotate(180deg);}}
+    .release-list{{padding:10px 12px 12px 12px;display:none;gap:8px;max-height:430px;overflow:auto;}}
+    .release-panel.expanded .release-list{{display:grid;}}
     .release-row{{display:grid;grid-template-columns:42px minmax(0,1.25fr) minmax(150px,.85fr) 132px minmax(120px,.7fr) 94px;gap:10px;align-items:center;padding:10px;border:1px solid #EEF3F7;border-radius:10px;background:#FBFCFE;}}
     .release-hito{{width:30px;height:28px;border-radius:8px;background:#0B1B3A;color:#FFFFFF;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:950;}}
     .release-copy b{{display:block;font-size:11px;color:#0B1633;line-height:1.15;}}.release-copy span{{display:block;font-size:9px;color:#64748B;margin-top:3px;line-height:1.15;}}
@@ -2435,7 +2439,17 @@ def render_release_cutoff_intelligence(df: pd.DataFrame) -> None:
         card.addEventListener("click", () => {{
           const selected = card.getAttribute("data-stage");
           cards.forEach((item) => item.classList.toggle("active", item.getAttribute("data-stage") === selected));
-          panels.forEach((panel) => panel.classList.toggle("active", panel.getAttribute("data-panel") === selected));
+          panels.forEach((panel) => {{
+            const active = panel.getAttribute("data-panel") === selected;
+            panel.classList.toggle("active", active);
+            panel.classList.remove("expanded");
+          }});
+        }});
+      }});
+      root.querySelectorAll(".panel-head").forEach((head) => {{
+        head.addEventListener("click", () => {{
+          const panel = head.closest(".release-panel");
+          if (panel) panel.classList.toggle("expanded");
         }});
       }});
     }})();
