@@ -2618,6 +2618,240 @@ def render_expandable_activity_gantt(df: pd.DataFrame) -> None:
     components.html(html_doc, height=780, scrolling=True)
 
 
+def render_project_timeline_conditions(df: pd.DataFrame, pmo_source: pd.DataFrame | None = None) -> None:
+    scheduled = df[df["Inicio"].notna() & df["Termino"].notna()].copy()
+    if scheduled.empty:
+        return
+
+    hito_ranges = (
+        scheduled.groupby(["Hito", "Hito Ejecutivo", "Hito Corto"], as_index=False)
+        .agg(
+            Inicio_hito=("Inicio", "min"),
+            Termino_hito=("Termino", "max"),
+            Actividades=("ID", "count"),
+            Monto=("Monto CLP Num", "sum"),
+        )
+        .sort_values("Hito")
+    )
+    if hito_ranges.empty:
+        return
+
+    hito_ranges["Orden"] = pd.to_numeric(hito_ranges["Hito"].astype(str).str.extract(r"(\d+)")[0], errors="coerce")
+    hito_ranges = hito_ranges.sort_values(["Orden", "Inicio_hito"]).reset_index(drop=True)
+
+    pmo_conditions = clean_pmo_matrix_source(pmo_source)
+    condition_by_name: dict[str, str] = {}
+    if not pmo_conditions.empty:
+        condition_by_name = {
+            normalize_text(row["Hito Ejecutivo"]): str(row["Condición de Liberación"]).strip()
+            for _, row in pmo_conditions.iterrows()
+            if str(row.get("Condición de Liberación", "")).strip()
+        }
+    hito_ranges["Condición de Liberación"] = hito_ranges["Hito Ejecutivo"].map(
+        lambda value: condition_by_name.get(normalize_text(value), "Condición de liberación PMO por confirmar")
+    )
+
+    start = pd.Timestamp(hito_ranges["Inicio_hito"].min())
+    end = pd.Timestamp(hito_ranges["Termino_hito"].max())
+    months = max(1, (end.year - start.year) * 12 + end.month - start.month + 1)
+    total_amount = float(hito_ranges["Monto"].sum() or 0)
+    phase_count = 3
+    phase_1 = min(2, len(hito_ranges))
+    phase_3 = 1 if len(hito_ranges) > 3 else 0
+    phase_2 = max(len(hito_ranges) - phase_1 - phase_3, 1)
+    if phase_1 + phase_2 + phase_3 > len(hito_ranges):
+        phase_2 = max(len(hito_ranges) - phase_1, 0)
+        phase_3 = max(len(hito_ranges) - phase_1 - phase_2, 0)
+
+    phase_style = f"grid-template-columns:{phase_1}fr {max(phase_2, 1)}fr {max(phase_3, 1)}fr;"
+    columns_style = f"grid-template-columns:104px repeat({len(hito_ranges)}, minmax(92px, 1fr));"
+
+    month_cursor = pd.Timestamp(start.year, start.month, 1)
+    month_cells = []
+    while month_cursor <= end:
+        month_cells.append(month_cursor.strftime("%b").upper())
+        month_cursor = month_cursor + pd.DateOffset(months=1)
+    months_html = "".join(f"<span>{html.escape(month)}</span>" for month in month_cells)
+
+    def money_mm(value: float) -> str:
+        return f"${value / 1_000_000:.1f}MM".replace(".", ",")
+
+    type_colors = {
+        "strategic": "#0A3768",
+        "operative": "#4F7D3A",
+        "contract": "#C56A12",
+    }
+    hito_icons = {
+        "H1": "CIV",
+        "H2": "FRP",
+        "H3": "FND",
+        "H4": "LOG",
+        "H5": "MEC",
+        "H6": "ELE",
+        "H7": "RUN",
+        "H8": "COD",
+    }
+
+    def hito_type(index: int, code: str) -> tuple[str, str]:
+        if index < phase_1:
+            return "Hito estratégico", "strategic"
+        if index >= len(hito_ranges) - max(phase_3, 0):
+            return "Hito contractual / administrativo", "contract"
+        return "Hito operativo", "operative"
+
+    dots_html = []
+    cards_html = []
+    conditions_html = []
+    for idx, hito in hito_ranges.iterrows():
+        code = str(hito["Hito"])
+        type_label, type_key = hito_type(idx, code)
+        color = type_colors[type_key]
+        icon = hito_icons.get(code, ROADMAP_ICONS.get(str(hito["Hito Ejecutivo"]), "PMO"))
+        start_label = format_date(hito["Inicio_hito"])
+        condition = str(hito["Condición de Liberación"])
+        cards_html.append(
+            f"""
+            <div class="tl-card {type_key}">
+              <div class="tl-num" style="background:{color};">{html.escape(str(idx + 1))}</div>
+              <div class="tl-icon" style="border-color:{color};color:{color};">{html.escape(icon)}</div>
+              <div class="tl-name">{html.escape(str(hito["Hito Corto"]))}</div>
+              <div class="tl-date">{html.escape(start_label)}</div>
+              <div class="tl-mini">{int(hito["Actividades"])} partidas · {money_mm(float(hito["Monto"] or 0))}</div>
+            </div>
+            """
+        )
+        conditions_html.append(
+            f"""
+            <div class="tl-condition">
+              <div class="tl-cond-icon" style="color:{color};">✓</div>
+              <div>{html.escape(condition)}</div>
+            </div>
+            """
+        )
+        dots_html.append(
+            f"""
+            <div class="tl-dot-wrap">
+              <div class="tl-dot" style="border-color:{color};"><i style="background:{color};"></i></div>
+              <div class="tl-stem"></div>
+            </div>
+            """
+        )
+
+    phase_3_title = "PUESTA EN MARCHA Y CIERRE" if phase_3 else "CIERRE"
+    html_doc = f"""
+    <style>
+    *{{box-sizing:border-box;}}
+    body{{margin:0;background:transparent;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;color:#06224A;overflow-x:hidden;}}
+    .tl-shell{{background:linear-gradient(180deg,#FFFFFF 0%,#FBFDFF 100%);border:1px solid #DCE6EF;border-radius:16px;padding:18px 22px 20px;box-shadow:0 16px 36px rgba(15,23,42,.07);overflow:hidden;}}
+    .tl-top{{display:flex;align-items:center;justify-content:space-between;gap:18px;margin-bottom:18px;}}
+    .tl-brand{{display:flex;align-items:center;gap:14px;min-width:0;}}
+    .tl-mark{{width:72px;height:58px;position:relative;flex:0 0 auto;}}
+    .tl-mark:before{{content:"";position:absolute;left:8px;right:8px;bottom:9px;height:9px;border-radius:999px;background:linear-gradient(90deg,#0F766E,#68A36B);}}
+    .tl-turb{{position:absolute;bottom:13px;width:2px;background:#0B3768;border-radius:999px;}}
+    .tl-turb.one{{height:42px;left:26px;}}.tl-turb.two{{height:30px;left:48px;}}
+    .tl-turb:before{{content:"";position:absolute;left:50%;top:-6px;width:10px;height:10px;border:2px solid #0B3768;border-radius:50%;transform:translateX(-50%);background:#FFFFFF;}}
+    .tl-turb:after{{content:"";position:absolute;left:50%;top:-18px;width:32px;height:32px;border-top:3px solid #0B3768;border-left:3px solid transparent;transform:translateX(-50%) rotate(-28deg);border-radius:50%;}}
+    .tl-title{{font-size:25px;line-height:1.04;font-weight:950;color:#0B2D42;letter-spacing:.01em;}}
+    .tl-sub{{font-size:14px;color:#0B2D42;font-weight:750;letter-spacing:.02em;margin-top:6px;}}
+    .tl-kpis{{display:grid;grid-template-columns:repeat(4,auto);gap:8px;align-items:stretch;}}
+    .tl-kpi{{background:#FFFFFF;border:1px solid #DCE6EF;border-radius:8px;padding:9px 12px;min-width:118px;display:flex;align-items:center;gap:8px;box-shadow:0 8px 18px rgba(15,23,42,.035);}}
+    .tl-kpi i{{font-style:normal;width:30px;height:30px;border-radius:9px;background:#EEF6FF;color:#0B3768;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:950;}}
+    .tl-kpi b{{display:block;font-size:17px;color:#0B2D42;line-height:1;}}.tl-kpi span{{display:block;font-size:9px;line-height:1.18;font-weight:850;text-transform:uppercase;color:#0B2D42;margin-top:2px;}}
+    .tl-phases{{display:grid;{phase_style}margin-left:104px;margin-bottom:14px;border-radius:14px;overflow:hidden;}}
+    .tl-phase{{min-height:78px;color:#FFFFFF;display:flex;align-items:center;gap:14px;padding:12px 22px;position:relative;clip-path:polygon(0 0,calc(100% - 22px) 0,100% 50%,calc(100% - 22px) 100%,0 100%,22px 50%);margin-left:-16px;}}
+    .tl-phase:first-child{{margin-left:0;clip-path:polygon(0 0,calc(100% - 22px) 0,100% 50%,calc(100% - 22px) 100%,0 100%);}}
+    .tl-phase:last-child{{clip-path:polygon(0 0,100% 0,100% 100%,0 100%,22px 50%);}}
+    .tl-phase.blue{{background:linear-gradient(135deg,#07315F,#0B2D42);}}.tl-phase.green{{background:linear-gradient(135deg,#467D4A,#63975E);}}.tl-phase.orange{{background:linear-gradient(135deg,#C55F12,#ED8A1A);}}
+    .tl-phase .circle{{width:54px;height:54px;border-radius:50%;background:#FFFFFF;color:#0B2D42;display:flex;align-items:center;justify-content:center;font-weight:950;font-size:18px;box-shadow:inset 0 0 0 1px rgba(15,23,42,.08);flex:0 0 auto;}}
+    .tl-phase b{{display:block;font-size:17px;line-height:1.05;}}.tl-phase span{{display:block;font-size:12px;font-weight:850;line-height:1.2;margin-top:5px;}}
+    .tl-year{{margin-left:104px;display:grid;grid-template-columns:1fr;border-bottom:1px solid #9DB1C4;height:28px;position:relative;}}
+    .tl-year b{{position:absolute;left:22%;top:0;font-size:13px;color:#0B2D42;}}.tl-year i{{position:absolute;right:15%;top:0;font-style:normal;font-size:13px;color:#0B2D42;font-weight:900;}}
+    .tl-months{{margin-left:104px;display:grid;grid-template-columns:repeat({len(month_cells)},1fr);height:26px;align-items:center;border-bottom:1px solid #CBD5E1;}}
+    .tl-months span{{font-size:11px;font-weight:900;text-align:center;color:#0B2D42;}}
+    .tl-grid{{display:grid;{columns_style}align-items:stretch;}}
+    .tl-label{{background:#F8FAFC;border-right:1px solid #E2E8F0;border-bottom:1px solid #E2E8F0;padding:18px 8px;font-size:12px;line-height:1.2;font-weight:950;text-align:center;color:#0B2D42;display:flex;align-items:center;justify-content:center;}}
+    .tl-dots{{display:contents;}}
+    .tl-line-cell{{position:relative;min-height:64px;border-bottom:1px solid #E2E8F0;display:flex;align-items:center;justify-content:center;}}
+    .tl-line-cell:before{{content:"";position:absolute;left:0;right:0;top:26px;height:3px;background:#64748B;opacity:.75;}}
+    .tl-line-cell:last-child:after{{content:"";position:absolute;right:-8px;top:20px;border-left:13px solid #64748B;border-top:8px solid transparent;border-bottom:8px solid transparent;opacity:.85;}}
+    .tl-dot-wrap{{position:relative;display:flex;justify-content:center;width:100%;height:100%;}}
+    .tl-dot{{position:absolute;top:16px;width:18px;height:18px;background:#FFFFFF;border:4px solid #0B2D42;border-radius:50%;z-index:3;}}
+    .tl-dot i{{position:absolute;left:50%;top:50%;width:5px;height:5px;border-radius:50%;transform:translate(-50%,-50%);}}
+    .tl-stem{{position:absolute;top:34px;height:34px;border-left:1px dashed #CBD5E1;}}
+    .tl-card{{position:relative;min-height:216px;margin:0 4px 10px;background:#FFFFFF;border:1px solid #DCE6EF;border-radius:7px;padding:26px 8px 11px;text-align:center;box-shadow:0 10px 20px rgba(15,23,42,.035);}}
+    .tl-card.strategic{{border-color:#BBD1EA;}}.tl-card.operative{{border-color:#C9DDC6;}}.tl-card.contract{{border-color:#F3C99B;}}
+    .tl-num{{position:absolute;top:-12px;left:50%;transform:translateX(-50%);width:26px;height:24px;border-radius:6px;color:#FFFFFF;font-size:13px;font-weight:950;display:flex;align-items:center;justify-content:center;box-shadow:0 7px 14px rgba(15,23,42,.16);}}
+    .tl-icon{{width:58px;height:58px;margin:0 auto 12px;border:1.5px solid;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:950;background:#FFFFFF;}}
+    .tl-name{{min-height:50px;font-size:11px;line-height:1.16;font-weight:950;color:#0B2D42;display:flex;align-items:center;justify-content:center;}}
+    .tl-date{{display:inline-block;margin-top:10px;padding:6px 8px;border:1px solid #DCE6EF;border-radius:5px;background:#F8FAFC;color:#0B2D42;font-size:10px;font-weight:900;}}
+    .tl-mini{{font-size:9px;color:#64748B;font-weight:850;margin-top:8px;}}
+    .tl-condition{{min-height:150px;margin:0 4px;background:#FFFFFF;border:1px solid #E2E8F0;border-radius:7px;padding:18px 10px 12px;text-align:center;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;gap:9px;box-shadow:0 7px 16px rgba(15,23,42,.025);}}
+    .tl-cond-icon{{font-size:23px;font-weight:950;line-height:1;}}
+    .tl-condition div:last-child{{font-size:10.5px;line-height:1.33;color:#0B2D42;font-weight:750;}}
+    .tl-bottom{{display:grid;grid-template-columns:1.2fr .9fr;gap:10px;margin-left:104px;margin-top:10px;}}
+    .tl-legend,.tl-impact,.tl-commit{{background:#FFFFFF;border:1px solid #DCE6EF;border-radius:8px;padding:11px 14px;box-shadow:0 8px 18px rgba(15,23,42,.035);}}
+    .tl-legend{{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;}}
+    .tl-leg{{display:grid;grid-template-columns:26px 1fr;gap:8px;align-items:start;}}
+    .tl-leg i{{width:19px;height:19px;border-radius:50%;margin-top:2px;}}.tl-leg b{{display:block;font-size:10px;text-transform:uppercase;color:#0B2D42;}}.tl-leg span{{display:block;font-size:10px;color:#475569;line-height:1.35;margin-top:4px;}}
+    .tl-impact b,.tl-commit b{{display:block;font-size:11px;color:#0B2D42;text-transform:uppercase;margin-bottom:6px;}}.tl-impact li,.tl-commit li{{font-size:10px;color:#0B2D42;line-height:1.45;margin-bottom:3px;}}
+    .tl-commit{{background:linear-gradient(135deg,#07315F,#0B2D42);color:#FFFFFF;}}.tl-commit b,.tl-commit li{{color:#FFFFFF;}}
+    .tl-footer{{display:grid;grid-template-columns:1fr .55fr;gap:10px;margin-top:10px;}}
+    @media(max-width:1100px){{.tl-top{{display:block;}}.tl-kpis{{grid-template-columns:repeat(2,auto);justify-content:start;margin-top:12px;}}.tl-shell{{overflow-x:auto;}}.tl-inner{{min-width:1180px;}}}}
+    </style>
+    <div class="tl-shell">
+      <div class="tl-inner">
+        <div class="tl-top">
+          <div class="tl-brand">
+            <div class="tl-mark"><div class="tl-turb one"></div><div class="tl-turb two"></div></div>
+            <div><div class="tl-title">LÍNEA DE TIEMPO DEL PROYECTO</div><div class="tl-sub">HITOS CLAVE Y CONDICIONES DE LIBERACIÓN</div></div>
+          </div>
+          <div class="tl-kpis">
+            <div class="tl-kpi"><i>◎</i><div><b>{len(hito_ranges)}</b><span>Hitos clave</span></div></div>
+            <div class="tl-kpi"><i>▣</i><div><b>{months}</b><span>Meses de ejecución<br>{start.strftime('%b %Y')} – {end.strftime('%b %Y')}</span></div></div>
+            <div class="tl-kpi"><i>⚑</i><div><b>{phase_count}</b><span>Fases principales</span></div></div>
+            <div class="tl-kpi"><i>✓</i><div><b>Entrega segura</b><span>Calidad, seguridad<br>y cumplimiento</span></div></div>
+          </div>
+        </div>
+        <div class="tl-phases">
+          <div class="tl-phase blue"><div class="circle">01</div><div><b>FASE 1</b><span>PREPARACIÓN Y DISEÑO</span></div></div>
+          <div class="tl-phase green"><div class="circle">02</div><div><b>FASE 2</b><span>CONSTRUCCIÓN E IMPLEMENTACIÓN</span></div></div>
+          <div class="tl-phase orange"><div class="circle">03</div><div><b>FASE 3</b><span>{html.escape(phase_3_title)}</span></div></div>
+        </div>
+        <div class="tl-year"><b>{start.year}</b><i>{end.year if end.year != start.year else ''}</i></div>
+        <div class="tl-months">{months_html}</div>
+        <div class="tl-grid">
+          <div class="tl-label">LÍNEA DE<br>TIEMPO</div>
+          {''.join(f'<div class="tl-line-cell">{dot}</div>' for dot in dots_html)}
+          <div class="tl-label">HITOS<br><br>NOMBRE<br>DEL HITO</div>
+          {''.join(cards_html)}
+          <div class="tl-label">CONDICIÓN DE<br>LIBERACIÓN</div>
+          {''.join(conditions_html)}
+          <div class="tl-label">LEYENDA</div>
+          <div style="grid-column:span {len(hito_ranges)};">
+            <div class="tl-footer">
+              <div class="tl-legend">
+                <div class="tl-leg"><i style="background:{type_colors['strategic']};"></i><div><b>Hito estratégico</b><span>Define decisiones clave y compromisos.</span></div></div>
+                <div class="tl-leg"><i style="background:{type_colors['operative']};"></i><div><b>Hito operativo</b><span>Asegura ejecución y entrega de obra.</span></div></div>
+                <div class="tl-leg"><i style="background:{type_colors['contract']};"></i><div><b>Hito contractual / administrativo</b><span>Formaliza entregas, aprobaciones y cierres.</span></div></div>
+              </div>
+              <div class="tl-commit">
+                <b>Compromisos</b>
+                <ul>
+                  <li>Seguridad primero</li>
+                  <li>Calidad sin compromisos</li>
+                  <li>Cumplimiento y transparencia</li>
+                  <li>Colaboración y mejora continua</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    """
+    components.html(html_doc, height=900, scrolling=True)
+
+
 def render_pmo_roadmap_matrix(
     df: pd.DataFrame,
     hito_summary: pd.DataFrame,
@@ -3565,6 +3799,11 @@ def main() -> None:
         st.exception(exc)
         st.stop()
 
+    try:
+        pmo_source = load_csv(PMO_MATRIX_URL)
+    except Exception:
+        pmo_source = pd.DataFrame()
+
     selected_sources = sorted(df["Fuente"].unique())
     selected_hitos = DISPLAY_MILESTONES
     selected_criticidad = "Todas"
@@ -3588,6 +3827,7 @@ def main() -> None:
 
     render_release_cutoff_intelligence(filtered)
     render_expandable_activity_gantt(filtered)
+    render_project_timeline_conditions(filtered, pmo_source)
     render_hito_span_gantt(filtered)
 
     pending_df = filtered[filtered["Pendiente programación"]].copy()
