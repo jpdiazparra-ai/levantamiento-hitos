@@ -2404,7 +2404,7 @@ def render_release_cutoff_intelligence(df: pd.DataFrame) -> None:
         <div class="release-panel {'active' if idx == 0 else ''}" data-panel="{idx}" style="--panel-color:{html.escape(str(panel['color']))};">
           <button class="panel-head" type="button">
             <div><b>Control operacional por hito</b><small>{html.escape(str(panel["date"]))} · {html.escape(str(panel["thesis"]))}</small></div>
-            <span>{money_mm(float(panel["total"]))} · {int(panel["partidas"])} partidas · Desplegar tabla PMO <i>⌄</i></span>
+            <span>{money_mm(float(panel["total"]))} · {int(panel["partidas"])} partidas</span>
           </button>
           <div class="release-list">{detail_rows(panel)}</div>
         </div>
@@ -2450,13 +2450,10 @@ def render_release_cutoff_intelligence(df: pd.DataFrame) -> None:
     .release-detail-stack{{display:grid;gap:12px;}}
     .release-panel{{display:none;background:#FFFFFF;border:1px solid color-mix(in srgb,var(--panel-color) 34%,#C9D8E6);border-radius:12px;overflow:hidden;box-shadow:0 10px 22px rgba(15,23,42,.04);}}
     .release-panel.active{{display:block;}}
-    .panel-head{{appearance:none;width:100%;border:0;border-left:5px solid var(--panel-color);padding:14px 15px;display:flex;justify-content:space-between;gap:10px;align-items:center;background:linear-gradient(180deg,color-mix(in srgb,var(--panel-color) 10%,#FFFFFF),color-mix(in srgb,var(--panel-color) 16%,#FFFFFF));cursor:pointer;text-align:left;}}
+    .panel-head{{appearance:none;width:100%;border:0;border-left:5px solid var(--panel-color);padding:14px 15px;display:flex;justify-content:space-between;gap:10px;align-items:center;background:linear-gradient(180deg,color-mix(in srgb,var(--panel-color) 10%,#FFFFFF),color-mix(in srgb,var(--panel-color) 16%,#FFFFFF));cursor:default;text-align:left;}}
     .panel-head:hover{{background:color-mix(in srgb,var(--panel-color) 21%,#FFFFFF);}}
-    .panel-head b{{display:block;font-size:14px;color:#0B1B3A;}}.panel-head small{{display:block;font-size:11px;color:#64748B;margin-top:3px;font-weight:750;}}.panel-head span{{font-size:12px;color:#0B1633;font-weight:950;white-space:nowrap;}}.panel-head i{{font-style:normal;font-size:16px;margin-left:4px;color:#475569;display:inline-block;transition:transform .16s ease;}}
-    .release-panel.expanded .panel-head{{border-bottom:1px solid color-mix(in srgb,var(--panel-color) 34%,#C9D8E6);background:linear-gradient(180deg,color-mix(in srgb,var(--panel-color) 13%,#FFFFFF),color-mix(in srgb,var(--panel-color) 21%,#FFFFFF));}}
-    .release-panel.expanded .panel-head i{{transform:rotate(180deg);}}
-    .release-list{{padding:12px;display:none;gap:8px;max-height:520px;overflow:auto;background:#FAFCFE;}}
-    .release-panel.expanded .release-list{{display:grid;}}
+    .panel-head b{{display:block;font-size:14px;color:#0B1B3A;}}.panel-head small{{display:block;font-size:11px;color:#64748B;margin-top:3px;font-weight:750;}}.panel-head span{{font-size:12px;color:#0B1633;font-weight:950;white-space:nowrap;}}
+    .release-list{{padding:12px;display:grid;gap:8px;background:#FAFCFE;border-top:1px solid color-mix(in srgb,var(--panel-color) 34%,#C9D8E6);}}
     .release-control-summary{{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-bottom:4px;}}
     .release-control-summary div{{background:#FFFFFF;border:1px solid #E2E8F0;border-radius:11px;padding:10px 11px;box-shadow:0 8px 18px rgba(15,23,42,.035);}}
     .release-control-summary small{{display:block;font-size:9px;color:#64748B;font-weight:900;text-transform:uppercase;letter-spacing:.04em;}}
@@ -2512,20 +2509,13 @@ def render_release_cutoff_intelligence(df: pd.DataFrame) -> None:
           panels.forEach((panel) => {{
             const active = panel.getAttribute("data-panel") === selected;
             panel.classList.toggle("active", active);
-            panel.classList.remove("expanded");
           }});
-        }});
-      }});
-      root.querySelectorAll(".panel-head").forEach((head) => {{
-        head.addEventListener("click", () => {{
-          const panel = head.closest(".release-panel");
-          if (panel) panel.classList.toggle("expanded");
         }});
       }});
     }})();
     </script>
     """
-    components.html(html_doc, height=620, scrolling=True)
+    components.html(html_doc, height=1280, scrolling=False)
 
 
 def render_expandable_activity_gantt(df: pd.DataFrame) -> None:
