@@ -2651,7 +2651,7 @@ def render_expandable_activity_gantt(df: pd.DataFrame) -> None:
     </style>
     <div class="act-shell" id="activity-gantt-shell">
       <div class="act-head">
-        <div><div class="act-title">Gantt técnico desplegable por hito</div><div class="act-sub">Vista macro por hito con apertura de subhitos, categorías y descripciones técnicas. Haz clic en cualquier hito del eje Y para ver todas sus actividades asociadas.</div></div>
+        <div><div class="act-title">Cronograma técnico por hito</div><div class="act-sub">Vista desplegable de actividades, fechas, categorías y montos por hito.</div></div>
         <div class="act-badge">Detalle por hito · Cronograma Integrado</div>
       </div>
       <div class="act-axis">{months_html}</div>
@@ -2870,8 +2870,8 @@ def render_project_timeline_conditions(df: pd.DataFrame, pmo_source: pd.DataFram
       <div class="tl-inner">
         <div class="tl-top">
           <div>
-            <div class="tl-title">Línea de tiempo del proyecto</div>
-            <div class="tl-sub">Hitos críticos, condiciones de liberación y dependencias operacionales.</div>
+            <div class="tl-title">Roadmap ejecutivo de hitos</div>
+            <div class="tl-sub">Fases, dependencias y condiciones de liberación del piloto.</div>
           </div>
           <div class="tl-kpis">
             <div class="tl-kpi"><b>{len(hito_ranges)}</b><span>Hitos clave</span></div>
