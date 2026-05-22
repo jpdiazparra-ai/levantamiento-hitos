@@ -1464,6 +1464,9 @@ def clean_pmo_matrix_source(raw_pmo: pd.DataFrame | None) -> pd.DataFrame:
         "Liberacion Cierre 20%": "Liberacion_Cierre",
         "Total Liberacion": "Total_Liberacion",
         "Condicion de Liberacion": "Condición de Liberación",
+        "de": "Condición de Liberación",
+        "Fecha condicion": "Fecha Condición",
+        "Fecha Condicion": "Fecha Condición",
     }
     pmo = pmo.rename(columns={col: rename_map.get(col, col) for col in pmo.columns})
 
@@ -1476,7 +1479,7 @@ def clean_pmo_matrix_source(raw_pmo: pd.DataFrame | None) -> pd.DataFrame:
             pmo[col] = 0.0
         pmo[col] = pmo[col].apply(parse_money)
 
-    for col in ["Inicio", "Termino"]:
+    for col in ["Inicio", "Termino", "Fecha Condición"]:
         if col not in pmo.columns:
             pmo[col] = pd.NaT
         pmo[col] = pmo[col].apply(parse_date)
@@ -1498,6 +1501,7 @@ def clean_pmo_matrix_source(raw_pmo: pd.DataFrame | None) -> pd.DataFrame:
             "Liberacion_Cierre",
             "Total_Liberacion",
             "Condición de Liberación",
+            "Fecha Condición",
         ]
     ]
 
@@ -2763,18 +2767,36 @@ def render_project_timeline_conditions(df: pd.DataFrame, pmo_source: pd.DataFram
 
     pmo_conditions = clean_pmo_matrix_source(pmo_source)
     condition_by_name: dict[str, str] = {}
+    condition_by_hito: dict[str, str] = {}
+    condition_date_by_hito: dict[str, pd.Timestamp] = {}
     if not pmo_conditions.empty:
         condition_by_name = {
             normalize_text(row["Hito Ejecutivo"]): str(row["Condición de Liberación"]).strip()
             for _, row in pmo_conditions.iterrows()
             if str(row.get("Condición de Liberación", "")).strip()
         }
+        condition_by_hito = {
+            str(row["Hito"]).strip(): str(row["Condición de Liberación"]).strip()
+            for _, row in pmo_conditions.iterrows()
+            if str(row.get("Condición de Liberación", "")).strip()
+        }
+        condition_date_by_hito = {
+            str(row["Hito"]).strip(): pd.Timestamp(row["Fecha Condición"])
+            for _, row in pmo_conditions.iterrows()
+            if pd.notna(row.get("Fecha Condición", pd.NaT))
+        }
     hito_ranges["Condición de Liberación"] = hito_ranges["Hito Ejecutivo"].map(
         lambda value: condition_by_name.get(normalize_text(value), "Condición de liberación PMO por confirmar")
     )
+    hito_ranges["Condición de Liberación"] = hito_ranges.apply(
+        lambda row: condition_by_hito.get(str(row["Hito"]), row["Condición de Liberación"]),
+        axis=1,
+    )
+    hito_ranges["Fecha Condición"] = hito_ranges["Hito"].astype(str).map(condition_date_by_hito)
+    hito_ranges["Fecha Condición"] = hito_ranges["Fecha Condición"].fillna(hito_ranges["Termino_hito"])
 
-    start = pd.Timestamp(hito_ranges["Inicio_hito"].min())
-    end = pd.Timestamp(hito_ranges["Termino_hito"].max())
+    start = pd.Timestamp(min(hito_ranges["Inicio_hito"].min(), hito_ranges["Fecha Condición"].min()))
+    end = pd.Timestamp(max(hito_ranges["Termino_hito"].max(), hito_ranges["Fecha Condición"].max()))
     months = max(1, (end.year - start.year) * 12 + end.month - start.month + 1)
     total_amount = float(hito_ranges["Monto"].sum() or 0)
     duration_days = business_days(start, end)
@@ -2831,20 +2853,21 @@ def render_project_timeline_conditions(df: pd.DataFrame, pmo_source: pd.DataFram
         code = str(hito["Hito"])
         color = hito_colors.get(code, "#0F766E")
         icon = hito_icons.get(code, ROADMAP_ICONS.get(str(hito["Hito Ejecutivo"]), "PMO"))
-        start_label = format_date(hito["Inicio_hito"])
+        start_label = format_date(hito["Fecha Condición"])
         end_label = format_date(hito["Termino_hito"])
         dependency = dependency_by_hito.get(code, f"H{idx}" if idx > 0 else "Inicio PMO")
         condition = str(hito["Condición de Liberación"])
-        left = pct(pd.Timestamp(hito["Inicio_hito"]))
-        width = max(2.0, pct(pd.Timestamp(hito["Termino_hito"])) - left)
+        condition_date = pd.Timestamp(hito["Fecha Condición"])
+        left = pct(condition_date)
+        width = max(4.5, min(10.0, 100.0 - left))
         cards_html.append(
             f"""
             <div class="tl-card" style="--hito:{color};">
               <div class="tl-badge">{html.escape(code)}</div>
               <div class="tl-icon" style="border-color:{color};color:{color};">{html.escape(icon)}</div>
-              <div class="tl-name">{html.escape(str(hito["Hito Corto"]))}</div>
+              <div class="tl-name">{html.escape(short_text(condition, 84))}</div>
               <div class="tl-date">{html.escape(start_label)}</div>
-              <div class="tl-condition">{html.escape(short_text(condition))}</div>
+              <div class="tl-condition">{html.escape(str(hito["Hito Corto"]))}</div>
               <div class="tl-meta">
                 <span>{int(hito["Actividades"])} partidas</span>
                 <span>{money_mm(float(hito["Monto"] or 0))}</span>
@@ -2856,7 +2879,7 @@ def render_project_timeline_conditions(df: pd.DataFrame, pmo_source: pd.DataFram
         mini_bars.append(
             f"""
             <div class="tl-mini-bar" style="left:{left:.2f}%;width:{width:.2f}%;background:{color};">
-              <span>{html.escape(code)}</span><i>{html.escape(start_label)} · {html.escape(end_label)}</i>
+              <span>{html.escape(code)}</span><i>{html.escape(start_label)}</i>
             </div>
             """
         )
