@@ -2253,7 +2253,7 @@ def render_board_kpis(df: pd.DataFrame) -> None:
       </div>
     </div>
     """
-    components.html(html_doc, height=195, scrolling=False)
+    components.html(html_doc, height=218, scrolling=False)
 
 
 def render_release_cutoff_intelligence(df: pd.DataFrame) -> None:
@@ -2514,7 +2514,7 @@ def render_release_cutoff_intelligence(df: pd.DataFrame) -> None:
     }})();
     </script>
     """
-    components.html(html_doc, height=790, scrolling=True)
+    components.html(html_doc, height=620, scrolling=True)
 
 
 def render_expandable_activity_gantt(df: pd.DataFrame) -> None:
