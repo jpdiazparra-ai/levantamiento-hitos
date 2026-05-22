@@ -2610,6 +2610,7 @@ def render_expandable_activity_gantt(df: pd.DataFrame) -> None:
     rows = []
     for idx, hito in hito_ranges.iterrows():
         code = str(hito["Hito"])
+        area_code = code.replace("H", "A", 1) if code.startswith("H") else code
         hito_df = scheduled[scheduled["Hito"].astype(str).eq(code)].copy()
         hito_df = hito_df.sort_values(["Inicio", "Termino", "Monto CLP Num"], ascending=[True, True, False])
         start = pd.Timestamp(hito["Inicio_hito"])
@@ -2637,7 +2638,7 @@ def render_expandable_activity_gantt(df: pd.DataFrame) -> None:
             <div class="act-row" data-row="{html.escape(code)}">
               <button class="act-main" type="button">
                 <div class="act-label">
-                  <div class="act-code" style="background:{color};">{html.escape(code)}</div>
+                  <div class="act-code" style="background:{color};">{html.escape(area_code)}</div>
                   <div>
                     <div class="act-name">{html.escape(str(hito["Hito Corto"]))}</div>
                     <div class="act-meta">{int(hito["Actividades"])} actividades · {format_date(start)} a {format_date(end)}</div>
@@ -2698,7 +2699,7 @@ def render_expandable_activity_gantt(df: pd.DataFrame) -> None:
     </style>
     <div class="act-shell" id="activity-gantt-shell">
       <div class="act-head">
-        <div><div class="act-title">Cronograma técnico por hito</div><div class="act-sub">Vista desplegable de actividades, fechas, categorías y montos por hito.</div></div>
+        <div><div class="act-title">Cronograma técnico por área</div><div class="act-sub">Vista desplegable de actividades, fechas, categorías y montos por hito.</div></div>
         <div class="act-badge">Detalle por hito · Cronograma Integrado</div>
       </div>
       <div class="act-axis">{months_html}</div>
