@@ -2509,6 +2509,14 @@ def render_release_cutoff_intelligence(df: pd.DataFrame) -> None:
       if (!root) return;
       const cards = Array.from(root.querySelectorAll(".release-stage"));
       const panels = Array.from(root.querySelectorAll(".release-panel"));
+      const resizeFrame = () => {{
+        window.parent.postMessage({{
+          isStreamlitMessage: true,
+          type: "streamlit:setFrameHeight",
+          height: root.scrollHeight + 4
+        }}, "*");
+      }};
+      const scheduleResize = () => requestAnimationFrame(resizeFrame);
       cards.forEach((card) => {{
         card.addEventListener("click", () => {{
           const selected = card.getAttribute("data-stage");
@@ -2518,12 +2526,14 @@ def render_release_cutoff_intelligence(df: pd.DataFrame) -> None:
             panel.classList.toggle("active", active);
             panel.classList.toggle("expanded", active);
           }});
+          scheduleResize();
         }});
       }});
       root.querySelectorAll(".panel-head").forEach((head) => {{
         head.addEventListener("click", () => {{
           const panel = head.closest(".release-panel");
           if (panel) panel.classList.toggle("expanded");
+          scheduleResize();
         }});
       }});
       root.querySelectorAll(".release-list").forEach((list) => {{
@@ -2557,10 +2567,12 @@ def render_release_cutoff_intelligence(df: pd.DataFrame) -> None:
           list.scrollTop = scrollTop - (y - startY);
         }});
       }});
+      scheduleResize();
+      window.addEventListener("resize", scheduleResize);
     }})();
     </script>
     """
-    components.html(html_doc, height=1280, scrolling=False)
+    components.html(html_doc, height=760, scrolling=False)
 
 
 def render_expandable_activity_gantt(df: pd.DataFrame) -> None:
