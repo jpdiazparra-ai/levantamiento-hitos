@@ -2416,7 +2416,7 @@ def render_release_cutoff_intelligence(df: pd.DataFrame) -> None:
     <style>
     *{{box-sizing:border-box;}}
     body{{margin:0;background:transparent;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;color:#0B1633;overflow-x:hidden;}}
-    .release-shell{{background:#F8FAFC;border:1px solid #E2E8F0;border-radius:18px;padding:24px 28px 22px;box-shadow:0 8px 24px rgba(15,23,42,.06);overflow:hidden;}}
+    .release-shell{{background:#F8FAFC;border:1px solid #B8C9D8;border-top:2px solid #8FA8BB;border-radius:18px;padding:24px 28px 22px;box-shadow:0 8px 24px rgba(15,23,42,.06),inset 0 1px 0 rgba(255,255,255,.86);overflow:hidden;}}
     .release-head{{display:flex;justify-content:space-between;gap:18px;align-items:flex-start;margin-bottom:34px;}}
     .release-title{{font-size:20px;font-weight:950;color:#23457A;line-height:1.1;}}
     .release-sub{{font-size:12px;color:#64748B;line-height:1.38;margin-top:6px;max-width:780px;}}
@@ -2453,7 +2453,11 @@ def render_release_cutoff_intelligence(df: pd.DataFrame) -> None:
     .panel-head{{appearance:none;width:100%;border:0;border-left:5px solid var(--panel-color);padding:14px 15px;display:flex;justify-content:space-between;gap:10px;align-items:center;background:linear-gradient(180deg,color-mix(in srgb,var(--panel-color) 10%,#FFFFFF),color-mix(in srgb,var(--panel-color) 16%,#FFFFFF));cursor:default;text-align:left;}}
     .panel-head:hover{{background:color-mix(in srgb,var(--panel-color) 21%,#FFFFFF);}}
     .panel-head b{{display:block;font-size:14px;color:#0B1B3A;}}.panel-head small{{display:block;font-size:11px;color:#64748B;margin-top:3px;font-weight:750;}}.panel-head span{{font-size:12px;color:#0B1633;font-weight:950;white-space:nowrap;}}
-    .release-list{{padding:12px;display:grid;gap:8px;align-content:start;min-height:880px;background:#FAFCFE;border-top:1px solid color-mix(in srgb,var(--panel-color) 34%,#C9D8E6);}}
+    .release-list{{padding:12px;display:grid;gap:8px;align-content:start;height:880px;overflow:auto;background:#FAFCFE;border-top:1px solid color-mix(in srgb,var(--panel-color) 34%,#C9D8E6);cursor:grab;user-select:none;scrollbar-color:color-mix(in srgb,var(--panel-color) 48%,#94A3B8) #E8EEF5;scrollbar-width:thin;}}
+    .release-list.is-dragging{{cursor:grabbing;}}
+    .release-list::-webkit-scrollbar{{width:10px;height:10px;}}
+    .release-list::-webkit-scrollbar-track{{background:#E8EEF5;border-radius:999px;}}
+    .release-list::-webkit-scrollbar-thumb{{background:color-mix(in srgb,var(--panel-color) 48%,#94A3B8);border-radius:999px;border:2px solid #E8EEF5;}}
     .release-control-summary{{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-bottom:4px;}}
     .release-control-summary div{{background:#FFFFFF;border:1px solid #E2E8F0;border-radius:11px;padding:10px 11px;box-shadow:0 8px 18px rgba(15,23,42,.035);}}
     .release-control-summary small{{display:block;font-size:9px;color:#64748B;font-weight:900;text-transform:uppercase;letter-spacing:.04em;}}
@@ -2480,7 +2484,7 @@ def render_release_cutoff_intelligence(df: pd.DataFrame) -> None:
     .legend-icon{{width:22px;height:22px;border-radius:999px;background:#F8FAFC;display:flex;align-items:center;justify-content:center;color:#475569;font-size:14px;}}
     .legend-line{{width:42px;height:6px;border:1px solid #94A3B8;border-radius:999px;}}
     @media(max-width:1180px){{.stage-grid{{grid-template-columns:repeat(2,minmax(0,1fr));gap:18px;}}.release-stage:not(:last-child)::after{{display:none;}}.release-nodes{{display:none;}}.release-line{{display:none;}}.release-flow{{padding-top:0;}}}}
-    @media(max-width:920px){{.release-table-head{{display:none;}}.release-row{{grid-template-columns:1fr;}}.release-amount{{text-align:left;}}.release-control-summary{{grid-template-columns:repeat(2,minmax(0,1fr));}}.release-list{{min-height:auto;}}}}
+    @media(max-width:920px){{.release-table-head{{display:none;}}.release-row{{grid-template-columns:1fr;}}.release-amount{{text-align:left;}}.release-control-summary{{grid-template-columns:repeat(2,minmax(0,1fr));}}.release-list{{height:auto;overflow:visible;cursor:default;user-select:auto;}}}}
     @media(max-width:720px){{.stage-grid{{grid-template-columns:1fr;}}.release-head{{flex-direction:column;}}.release-control-summary{{grid-template-columns:1fr;}}}}
     </style>
     <div class="release-shell" id="release-shell-main">
@@ -2510,6 +2514,37 @@ def render_release_cutoff_intelligence(df: pd.DataFrame) -> None:
             const active = panel.getAttribute("data-panel") === selected;
             panel.classList.toggle("active", active);
           }});
+        }});
+      }});
+      root.querySelectorAll(".release-list").forEach((list) => {{
+        let dragging = false;
+        let startX = 0;
+        let startY = 0;
+        let scrollLeft = 0;
+        let scrollTop = 0;
+        list.addEventListener("mousedown", (event) => {{
+          dragging = true;
+          list.classList.add("is-dragging");
+          startX = event.pageX - list.offsetLeft;
+          startY = event.pageY - list.offsetTop;
+          scrollLeft = list.scrollLeft;
+          scrollTop = list.scrollTop;
+        }});
+        list.addEventListener("mouseleave", () => {{
+          dragging = false;
+          list.classList.remove("is-dragging");
+        }});
+        list.addEventListener("mouseup", () => {{
+          dragging = false;
+          list.classList.remove("is-dragging");
+        }});
+        list.addEventListener("mousemove", (event) => {{
+          if (!dragging) return;
+          event.preventDefault();
+          const x = event.pageX - list.offsetLeft;
+          const y = event.pageY - list.offsetTop;
+          list.scrollLeft = scrollLeft - (x - startX);
+          list.scrollTop = scrollTop - (y - startY);
         }});
       }});
     }})();
