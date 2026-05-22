@@ -2622,7 +2622,7 @@ def render_expandable_activity_gantt(df: pd.DataFrame) -> None:
             detail_rows.append(
                 f"""
                 <div class="act-detail-row">
-                  <div class="act-id">{html.escape(str(activity["ID"]))}</div>
+                  <div class="act-id" style="color:{color};">{html.escape(str(activity["ID"]))}</div>
                   <div class="act-copy">
                     <b>{html.escape(str(activity["Categoría/Línea"]))}</b>
                     <span>{html.escape(str(activity["Descripción Técnica / Acción"]))}</span>
