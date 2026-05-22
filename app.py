@@ -2952,6 +2952,30 @@ def render_project_timeline_conditions(df: pd.DataFrame, pmo_source: pd.DataFram
         </div>
       </div>
     </div>
+    <script>
+    (() => {{
+      const adjustRoadmapOffset = () => {{
+        try {{
+          const frames = Array.from(window.parent.document.querySelectorAll("iframe"));
+          const current = frames.find((frame) => frame.contentWindow === window);
+          if (!current) return;
+          const previous = frames[frames.indexOf(current) - 1];
+          if (!previous || !previous.contentDocument) return;
+          const previousRoot = previous.contentDocument.getElementById("release-shell-main");
+          if (!previousRoot) return;
+          const reserved = previous.getBoundingClientRect().height;
+          const actual = previousRoot.scrollHeight;
+          const gap = Math.max(0, reserved - actual - 18);
+          current.parentElement.style.marginTop = gap ? "-" + Math.min(gap, 760) + "px" : "0";
+        }} catch (error) {{
+          return;
+        }}
+      }};
+      adjustRoadmapOffset();
+      window.setInterval(adjustRoadmapOffset, 600);
+      window.addEventListener("resize", adjustRoadmapOffset);
+    }})();
+    </script>
     """
     components.html(html_doc, height=760, scrolling=False)
 
