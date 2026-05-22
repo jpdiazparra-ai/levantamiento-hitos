@@ -2453,7 +2453,7 @@ def render_release_cutoff_intelligence(df: pd.DataFrame) -> None:
     .panel-head{{appearance:none;width:100%;border:0;border-left:5px solid var(--panel-color);padding:14px 15px;display:flex;justify-content:space-between;gap:10px;align-items:center;background:linear-gradient(180deg,color-mix(in srgb,var(--panel-color) 10%,#FFFFFF),color-mix(in srgb,var(--panel-color) 16%,#FFFFFF));cursor:default;text-align:left;}}
     .panel-head:hover{{background:color-mix(in srgb,var(--panel-color) 21%,#FFFFFF);}}
     .panel-head b{{display:block;font-size:14px;color:#0B1B3A;}}.panel-head small{{display:block;font-size:11px;color:#64748B;margin-top:3px;font-weight:750;}}.panel-head span{{font-size:12px;color:#0B1633;font-weight:950;white-space:nowrap;}}
-    .release-list{{padding:12px;display:grid;gap:8px;background:#FAFCFE;border-top:1px solid color-mix(in srgb,var(--panel-color) 34%,#C9D8E6);}}
+    .release-list{{padding:12px;display:grid;gap:8px;align-content:start;min-height:880px;background:#FAFCFE;border-top:1px solid color-mix(in srgb,var(--panel-color) 34%,#C9D8E6);}}
     .release-control-summary{{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-bottom:4px;}}
     .release-control-summary div{{background:#FFFFFF;border:1px solid #E2E8F0;border-radius:11px;padding:10px 11px;box-shadow:0 8px 18px rgba(15,23,42,.035);}}
     .release-control-summary small{{display:block;font-size:9px;color:#64748B;font-weight:900;text-transform:uppercase;letter-spacing:.04em;}}
@@ -2480,7 +2480,7 @@ def render_release_cutoff_intelligence(df: pd.DataFrame) -> None:
     .legend-icon{{width:22px;height:22px;border-radius:999px;background:#F8FAFC;display:flex;align-items:center;justify-content:center;color:#475569;font-size:14px;}}
     .legend-line{{width:42px;height:6px;border:1px solid #94A3B8;border-radius:999px;}}
     @media(max-width:1180px){{.stage-grid{{grid-template-columns:repeat(2,minmax(0,1fr));gap:18px;}}.release-stage:not(:last-child)::after{{display:none;}}.release-nodes{{display:none;}}.release-line{{display:none;}}.release-flow{{padding-top:0;}}}}
-    @media(max-width:920px){{.release-table-head{{display:none;}}.release-row{{grid-template-columns:1fr;}}.release-amount{{text-align:left;}}.release-control-summary{{grid-template-columns:repeat(2,minmax(0,1fr));}}}}
+    @media(max-width:920px){{.release-table-head{{display:none;}}.release-row{{grid-template-columns:1fr;}}.release-amount{{text-align:left;}}.release-control-summary{{grid-template-columns:repeat(2,minmax(0,1fr));}}.release-list{{min-height:auto;}}}}
     @media(max-width:720px){{.stage-grid{{grid-template-columns:1fr;}}.release-head{{flex-direction:column;}}.release-control-summary{{grid-template-columns:1fr;}}}}
     </style>
     <div class="release-shell" id="release-shell-main">
