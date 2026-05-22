@@ -2207,27 +2207,27 @@ def render_board_kpis(df: pd.DataFrame) -> None:
     <style>
     *{{box-sizing:border-box;}}
     body{{margin:0;background:transparent;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;color:#0B1633;overflow-x:hidden;}}
-    .exec-summary{{background:#FFFFFF;border:1px solid #DCE6EF;border-radius:18px;box-shadow:0 8px 24px rgba(15,23,42,.06);overflow:hidden;margin:0 0 22px 0;}}
-    .exec-title{{font-size:13px;font-weight:950;letter-spacing:.08em;text-transform:uppercase;color:#0F766E;padding:24px 28px 0;}}
-    .exec-top{{display:grid;grid-template-columns:1.08fr .88fr 1fr;gap:0;padding:24px 28px 34px;align-items:center;}}
-    .exec-block{{display:grid;grid-template-columns:84px minmax(0,1fr);gap:24px;align-items:center;min-height:150px;padding:0 32px;}}
+    .exec-summary{{background:#FFFFFF;border:1px solid #DCE6EF;border-radius:18px;box-shadow:0 8px 24px rgba(15,23,42,.06);overflow:hidden;margin:0 0 18px 0;}}
+    .exec-title{{font-size:12px;font-weight:950;letter-spacing:.08em;text-transform:uppercase;color:#0F766E;padding:18px 28px 0;}}
+    .exec-top{{display:grid;grid-template-columns:1.08fr .88fr 1fr;gap:0;padding:16px 28px 22px;align-items:center;}}
+    .exec-block{{display:grid;grid-template-columns:66px minmax(0,1fr);gap:19px;align-items:center;min-height:104px;padding:0 28px;}}
     .exec-block:first-child{{padding-left:0;}}.exec-block:not(:last-child){{border-right:1px solid #E2E8F0;}}
-    .exec-icon{{width:82px;height:82px;border-radius:999px;background:linear-gradient(145deg,#F9FBFD,#EEF2F5);display:flex;align-items:center;justify-content:center;color:#0B7780;font-size:38px;font-weight:300;box-shadow:inset 0 1px 0 rgba(255,255,255,.9),0 10px 24px rgba(15,23,42,.045);}}
-    .exec-label{{font-size:13px;font-weight:950;text-transform:uppercase;letter-spacing:.04em;color:#0F766E;margin-bottom:12px;}}
-    .exec-main{{font-size:23px;line-height:1.24;font-weight:950;color:#08152F;letter-spacing:-.02em;}}
-    .exec-money{{font-size:43px;line-height:1;font-weight:950;color:#08152F;letter-spacing:-.05em;}}
-    .exec-copy{{font-size:14px;line-height:1.48;color:#64748B;font-weight:700;margin-top:14px;max-width:360px;}}
-    .exec-pill{{display:inline-flex;margin-top:16px;border-radius:999px;background:#EAF2F8;color:#23457A;padding:8px 14px;font-size:12px;font-weight:950;}}
+    .exec-icon{{width:64px;height:64px;border-radius:999px;background:linear-gradient(145deg,#F9FBFD,#EEF2F5);display:flex;align-items:center;justify-content:center;color:#0B7780;font-size:30px;font-weight:300;box-shadow:inset 0 1px 0 rgba(255,255,255,.9),0 10px 24px rgba(15,23,42,.045);}}
+    .exec-label{{font-size:12px;font-weight:950;text-transform:uppercase;letter-spacing:.04em;color:#0F766E;margin-bottom:8px;}}
+    .exec-main{{font-size:21px;line-height:1.22;font-weight:950;color:#08152F;letter-spacing:-.02em;}}
+    .exec-money{{font-size:37px;line-height:1;font-weight:950;color:#08152F;letter-spacing:-.05em;}}
+    .exec-copy{{font-size:13px;line-height:1.38;color:#64748B;font-weight:700;margin-top:8px;max-width:360px;}}
+    .exec-pill{{display:inline-flex;margin-top:10px;border-radius:999px;background:#EAF2F8;color:#23457A;padding:6px 12px;font-size:11px;font-weight:950;}}
     .exec-pill.warn{{background:#FBF0D9;color:#B7791F;}}
-    .exec-bottom{{border-top:1px solid #E2E8F0;display:grid;grid-template-columns:.9fr .75fr 1.5fr;gap:0;padding:24px 28px;}}
-    .exec-mini{{display:grid;grid-template-columns:44px minmax(0,1fr);gap:17px;align-items:center;padding:0 28px;}}
+    .exec-bottom{{border-top:1px solid #E2E8F0;display:grid;grid-template-columns:.9fr .75fr 1.5fr;gap:0;padding:15px 28px;}}
+    .exec-mini{{display:grid;grid-template-columns:34px minmax(0,1fr);gap:14px;align-items:center;padding:0 24px;}}
     .exec-mini:first-child{{padding-left:0;}}.exec-mini:not(:last-child){{border-right:1px solid #E2E8F0;}}
-    .mini-ico{{font-size:29px;color:#64748B;line-height:1;text-align:center;}}
-    .mini-label{{font-size:12px;color:#64748B;font-weight:950;text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px;}}
-    .mini-value{{font-size:23px;color:#08152F;font-weight:950;letter-spacing:-.02em;}}
-    .mini-side{{font-size:14px;color:#64748B;font-weight:850;margin-left:28px;}}
-    .risk-value{{font-size:23px;font-weight:950;color:{risk_color};}}
-    .reco{{font-size:15px;line-height:1.38;color:#475569;font-weight:800;max-width:640px;}}
+    .mini-ico{{font-size:24px;color:#64748B;line-height:1;text-align:center;}}
+    .mini-label{{font-size:11px;color:#64748B;font-weight:950;text-transform:uppercase;letter-spacing:.04em;margin-bottom:5px;}}
+    .mini-value{{font-size:20px;color:#08152F;font-weight:950;letter-spacing:-.02em;}}
+    .mini-side{{font-size:13px;color:#64748B;font-weight:850;margin-left:22px;}}
+    .risk-value{{font-size:20px;font-weight:950;color:{risk_color};}}
+    .reco{{font-size:13px;line-height:1.36;color:#475569;font-weight:800;max-width:640px;}}
     @media(max-width:1050px){{.exec-top,.exec-bottom{{grid-template-columns:1fr;}}.exec-block,.exec-mini{{border-right:0!important;border-bottom:1px solid #E2E8F0;padding:16px 0;}}.exec-block:last-child,.exec-mini:last-child{{border-bottom:0;}}.exec-money{{font-size:34px;}}}}
     </style>
     <div class="exec-summary">
@@ -2285,7 +2285,7 @@ def render_board_kpis(df: pd.DataFrame) -> None:
       </div>
     </div>
     """
-    components.html(html_doc, height=370, scrolling=False)
+    components.html(html_doc, height=260, scrolling=False)
 
 
 def render_release_cutoff_intelligence(df: pd.DataFrame) -> None:
