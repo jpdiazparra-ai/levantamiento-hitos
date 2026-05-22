@@ -453,14 +453,15 @@ def add_css() -> None:
         div[data-testid="stMetric"] label { color: #64748B; font-weight: 700; }
         div[data-testid="stMetricValue"] { color: var(--navy); font-weight: 800; }
         .hero {
-            background: linear-gradient(135deg, #FFFFFF 0%, #F8FAFC 58%, #EEF3F8 100%);
-            border: 1px solid #E2E8F0;
-            border-radius: 18px;
-            padding: 16px 22px;
-            margin-bottom: 18px;
-            box-shadow: 0 8px 24px rgba(15,23,42,.06);
+            background: transparent;
+            border: 0;
+            border-radius: 0;
+            padding: 4px 4px 20px;
+            margin-bottom: 2px;
+            box-shadow: none;
         }
         .hero-kicker {
+            display: none;
             color: #475569;
             font-size: 11px;
             font-weight: 800;
@@ -470,16 +471,17 @@ def add_css() -> None:
         }
         .hero-title {
             color: #0B1B3A;
-            font-size: 28px;
+            font-size: 34px;
             line-height: 1.12;
-            font-weight: 850;
-            margin: 0 0 6px 0;
+            font-weight: 900;
+            margin: 0 0 12px 0;
         }
         .hero-copy {
-            color: #475569;
-            font-size: 14px;
+            color: #64748B;
+            font-size: 16px;
             line-height: 1.42;
             max-width: 1080px;
+            font-weight: 550;
         }
         .section-note {
             background: #FFFFFF;
@@ -2205,27 +2207,27 @@ def render_board_kpis(df: pd.DataFrame) -> None:
     <style>
     *{{box-sizing:border-box;}}
     body{{margin:0;background:transparent;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;color:#0B1633;overflow-x:hidden;}}
-    .exec-summary{{background:#FFFFFF;border:1px solid #DCE6EF;border-radius:18px;box-shadow:0 8px 24px rgba(15,23,42,.06);overflow:hidden;margin:0 0 18px 0;}}
-    .exec-title{{font-size:12px;font-weight:950;letter-spacing:.08em;text-transform:uppercase;color:#0F766E;padding:15px 20px 0;}}
-    .exec-top{{display:grid;grid-template-columns:1.08fr .88fr 1fr;gap:0;padding:12px 20px 20px;align-items:center;}}
-    .exec-block{{display:grid;grid-template-columns:58px minmax(0,1fr);gap:15px;align-items:center;min-height:112px;padding:0 22px;}}
+    .exec-summary{{background:#FFFFFF;border:1px solid #DCE6EF;border-radius:18px;box-shadow:0 8px 24px rgba(15,23,42,.06);overflow:hidden;margin:0 0 22px 0;}}
+    .exec-title{{font-size:13px;font-weight:950;letter-spacing:.08em;text-transform:uppercase;color:#0F766E;padding:24px 28px 0;}}
+    .exec-top{{display:grid;grid-template-columns:1.08fr .88fr 1fr;gap:0;padding:24px 28px 34px;align-items:center;}}
+    .exec-block{{display:grid;grid-template-columns:84px minmax(0,1fr);gap:24px;align-items:center;min-height:150px;padding:0 32px;}}
     .exec-block:first-child{{padding-left:0;}}.exec-block:not(:last-child){{border-right:1px solid #E2E8F0;}}
-    .exec-icon{{width:56px;height:56px;border-radius:999px;background:radial-gradient(circle at 35% 30%,#0F5F78,#062A43 70%);display:flex;align-items:center;justify-content:center;color:#FFFFFF;font-size:27px;font-weight:300;box-shadow:0 10px 22px rgba(6,42,67,.20);}}
-    .exec-label{{font-size:11px;font-weight:950;text-transform:uppercase;letter-spacing:.04em;color:#0F766E;margin-bottom:7px;}}
-    .exec-main{{font-size:21px;line-height:1.18;font-weight:950;color:#08152F;letter-spacing:-.02em;}}
-    .exec-money{{font-size:34px;line-height:1;font-weight:950;color:#08152F;letter-spacing:-.04em;}}
-    .exec-copy{{font-size:12px;line-height:1.34;color:#64748B;font-weight:700;margin-top:8px;max-width:340px;}}
-    .exec-pill{{display:inline-flex;margin-top:10px;border-radius:999px;background:#EAF2F8;color:#23457A;padding:6px 11px;font-size:11px;font-weight:950;}}
+    .exec-icon{{width:82px;height:82px;border-radius:999px;background:linear-gradient(145deg,#F9FBFD,#EEF2F5);display:flex;align-items:center;justify-content:center;color:#0B7780;font-size:38px;font-weight:300;box-shadow:inset 0 1px 0 rgba(255,255,255,.9),0 10px 24px rgba(15,23,42,.045);}}
+    .exec-label{{font-size:13px;font-weight:950;text-transform:uppercase;letter-spacing:.04em;color:#0F766E;margin-bottom:12px;}}
+    .exec-main{{font-size:23px;line-height:1.24;font-weight:950;color:#08152F;letter-spacing:-.02em;}}
+    .exec-money{{font-size:43px;line-height:1;font-weight:950;color:#08152F;letter-spacing:-.05em;}}
+    .exec-copy{{font-size:14px;line-height:1.48;color:#64748B;font-weight:700;margin-top:14px;max-width:360px;}}
+    .exec-pill{{display:inline-flex;margin-top:16px;border-radius:999px;background:#EAF2F8;color:#23457A;padding:8px 14px;font-size:12px;font-weight:950;}}
     .exec-pill.warn{{background:#FBF0D9;color:#B7791F;}}
-    .exec-bottom{{border-top:1px solid #E2E8F0;display:grid;grid-template-columns:.9fr .75fr 1.5fr;gap:0;padding:14px 20px;}}
-    .exec-mini{{display:grid;grid-template-columns:32px minmax(0,1fr);gap:12px;align-items:center;padding:0 20px;}}
+    .exec-bottom{{border-top:1px solid #E2E8F0;display:grid;grid-template-columns:.9fr .75fr 1.5fr;gap:0;padding:24px 28px;}}
+    .exec-mini{{display:grid;grid-template-columns:44px minmax(0,1fr);gap:17px;align-items:center;padding:0 28px;}}
     .exec-mini:first-child{{padding-left:0;}}.exec-mini:not(:last-child){{border-right:1px solid #E2E8F0;}}
-    .mini-ico{{font-size:22px;color:#475569;line-height:1;text-align:center;}}
-    .mini-label{{font-size:10px;color:#64748B;font-weight:950;text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px;}}
-    .mini-value{{font-size:19px;color:#08152F;font-weight:950;letter-spacing:-.02em;}}
-    .mini-side{{font-size:12px;color:#64748B;font-weight:850;margin-left:18px;}}
-    .risk-value{{font-size:18px;font-weight:950;color:{risk_color};}}
-    .reco{{font-size:13px;line-height:1.36;color:#475569;font-weight:800;max-width:620px;}}
+    .mini-ico{{font-size:29px;color:#64748B;line-height:1;text-align:center;}}
+    .mini-label{{font-size:12px;color:#64748B;font-weight:950;text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px;}}
+    .mini-value{{font-size:23px;color:#08152F;font-weight:950;letter-spacing:-.02em;}}
+    .mini-side{{font-size:14px;color:#64748B;font-weight:850;margin-left:28px;}}
+    .risk-value{{font-size:23px;font-weight:950;color:{risk_color};}}
+    .reco{{font-size:15px;line-height:1.38;color:#475569;font-weight:800;max-width:640px;}}
     @media(max-width:1050px){{.exec-top,.exec-bottom{{grid-template-columns:1fr;}}.exec-block,.exec-mini{{border-right:0!important;border-bottom:1px solid #E2E8F0;padding:16px 0;}}.exec-block:last-child,.exec-mini:last-child{{border-bottom:0;}}.exec-money{{font-size:34px;}}}}
     </style>
     <div class="exec-summary">
@@ -2283,7 +2285,7 @@ def render_board_kpis(df: pd.DataFrame) -> None:
       </div>
     </div>
     """
-    components.html(html_doc, height=265, scrolling=False)
+    components.html(html_doc, height=370, scrolling=False)
 
 
 def render_release_cutoff_intelligence(df: pd.DataFrame) -> None:
@@ -2435,36 +2437,36 @@ def render_release_cutoff_intelligence(df: pd.DataFrame) -> None:
     <style>
     *{{box-sizing:border-box;}}
     body{{margin:0;background:transparent;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;color:#0B1633;overflow-x:hidden;}}
-    .release-shell{{background:#F8FAFC;border:1px solid #E2E8F0;border-radius:18px;padding:18px 20px;box-shadow:0 8px 24px rgba(15,23,42,.06);overflow:hidden;}}
-    .release-head{{display:flex;justify-content:space-between;gap:18px;align-items:flex-start;margin-bottom:22px;}}
-    .release-title{{font-size:20px;font-weight:950;color:#23457A;line-height:1.1;letter-spacing:0;}}
-    .release-sub{{font-size:12px;color:#64748B;line-height:1.38;margin-top:6px;max-width:780px;}}
-    .release-badge{{border:1px solid #E2E8F0;background:#FFFFFF;border-radius:999px;padding:9px 16px;color:#0B1B3A;font-size:13px;font-weight:900;white-space:nowrap;}}
-    .release-flow{{position:relative;margin:0 0 14px 0;padding-top:46px;}}
+    .release-shell{{background:#F8FAFC;border:1px solid #E2E8F0;border-radius:18px;padding:24px 28px 22px;box-shadow:0 8px 24px rgba(15,23,42,.06);overflow:hidden;}}
+    .release-head{{display:flex;justify-content:space-between;gap:18px;align-items:flex-start;margin-bottom:34px;}}
+    .release-title{{font-size:19px;font-weight:950;color:#0B1B3A;line-height:1.1;letter-spacing:.04em;text-transform:uppercase;}}
+    .release-sub{{font-size:13px;color:#64748B;line-height:1.42;margin-top:9px;max-width:780px;font-weight:650;}}
+    .release-badge{{border:1px solid #E2E8F0;background:#FFFFFF;border-radius:999px;padding:12px 21px;color:#0B1B3A;font-size:14px;font-weight:900;white-space:nowrap;box-shadow:0 8px 18px rgba(15,23,42,.035);}}
+    .release-flow{{position:relative;margin:0 0 15px 0;padding-top:50px;}}
     .release-line{{position:absolute;left:4px;right:4px;top:24px;height:1px;background:#CBD5E1;}}
     .release-line::before,.release-line::after{{content:"";position:absolute;top:50%;width:8px;height:8px;border-radius:999px;background:#CBD5E1;transform:translateY(-50%);}}
     .release-line::before{{left:-1px;}}.release-line::after{{right:-1px;}}
     .release-nodes{{position:absolute;left:0;right:0;top:0;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));align-items:center;z-index:5;}}
     .release-node-wrap{{display:flex;justify-content:center;position:relative;}}
-    .release-node-wrap::after{{content:"";position:absolute;top:42px;width:1px;height:24px;background:#E2E8F0;}}
-    .release-node{{width:42px;height:42px;border-radius:999px;background:var(--accent);color:#FFFFFF;font-size:18px;font-weight:950;display:flex;align-items:center;justify-content:center;box-shadow:0 0 0 5px #FFFFFF,0 6px 16px rgba(15,23,42,.10);}}
-    .stage-grid{{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin-bottom:12px;}}
-    .release-stage{{appearance:none;text-align:left;width:100%;background:#FFFFFF;border:1px solid #E2E8F0;border-top:4px solid var(--accent);border-radius:14px;padding:13px 14px;box-shadow:0 8px 20px rgba(15,23,42,.04);cursor:pointer;transition:transform .16s ease,border-color .16s ease,box-shadow .16s ease;position:relative;min-height:190px;}}
+    .release-node-wrap::after{{content:"";position:absolute;top:43px;width:1px;height:29px;background:#E2E8F0;}}
+    .release-node{{width:44px;height:44px;border-radius:999px;background:var(--accent);color:#FFFFFF;font-size:19px;font-weight:950;display:flex;align-items:center;justify-content:center;box-shadow:0 0 0 5px #FFFFFF,0 6px 16px rgba(15,23,42,.10);}}
+    .stage-grid{{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:34px;margin-bottom:12px;}}
+    .release-stage{{appearance:none;text-align:left;width:100%;background:#FFFFFF;border:1px solid #E2E8F0;border-top:4px solid var(--accent);border-radius:14px;padding:20px 22px;box-shadow:0 8px 20px rgba(15,23,42,.04);cursor:pointer;transition:transform .16s ease,border-color .16s ease,box-shadow .16s ease;position:relative;min-height:238px;}}
     .release-stage:hover{{transform:translateY(-2px);box-shadow:0 14px 24px rgba(15,23,42,.065);}}
     .release-stage.active{{border-color:#CBD5E1;box-shadow:0 0 0 3px rgba(11,27,58,.045),0 14px 26px rgba(15,23,42,.06);}}
-    .stage-date{{display:inline-flex;align-items:center;justify-content:center;border-radius:999px;padding:7px 12px;background:#F1F5F9;color:#475569;font-size:12px;font-weight:850;white-space:nowrap;}}
-    .stage-title{{font-size:17px;font-weight:950;color:#0B1B3A;line-height:1.08;margin-top:14px;}}
-    .stage-total{{font-size:24px;font-weight:950;color:#0B1633;margin-top:10px;letter-spacing:-.03em;line-height:1;}}
-    .stage-detail{{font-size:12px;color:#475569;font-weight:850;margin-top:8px;}}
-    .stage-rule{{height:1px;background:#E2E8F0;margin:14px 0 12px 0;}}
-    .stage-meta{{display:grid;grid-template-columns:1fr 1fr;gap:0;margin:0 0 12px 0;}}
+    .stage-date{{display:inline-flex;align-items:center;justify-content:center;border-radius:999px;padding:7px 12px;background:#F1F5F9;color:#475569;font-size:12px;font-weight:900;white-space:nowrap;text-transform:uppercase;}}
+    .stage-title{{font-size:19px;font-weight:950;color:#0B1B3A;line-height:1.08;margin-top:17px;}}
+    .stage-total{{font-size:27px;font-weight:950;color:#0B1633;margin-top:10px;letter-spacing:-.035em;line-height:1;}}
+    .stage-detail{{font-size:13px;color:#475569;font-weight:850;margin-top:10px;}}
+    .stage-rule{{height:1px;background:#E2E8F0;margin:17px 0 13px 0;}}
+    .stage-meta{{display:grid;grid-template-columns:1fr 1fr;gap:0;margin:0 0 15px 0;}}
     .stage-meta span{{display:flex;align-items:center;gap:7px;min-height:28px;color:#475569;}}
     .stage-meta span:first-child{{border-right:1px solid #DCE6EF;}}
     .stage-meta small{{font-size:11px;color:#475569;font-weight:850;}}
     .meta-icon{{width:22px;height:22px;border-radius:999px;background:#F8FAFC;color:#475569;font-style:normal;font-size:14px;display:flex;align-items:center;justify-content:center;}}
-    .stage-track{{height:5px;background:#E2E8F0;border-radius:999px;overflow:hidden;margin-top:2px;}}
+    .stage-track{{height:6px;background:#E2E8F0;border-radius:999px;overflow:hidden;margin-top:2px;}}
     .stage-track i{{display:block;height:100%;background:var(--accent);border-radius:999px;}}
-    .stage-action{{font-size:12px;font-weight:950;color:#0B1B3A;margin-top:14px;letter-spacing:.01em;}}
+    .stage-action{{font-size:13px;font-weight:950;color:#0B1B3A;margin-top:17px;letter-spacing:.01em;}}
     .stage-action b{{font-size:14px;margin-left:4px;}}
     .release-detail-stack{{display:grid;gap:12px;}}
     .release-panel{{display:none;background:#FFFFFF;border:1px solid #E2E8F0;border-radius:12px;overflow:hidden;box-shadow:0 10px 22px rgba(15,23,42,.04);}}
@@ -2497,7 +2499,7 @@ def render_release_cutoff_intelligence(df: pd.DataFrame) -> None:
     .release-impact{{font-size:10px;color:#475569;font-weight:800;line-height:1.2;}}.release-impact b{{display:block;color:#0B1633;font-size:10px;}}.release-impact span{{display:block;margin-top:3px;color:#64748B;font-size:9px;}}
     .release-amount{{font-size:11px;font-weight:950;color:#0B1633;text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums;}}
     .release-empty{{font-size:12px;color:#64748B;padding:14px;}}
-    .release-legend{{display:flex;gap:22px;justify-content:center;align-items:center;color:#64748B;font-size:12px;font-weight:850;margin:10px 0 16px 0;background:#FFFFFF;border:1px solid #E2E8F0;border-radius:999px;padding:8px 12px;}}
+    .release-legend{{display:flex;gap:26px;justify-content:center;align-items:center;color:#64748B;font-size:12px;font-weight:850;margin:14px auto 18px;background:#FFFFFF;border:1px solid #E2E8F0;border-radius:999px;padding:9px 16px;width:max-content;max-width:100%;}}
     .release-legend span{{display:flex;align-items:center;gap:8px;}}
     .legend-icon{{width:22px;height:22px;border-radius:999px;background:#F8FAFC;display:flex;align-items:center;justify-content:center;color:#475569;font-size:14px;}}
     .legend-line{{width:42px;height:6px;border:1px solid #94A3B8;border-radius:999px;}}
@@ -2544,7 +2546,7 @@ def render_release_cutoff_intelligence(df: pd.DataFrame) -> None:
     }})();
     </script>
     """
-    components.html(html_doc, height=700, scrolling=True)
+    components.html(html_doc, height=790, scrolling=True)
 
 
 def render_expandable_activity_gantt(df: pd.DataFrame) -> None:
