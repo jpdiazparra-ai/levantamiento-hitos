@@ -2590,7 +2590,7 @@ def render_expandable_activity_gantt(df: pd.DataFrame) -> None:
             )
         rows.append(
             f"""
-            <div class="act-row {'open' if idx == 0 else ''}" data-row="{html.escape(code)}">
+            <div class="act-row" data-row="{html.escape(code)}">
               <button class="act-main" type="button">
                 <div class="act-label">
                   <div class="act-code" style="background:{color};">{html.escape(code)}</div>
