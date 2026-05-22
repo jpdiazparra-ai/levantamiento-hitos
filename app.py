@@ -1108,7 +1108,7 @@ def render_executive_roadmap(
           </div>
         </div>
     """
-    components.html(html_doc, height=760, scrolling=True)
+    components.html(html_doc, height=690, scrolling=True)
 
 
 def build_gantt(df: pd.DataFrame, zoom: str = "4 meses") -> go.Figure:
@@ -2664,7 +2664,7 @@ def render_expandable_activity_gantt(df: pd.DataFrame) -> None:
     }})();
     </script>
     """
-    components.html(html_doc, height=780, scrolling=True)
+    components.html(html_doc, height=700, scrolling=True)
 
 
 def render_project_timeline_conditions(df: pd.DataFrame, pmo_source: pd.DataFrame | None = None) -> None:
@@ -2897,7 +2897,7 @@ def render_project_timeline_conditions(df: pd.DataFrame, pmo_source: pd.DataFram
       </div>
     </div>
     """
-    components.html(html_doc, height=720, scrolling=True)
+    components.html(html_doc, height=600, scrolling=True)
 
 
 def render_pmo_roadmap_matrix(
@@ -3875,8 +3875,8 @@ def main() -> None:
 
     render_board_kpis(filtered)
     render_release_cutoff_intelligence(filtered)
-    render_expandable_activity_gantt(filtered)
     render_project_timeline_conditions(filtered, pmo_source)
+    render_expandable_activity_gantt(filtered)
 
     pending_df = filtered[filtered["Pendiente programación"]].copy()
     if not pending_df.empty:
