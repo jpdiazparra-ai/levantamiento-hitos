@@ -2019,7 +2019,7 @@ def render_hito_span_gantt(df: pd.DataFrame) -> None:
         "H4": "#DC2626",
         "H5": "#64748B",
         "H6": "#0F766E",
-        "H7": "#2563EB",
+        "H7": "#7C3AED",
         "H8": "#DC2626",
     }
     rows = []
@@ -2548,7 +2548,7 @@ def render_expandable_activity_gantt(df: pd.DataFrame) -> None:
         "H4": "#DC2626",
         "H5": "#64748B",
         "H6": "#0F766E",
-        "H7": "#2563EB",
+        "H7": "#7C3AED",
         "H8": "#DC2626",
     }
     month_labels = []
@@ -2763,7 +2763,7 @@ def render_project_timeline_conditions(df: pd.DataFrame, pmo_source: pd.DataFram
         "H4": "#DC2626",
         "H5": "#64748B",
         "H6": "#0F766E",
-        "H7": "#2563EB",
+        "H7": "#7C3AED",
         "H8": "#DC2626",
     }
     hito_icons = {
