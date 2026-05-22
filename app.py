@@ -435,7 +435,7 @@ def add_css() -> None:
         .stApp { background: #F6F8FB; color: #111827; }
         .block-container {
             max-width: 1480px;
-            padding-top: 1.35rem;
+            padding-top: 3.25rem;
             padding-bottom: 3rem;
             margin-left: auto;
             margin-right: auto;
@@ -2219,16 +2219,7 @@ def render_board_kpis(df: pd.DataFrame) -> None:
     .exec-copy{{font-size:13px;line-height:1.38;color:#64748B;font-weight:700;margin-top:8px;max-width:360px;}}
     .exec-pill{{display:inline-flex;margin-top:10px;border-radius:999px;background:#EAF2F8;color:#23457A;padding:6px 12px;font-size:11px;font-weight:950;}}
     .exec-pill.warn{{background:#FBF0D9;color:#B7791F;}}
-    .exec-bottom{{border-top:1px solid #E2E8F0;display:grid;grid-template-columns:.9fr .75fr 1.5fr;gap:0;padding:15px 28px;}}
-    .exec-mini{{display:grid;grid-template-columns:34px minmax(0,1fr);gap:14px;align-items:center;padding:0 24px;}}
-    .exec-mini:first-child{{padding-left:0;}}.exec-mini:not(:last-child){{border-right:1px solid #E2E8F0;}}
-    .mini-ico{{font-size:24px;color:#64748B;line-height:1;text-align:center;}}
-    .mini-label{{font-size:11px;color:#64748B;font-weight:950;text-transform:uppercase;letter-spacing:.04em;margin-bottom:5px;}}
-    .mini-value{{font-size:20px;color:#08152F;font-weight:950;letter-spacing:-.02em;}}
-    .mini-side{{font-size:13px;color:#64748B;font-weight:850;margin-left:22px;}}
-    .risk-value{{font-size:20px;font-weight:950;color:{risk_color};}}
-    .reco{{font-size:13px;line-height:1.36;color:#475569;font-weight:800;max-width:640px;}}
-    @media(max-width:1050px){{.exec-top,.exec-bottom{{grid-template-columns:1fr;}}.exec-block,.exec-mini{{border-right:0!important;border-bottom:1px solid #E2E8F0;padding:16px 0;}}.exec-block:last-child,.exec-mini:last-child{{border-bottom:0;}}.exec-money{{font-size:34px;}}}}
+    @media(max-width:1050px){{.exec-top{{grid-template-columns:1fr;}}.exec-block{{border-right:0!important;border-bottom:1px solid #E2E8F0;padding:16px 0;}}.exec-block:last-child{{border-bottom:0;}}.exec-money{{font-size:34px;}}}}
     </style>
     <div class="exec-summary">
       <div class="exec-title">Resumen ejecutivo</div>
@@ -2260,32 +2251,9 @@ def render_board_kpis(df: pd.DataFrame) -> None:
           </div>
         </div>
       </div>
-      <div class="exec-bottom">
-        <div class="exec-mini">
-          <div class="mini-ico">▣</div>
-          <div>
-            <div class="mini-label">Puesta en marcha estimada</div>
-            <span class="mini-value">{html.escape(launch_text)}</span><span class="mini-side">{days_left} días restantes</span>
-          </div>
-        </div>
-        <div class="exec-mini">
-          <div class="mini-ico">◇</div>
-          <div>
-            <div class="mini-label">Riesgo de continuidad</div>
-            <span class="risk-value">{html.escape(risk_display)}</span><span class="mini-side">{html.escape(risk_phrase)}</span>
-          </div>
-        </div>
-        <div class="exec-mini">
-          <div class="mini-ico">≋</div>
-          <div>
-            <div class="mini-label">Recomendación PMO</div>
-            <div class="reco">{html.escape(recommendation)}</div>
-          </div>
-        </div>
-      </div>
     </div>
     """
-    components.html(html_doc, height=260, scrolling=False)
+    components.html(html_doc, height=195, scrolling=False)
 
 
 def render_release_cutoff_intelligence(df: pd.DataFrame) -> None:
