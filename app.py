@@ -2397,8 +2397,8 @@ def render_release_cutoff_intelligence(df: pd.DataFrame) -> None:
     body{{margin:0;background:transparent;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;color:#0B1633;overflow-x:hidden;}}
     .release-shell{{background:#F8FAFC;border:1px solid #E2E8F0;border-radius:14px;padding:20px;box-shadow:0 12px 28px rgba(15,23,42,.045);overflow:hidden;}}
     .release-head{{display:flex;justify-content:space-between;gap:18px;align-items:flex-start;margin-bottom:28px;}}
-    .release-title{{font-size:24px;font-weight:950;color:#0B1B3A;line-height:1.08;letter-spacing:-.02em;}}
-    .release-sub{{font-size:13px;color:#475569;margin-top:8px;line-height:1.42;max-width:760px;}}
+    .release-title{{font-size:20px;font-weight:950;color:#23457A;line-height:1.1;letter-spacing:0;}}
+    .release-sub{{font-size:12px;color:#64748B;line-height:1.38;margin-top:6px;max-width:780px;}}
     .release-badge{{border:1px solid #E2E8F0;background:#FFFFFF;border-radius:999px;padding:9px 16px;color:#0B1B3A;font-size:13px;font-weight:900;white-space:nowrap;}}
     .release-flow{{position:relative;margin:0 0 16px 0;padding-top:50px;}}
     .release-line{{position:absolute;left:4px;right:4px;top:24px;height:1px;background:#CBD5E1;}}
@@ -2467,7 +2467,7 @@ def render_release_cutoff_intelligence(df: pd.DataFrame) -> None:
     </style>
     <div class="release-shell" id="release-shell-main">
       <div class="release-head">
-        <div><div class="release-title">Arquitectura de liberación PMO</div><div class="release-sub">Distribución financiera alineada a hitos críticos y continuidad operacional del piloto.</div></div>
+        <div><div class="release-title">Arquitectura de liberación PMO</div><div class="release-sub">Cortes financieros, capital requerido y control operacional por hito.</div></div>
         <div class="release-badge">Fuente: Cronograma Integrado</div>
       </div>
       <div class="release-flow">
@@ -2819,8 +2819,8 @@ def render_project_timeline_conditions(df: pd.DataFrame, pmo_source: pd.DataFram
     .tl-shell{{background:linear-gradient(180deg,#FFFFFF 0%,#F8FBFD 100%);border:1px solid #DCE6EF;border-radius:16px;padding:18px 20px;box-shadow:0 16px 36px rgba(15,23,42,.07);overflow:hidden;}}
     .tl-top{{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:16px;align-items:start;margin-bottom:14px;}}
     .tl-eyebrow{{font-size:10px;text-transform:uppercase;letter-spacing:.15em;color:#0F766E;font-weight:950;margin-bottom:5px;}}
-    .tl-title{{font-size:24px;line-height:1.06;font-weight:950;color:#23457A;letter-spacing:.01em;}}
-    .tl-sub{{font-size:12px;color:#64748B;line-height:1.35;margin-top:6px;max-width:760px;font-weight:750;}}
+    .tl-title{{font-size:20px;font-weight:950;color:#23457A;line-height:1.1;letter-spacing:0;}}
+    .tl-sub{{font-size:12px;color:#64748B;line-height:1.38;margin-top:6px;max-width:780px;font-weight:750;}}
     .tl-kpis{{display:grid;grid-template-columns:repeat(4,auto);gap:8px;}}
     .tl-kpi{{background:#FFFFFF;border:1px solid #E2E8F0;border-radius:12px;padding:9px 12px;min-width:108px;box-shadow:0 8px 18px rgba(15,23,42,.04);}}
     .tl-kpi b{{display:block;font-size:18px;color:#0B1633;line-height:1;}}.tl-kpi span{{display:block;font-size:9px;color:#64748B;font-weight:900;text-transform:uppercase;line-height:1.2;margin-top:4px;}}
@@ -2854,7 +2854,8 @@ def render_project_timeline_conditions(df: pd.DataFrame, pmo_source: pd.DataFram
     .summary-grid{{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;}}
     .summary-item{{background:#F8FAFC;border:1px solid #EEF3F7;border-radius:10px;padding:9px;}}.summary-item b{{display:block;font-size:13px;color:#0B1633;line-height:1;}}.summary-item span{{display:block;font-size:8.5px;color:#64748B;font-weight:900;text-transform:uppercase;margin-top:5px;line-height:1.15;}}
     .commit-text{{font-size:10px;color:#475569;line-height:1.35;margin-top:9px;font-weight:750;}}
-    @media(max-width:1100px){{.tl-shell{{overflow-x:auto;}}.tl-inner{{min-width:1180px;}}.tl-top{{grid-template-columns:1fr;}}}}
+    @media(max-width:1100px){{.tl-top{{grid-template-columns:1fr;}}.tl-kpis{{grid-template-columns:repeat(2,minmax(0,1fr));}}.tl-phases{{grid-template-columns:1fr;}}.tl-cards{{grid-template-columns:repeat(2,minmax(0,1fr));}}.tl-flow{{grid-template-columns:1fr;}}.tl-months{{grid-template-columns:repeat(4,minmax(0,1fr));}}}}
+    @media(max-width:720px){{.tl-cards{{grid-template-columns:1fr;}}.tl-kpis{{grid-template-columns:1fr;}}}}
     </style>
     <div class="tl-shell">
       <div class="tl-inner">
