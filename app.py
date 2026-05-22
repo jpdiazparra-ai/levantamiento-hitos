@@ -2689,7 +2689,7 @@ def render_expandable_activity_gantt(df: pd.DataFrame) -> None:
     .act-details{{display:none;border-top:1px solid #EEF3F7;background:#FBFCFE;padding:9px 10px 11px 10px;gap:7px;}}
     .act-row.open .act-details{{display:grid;}}
     .act-detail-row{{display:grid;grid-template-columns:70px minmax(0,1fr) 86px 94px;gap:10px;align-items:center;background:#FFFFFF;border:1px solid #EEF3F7;border-radius:10px;padding:9px;}}
-    .act-id{{font-size:10px;font-weight:950;color:#23457A;background:#EEF6FF;border-radius:999px;padding:5px 7px;text-align:center;}}
+    .act-id{{font-size:10px;font-weight:950;color:#0B1633;background:#EEF6FF;border-radius:999px;padding:5px 7px;text-align:center;}}
     .act-copy b{{display:block;font-size:11px;color:#0B1633;line-height:1.14;}}
     .act-copy span{{display:block;font-size:10px;color:#64748B;margin-top:3px;line-height:1.25;}}
     .act-date{{font-size:10px;color:#475569;font-weight:850;text-align:center;line-height:1.2;}}
