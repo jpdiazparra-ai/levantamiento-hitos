@@ -2870,7 +2870,6 @@ def render_project_timeline_conditions(df: pd.DataFrame, pmo_source: pd.DataFram
       <div class="tl-inner">
         <div class="tl-top">
           <div>
-            <div class="tl-eyebrow">Fluxial Wind · Piloto 10 kW</div>
             <div class="tl-title">Línea de tiempo del proyecto</div>
             <div class="tl-sub">Hitos críticos, condiciones de liberación y dependencias operacionales.</div>
           </div>
