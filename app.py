@@ -101,7 +101,7 @@ STATE_COLORS = {
 st.set_page_config(
     page_title="Fluxial Wind 10 kW | Avance Ejecutivo",
     layout="wide",
-    initial_sidebar_state="expanded",
+    initial_sidebar_state="collapsed",
 )
 
 px.defaults.template = "plotly_white"
