@@ -471,17 +471,19 @@ def add_css() -> None:
         }
         .hero-title {
             color: #0B1B3A;
-            font-size: 34px;
-            line-height: 1.12;
-            font-weight: 900;
-            margin: 0 0 12px 0;
+            font-size: 19px;
+            line-height: 1.1;
+            font-weight: 950;
+            letter-spacing: .04em;
+            text-transform: uppercase;
+            margin: 0 0 9px 0;
         }
         .hero-copy {
             color: #64748B;
-            font-size: 16px;
+            font-size: 13px;
             line-height: 1.42;
-            max-width: 1080px;
-            font-weight: 550;
+            max-width: 780px;
+            font-weight: 650;
         }
         .section-note {
             background: #FFFFFF;
