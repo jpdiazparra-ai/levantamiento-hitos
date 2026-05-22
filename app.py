@@ -2401,7 +2401,7 @@ def render_release_cutoff_intelligence(df: pd.DataFrame) -> None:
 
     detail_panels = "".join(
         f"""
-        <div class="release-panel {'active' if idx == 0 else ''}" data-panel="{idx}">
+        <div class="release-panel {'active' if idx == 0 else ''}" data-panel="{idx}" style="--panel-color:{html.escape(str(panel['color']))};">
           <button class="panel-head" type="button">
             <div><b>Control operacional por hito</b><small>{html.escape(str(panel["date"]))} · {html.escape(str(panel["thesis"]))}</small></div>
             <span>{money_mm(float(panel["total"]))} · {int(panel["partidas"])} partidas · Desplegar tabla PMO <i>⌄</i></span>
@@ -2448,12 +2448,12 @@ def render_release_cutoff_intelligence(df: pd.DataFrame) -> None:
     .stage-action{{font-size:13px;font-weight:950;color:#0B1B3A;margin-top:17px;letter-spacing:.01em;}}
     .stage-action b{{font-size:14px;margin-left:4px;}}
     .release-detail-stack{{display:grid;gap:12px;}}
-    .release-panel{{display:none;background:#FFFFFF;border:1px solid #C9D8E6;border-radius:12px;overflow:hidden;box-shadow:0 10px 22px rgba(15,23,42,.04);}}
+    .release-panel{{display:none;background:#FFFFFF;border:1px solid color-mix(in srgb,var(--panel-color) 34%,#C9D8E6);border-radius:12px;overflow:hidden;box-shadow:0 10px 22px rgba(15,23,42,.04);}}
     .release-panel.active{{display:block;}}
-    .panel-head{{appearance:none;width:100%;border:0;padding:14px 15px;display:flex;justify-content:space-between;gap:10px;align-items:center;background:linear-gradient(180deg,#F7FAFD,#EEF5FA);cursor:pointer;text-align:left;}}
-    .panel-head:hover{{background:#EAF2F8;}}
+    .panel-head{{appearance:none;width:100%;border:0;border-left:5px solid var(--panel-color);padding:14px 15px;display:flex;justify-content:space-between;gap:10px;align-items:center;background:linear-gradient(180deg,color-mix(in srgb,var(--panel-color) 10%,#FFFFFF),color-mix(in srgb,var(--panel-color) 16%,#FFFFFF));cursor:pointer;text-align:left;}}
+    .panel-head:hover{{background:color-mix(in srgb,var(--panel-color) 21%,#FFFFFF);}}
     .panel-head b{{display:block;font-size:14px;color:#0B1B3A;}}.panel-head small{{display:block;font-size:11px;color:#64748B;margin-top:3px;font-weight:750;}}.panel-head span{{font-size:12px;color:#0B1633;font-weight:950;white-space:nowrap;}}.panel-head i{{font-style:normal;font-size:16px;margin-left:4px;color:#475569;display:inline-block;transition:transform .16s ease;}}
-    .release-panel.expanded .panel-head{{border-bottom:1px solid #C9D8E6;background:linear-gradient(180deg,#F4F8FC,#EAF2F8);}}
+    .release-panel.expanded .panel-head{{border-bottom:1px solid color-mix(in srgb,var(--panel-color) 34%,#C9D8E6);background:linear-gradient(180deg,color-mix(in srgb,var(--panel-color) 13%,#FFFFFF),color-mix(in srgb,var(--panel-color) 21%,#FFFFFF));}}
     .release-panel.expanded .panel-head i{{transform:rotate(180deg);}}
     .release-list{{padding:12px;display:none;gap:8px;max-height:520px;overflow:auto;background:#FAFCFE;}}
     .release-panel.expanded .release-list{{display:grid;}}
