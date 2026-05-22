@@ -2256,6 +2256,16 @@ def render_board_kpis(df: pd.DataFrame) -> None:
 
 
 def render_release_cutoff_intelligence(df: pd.DataFrame) -> None:
+    hito_colors = {
+        "H1": "#0B2D42",
+        "H2": "#2F80ED",
+        "H3": "#1D4ED8",
+        "H4": "#DC2626",
+        "H5": "#64748B",
+        "H6": "#0F766E",
+        "H7": "#7C3AED",
+        "H8": "#DC2626",
+    }
     cuts = [
         ("Liberación 1", "hasta 30-05-2026", None, pd.Timestamp("2026-05-30"), "#0F766E", "Activación inicial"),
         ("Liberación 2", "31-05 a 30-06-2026", pd.Timestamp("2026-05-30"), pd.Timestamp("2026-06-30"), "#2563EB", "Continuidad técnica"),
@@ -2334,6 +2344,8 @@ def render_release_cutoff_intelligence(df: pd.DataFrame) -> None:
         critical_count = int((detail.get("Criticas", pd.Series(dtype=float)).fillna(0) > 0).sum())
         habilitating_count = int((detail.get("Habilitantes", pd.Series(dtype=float)).fillna(0) > 0).sum())
         for _, row in detail.iterrows():
+            hito_code = str(row["Hito"])
+            hito_color = hito_colors.get(hito_code, "#0B2D42")
             amount = float(row["Monto"] or 0)
             physical = float(row.get("AvanceFisico", 0) or 0)
             financial = min(max(amount / panel_total, 0), 1)
@@ -2354,7 +2366,7 @@ def render_release_cutoff_intelligence(df: pd.DataFrame) -> None:
                 f"""
                 <div class="release-row">
                   <div class="release-key">
-                    <div class="release-hito">{html.escape(str(row["Hito"]))}</div>
+                    <div class="release-hito" style="background:{hito_color};">{html.escape(hito_code)}</div>
                     <span>{html.escape(str(row["Hito Corto"]))}</span>
                   </div>
                   <div class="release-copy">
