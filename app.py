@@ -2157,13 +2157,9 @@ def render_board_kpis(df: pd.DataFrame) -> None:
     critical_window = release_1 + release_2_amount
 
     def money_mm(value: float) -> str:
-        return f"${value / 1_000_000:.1f}MM".replace(".", ",")
+        return f"${value / 1_000_000:.1f} MM".replace(".", ",")
 
     release_2 = release_windows.get("Liberación 2", pd.DataFrame())
-    release_2_detail = ""
-    if not release_2.empty:
-        top_hitos = release_2.groupby("Hito")["Monto CLP Num"].sum().sort_values(ascending=False).head(3)
-        release_2_detail = ", ".join(f"{hito} {money_mm(float(amount))}" for hito, amount in top_hitos.items())
     weighted_progress = (
         float((scheduled["Monto CLP Num"] * scheduled["Avance Num"]).sum() / total_release)
         if total_release
@@ -2187,63 +2183,101 @@ def render_board_kpis(df: pd.DataFrame) -> None:
         risk_metric = "Sin bloqueos críticos activos"
         risk_color = "#0F766E"
 
-    cards = [
-        {
-            "label": "CAPEX de continuidad",
-            "value": money_mm(total_release),
-            "context": "Capital requerido para sostener integración y puesta en marcha.",
-            "accent": "#0B2D42",
-            "metric": f"{len(scheduled)} partidas programadas",
-        },
-        {
-            "label": "Ventana crítica PMO",
-            "value": money_mm(critical_window),
-            "context": f"Liberación 1 + Liberación 2. La segunda cubre {release_2_detail or 'fondos de continuidad técnica'}.",
-            "accent": "#B7791F",
-            "metric": "Decisión financiera inmediata",
-        },
-        {
-            "label": "Riesgo de continuidad",
-            "value": risk_value,
-            "context": risk_context,
-            "accent": risk_color,
-            "metric": risk_metric,
-        },
+    launch_rows = scheduled[
+        scheduled["Hito"].astype(str).eq("H7")
+        | scheduled["Hito Ejecutivo"].str.contains("puesta en marcha|comisionamiento", case=False, na=False)
     ]
-    cards_html = "".join(
-        f"""
-        <div class="board-kpi" style="--accent:{card['accent']};">
-          <div class="kpi-top">
-            <span>{html.escape(card["label"])}</span>
-            <i></i>
-          </div>
-          <div class="kpi-value">{html.escape(card["value"])}</div>
-          <div class="kpi-context">{html.escape(card["context"])}</div>
-          <div class="kpi-foot">{html.escape(card["metric"])}</div>
-        </div>
-        """
-        for card in cards
-    )
+    launch_date = launch_rows["Termino"].max() if not launch_rows.empty else scheduled["Termino"].dropna().max()
+    launch_text = format_date(launch_date) if pd.notna(launch_date) else "Por definir"
+    days_left = max(0, int((pd.Timestamp(launch_date).normalize() - pd.Timestamp("today").normalize()).days)) if pd.notna(launch_date) else 0
+    risk_display = risk_value.title()
+    risk_phrase = "Brecha controlable" if risk_value == "MEDIO" else "Atención inmediata" if risk_value == "ALTO" else "Continuidad controlada"
+    recommendation = "Priorizar liberación inicial y asegurar fondos de avance para sostener ruta crítica del cronograma."
+    decision = "Asegurar liberación inicial y fondos de avance"
 
     html_doc = f"""
     <style>
     *{{box-sizing:border-box;}}
     body{{margin:0;background:transparent;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;color:#0B1633;overflow-x:hidden;}}
-    .board-kpi-shell{{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin:0 0 14px 0;}}
-    .board-kpi{{background:linear-gradient(180deg,#FFFFFF 0%,#FAFCFE 100%);border:1px solid #DCE6EF;border-top:4px solid var(--accent);border-radius:14px;padding:17px 18px;box-shadow:0 14px 32px rgba(15,23,42,.06);min-height:168px;position:relative;overflow:hidden;}}
-    .board-kpi::after{{content:"";position:absolute;right:-34px;top:-46px;width:118px;height:118px;border-radius:999px;background:color-mix(in srgb,var(--accent) 12%,transparent);}}
-    .kpi-top{{display:flex;justify-content:space-between;gap:12px;align-items:center;position:relative;z-index:2;}}
-    .kpi-top span{{font-size:12px;font-weight:950;color:#334155;letter-spacing:.01em;line-height:1.2;}}
-    .kpi-top i{{width:34px;height:34px;border-radius:11px;background:color-mix(in srgb,var(--accent) 13%,#FFFFFF);border:1px solid color-mix(in srgb,var(--accent) 20%,#DCE6EF);position:relative;flex:0 0 auto;}}
-    .kpi-top i::before{{content:"";position:absolute;inset:9px;border-radius:999px;background:var(--accent);box-shadow:0 0 0 5px color-mix(in srgb,var(--accent) 12%,transparent);}}
-    .kpi-value{{font-size:32px;font-weight:950;color:#0B1633;letter-spacing:-.02em;margin-top:18px;position:relative;z-index:2;line-height:1;}}
-    .kpi-context{{font-size:12px;color:#64748B;line-height:1.35;margin-top:10px;max-width:92%;position:relative;z-index:2;}}
-    .kpi-foot{{display:inline-flex;margin-top:15px;border-radius:999px;padding:6px 9px;background:color-mix(in srgb,var(--accent) 10%,#FFFFFF);color:var(--accent);font-size:10px;font-weight:950;position:relative;z-index:2;}}
-    @media(max-width:980px){{.board-kpi-shell{{grid-template-columns:1fr;}}}}
+    .exec-summary{{background:#FFFFFF;border:1px solid #DCE6EF;border-radius:16px;box-shadow:0 16px 36px rgba(15,23,42,.07);overflow:hidden;margin:0 0 14px 0;}}
+    .exec-title{{font-size:13px;font-weight:950;letter-spacing:.08em;text-transform:uppercase;color:#0F766E;padding:18px 22px 4px;}}
+    .exec-top{{display:grid;grid-template-columns:1.12fr .9fr 1fr;gap:0;padding:16px 22px 26px;align-items:center;}}
+    .exec-block{{display:grid;grid-template-columns:76px minmax(0,1fr);gap:18px;align-items:center;min-height:142px;padding:0 24px;}}
+    .exec-block:first-child{{padding-left:0;}}.exec-block:not(:last-child){{border-right:1px solid #E2E8F0;}}
+    .exec-icon{{width:72px;height:72px;border-radius:999px;background:radial-gradient(circle at 35% 30%,#0F5F78,#062A43 70%);display:flex;align-items:center;justify-content:center;color:#FFFFFF;font-size:34px;font-weight:300;box-shadow:0 14px 28px rgba(6,42,67,.22);}}
+    .exec-label{{font-size:12px;font-weight:950;text-transform:uppercase;letter-spacing:.04em;color:#0F766E;margin-bottom:8px;}}
+    .exec-main{{font-size:26px;line-height:1.18;font-weight:950;color:#08152F;letter-spacing:-.03em;}}
+    .exec-money{{font-size:40px;line-height:1;font-weight:950;color:#08152F;letter-spacing:-.045em;}}
+    .exec-copy{{font-size:13px;line-height:1.35;color:#64748B;font-weight:750;margin-top:10px;max-width:360px;}}
+    .exec-pill{{display:inline-flex;margin-top:14px;border-radius:999px;background:#EAF2F8;color:#23457A;padding:7px 13px;font-size:12px;font-weight:950;}}
+    .exec-pill.warn{{background:#FBF0D9;color:#B7791F;}}
+    .exec-bottom{{border-top:1px solid #E2E8F0;display:grid;grid-template-columns:.9fr .75fr 1.5fr;gap:0;padding:17px 22px;}}
+    .exec-mini{{display:grid;grid-template-columns:38px minmax(0,1fr);gap:14px;align-items:center;padding:0 22px;}}
+    .exec-mini:first-child{{padding-left:0;}}.exec-mini:not(:last-child){{border-right:1px solid #E2E8F0;}}
+    .mini-ico{{font-size:26px;color:#475569;line-height:1;text-align:center;}}
+    .mini-label{{font-size:11px;color:#64748B;font-weight:950;text-transform:uppercase;letter-spacing:.04em;margin-bottom:7px;}}
+    .mini-value{{font-size:22px;color:#08152F;font-weight:950;letter-spacing:-.02em;}}
+    .mini-side{{font-size:13px;color:#64748B;font-weight:850;margin-left:24px;}}
+    .risk-value{{font-size:20px;font-weight:950;color:{risk_color};}}
+    .reco{{font-size:14px;line-height:1.38;color:#475569;font-weight:800;max-width:620px;}}
+    @media(max-width:1050px){{.exec-top,.exec-bottom{{grid-template-columns:1fr;}}.exec-block,.exec-mini{{border-right:0!important;border-bottom:1px solid #E2E8F0;padding:16px 0;}}.exec-block:last-child,.exec-mini:last-child{{border-bottom:0;}}.exec-money{{font-size:34px;}}}}
     </style>
-    <div class="board-kpi-shell">{cards_html}</div>
+    <div class="exec-summary">
+      <div class="exec-title">Resumen ejecutivo</div>
+      <div class="exec-top">
+        <div class="exec-block">
+          <div class="exec-icon">↗</div>
+          <div>
+            <div class="exec-label">Estado del proyecto</div>
+            <div class="exec-main">Piloto en integración técnica y continuidad operacional</div>
+            <div class="exec-copy">Avance técnico activo y cronograma en seguimiento.</div>
+          </div>
+        </div>
+        <div class="exec-block">
+          <div class="exec-icon">$</div>
+          <div>
+            <div class="exec-label">CAPEX requerido</div>
+            <div class="exec-money">{html.escape(money_mm(total_release))}</div>
+            <div class="exec-copy">Para completar integración, validación y puesta en marcha.</div>
+            <div class="exec-pill">Capital pendiente</div>
+          </div>
+        </div>
+        <div class="exec-block">
+          <div class="exec-icon">◎</div>
+          <div>
+            <div class="exec-label">Decisión requerida</div>
+            <div class="exec-main">{html.escape(decision)}</div>
+            <div class="exec-copy">Para evitar desaceleración en ingeniería, integración y puesta en marcha.</div>
+            <div class="exec-pill warn">Decisión financiera clave</div>
+          </div>
+        </div>
+      </div>
+      <div class="exec-bottom">
+        <div class="exec-mini">
+          <div class="mini-ico">▣</div>
+          <div>
+            <div class="mini-label">Puesta en marcha estimada</div>
+            <span class="mini-value">{html.escape(launch_text)}</span><span class="mini-side">{days_left} días restantes</span>
+          </div>
+        </div>
+        <div class="exec-mini">
+          <div class="mini-ico">◇</div>
+          <div>
+            <div class="mini-label">Riesgo de continuidad</div>
+            <span class="risk-value">{html.escape(risk_display)}</span><span class="mini-side">{html.escape(risk_phrase)}</span>
+          </div>
+        </div>
+        <div class="exec-mini">
+          <div class="mini-ico">≋</div>
+          <div>
+            <div class="mini-label">Recomendación PMO</div>
+            <div class="reco">{html.escape(recommendation)}</div>
+          </div>
+        </div>
+      </div>
+    </div>
     """
-    components.html(html_doc, height=210, scrolling=False)
+    components.html(html_doc, height=315, scrolling=False)
 
 
 def render_release_cutoff_intelligence(df: pd.DataFrame) -> None:
