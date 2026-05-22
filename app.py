@@ -2706,7 +2706,7 @@ def render_expandable_activity_gantt(df: pd.DataFrame, pmo_source: pd.DataFrame 
     .act-badge{{background:#FFFFFF;border:1px solid #DCE6EF;border-radius:999px;padding:7px 10px;font-size:11px;font-weight:900;color:#475569;white-space:nowrap;}}
     .act-axis{{position:relative;margin-left:260px;margin-right:120px;height:30px;border-bottom:1px solid #E2E8F0;}}
     .act-axis span{{position:absolute;top:3px;transform:translateX(-2px);font-size:10px;font-weight:850;color:#64748B;text-transform:uppercase;white-space:nowrap;}}
-    .act-list{{position:relative;display:grid;gap:10px;padding-top:8px;padding-bottom:74px;}}
+    .act-list{{position:relative;display:grid;gap:10px;padding-top:8px;padding-bottom:112px;}}
     .act-overlay{{position:absolute;left:260px;right:120px;top:0;bottom:0;pointer-events:none;}}
     .act-today{{position:absolute;top:0;bottom:0;left:{today_left:.2f}%;width:2px;background:#EF4444;box-shadow:0 0 0 5px rgba(239,68,68,.08);z-index:5;}}
     .act-today span{{position:absolute;top:-24px;left:50%;transform:translateX(-50%);background:#EF4444;color:#FFFFFF;border-radius:999px;padding:4px 9px;font-size:10px;font-weight:950;}}
@@ -2760,7 +2760,7 @@ def render_expandable_activity_gantt(df: pd.DataFrame, pmo_source: pd.DataFrame 
     }})();
     </script>
     """
-    components.html(html_doc, height=700, scrolling=True)
+    components.html(html_doc, height=820, scrolling=True)
 
 
 def render_project_timeline_conditions(df: pd.DataFrame, pmo_source: pd.DataFrame | None = None) -> None:
