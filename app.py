@@ -2618,7 +2618,8 @@ def render_expandable_activity_gantt(df: pd.DataFrame, pmo_source: pd.DataFrame 
     )
     today_left = pct(today)
 
-    condition_markers = []
+    condition_lines = []
+    condition_cards = []
     pmo_conditions = clean_pmo_matrix_source(pmo_source)
     if not pmo_conditions.empty and "Fecha Condición" in pmo_conditions.columns:
         pmo_conditions = pmo_conditions.copy()
@@ -2634,14 +2635,24 @@ def render_expandable_activity_gantt(df: pd.DataFrame, pmo_source: pd.DataFrame 
             marker_area = marker_code.replace("H", "A", 1) if marker_code.startswith("H") else marker_code
             marker_color = colors.get(marker_code, "#0F766E")
             marker_condition = short_text(str(marker.get("Condición de Liberación", "")).strip(), 68)
-            condition_markers.append(
+            condition_lines.append(
                 f"""
-                <div class="act-condition-line" style="left:{pct(pd.Timestamp(marker_date)):.2f}%;--marker:{marker_color};">
-                  <span>{html.escape(marker_area)} · {format_date(marker_date)}</span>
+                <div class="act-condition-line" style="left:{pct(pd.Timestamp(marker_date)):.2f}%;--marker:{marker_color};"></div>
+                """
+            )
+            condition_cards.append(
+                f"""
+                <div class="act-condition-card" style="--marker:{marker_color};">
+                  <b>{html.escape(marker_area)} · {format_date(marker_date)}</b>
                   <small>{html.escape(marker_condition)}</small>
                 </div>
                 """
             )
+    condition_axis_html = (
+        f"""<div class="act-condition-axis" style="--condition-count:{max(len(condition_cards), 1)};">{''.join(condition_cards)}</div>"""
+        if condition_cards
+        else ""
+    )
 
     rows = []
     for idx, hito in hito_ranges.iterrows():
@@ -2706,13 +2717,15 @@ def render_expandable_activity_gantt(df: pd.DataFrame, pmo_source: pd.DataFrame 
     .act-badge{{background:#FFFFFF;border:1px solid #DCE6EF;border-radius:999px;padding:7px 10px;font-size:11px;font-weight:900;color:#475569;white-space:nowrap;}}
     .act-axis{{position:relative;margin-left:260px;margin-right:120px;height:30px;border-bottom:1px solid #E2E8F0;}}
     .act-axis span{{position:absolute;top:3px;transform:translateX(-2px);font-size:10px;font-weight:850;color:#64748B;text-transform:uppercase;white-space:nowrap;}}
-    .act-list{{position:relative;display:grid;gap:10px;padding-top:8px;padding-bottom:112px;}}
-    .act-overlay{{position:absolute;left:260px;right:120px;top:0;bottom:0;pointer-events:none;}}
+    .act-list{{position:relative;display:grid;gap:10px;padding-top:8px;padding-bottom:2px;}}
+    .act-overlay{{position:absolute;left:260px;right:120px;top:0;bottom:78px;pointer-events:none;}}
     .act-today{{position:absolute;top:0;bottom:0;left:{today_left:.2f}%;width:2px;background:#EF4444;box-shadow:0 0 0 5px rgba(239,68,68,.08);z-index:5;}}
     .act-today span{{position:absolute;top:-24px;left:50%;transform:translateX(-50%);background:#EF4444;color:#FFFFFF;border-radius:999px;padding:4px 9px;font-size:10px;font-weight:950;}}
     .act-condition-line{{position:absolute;top:0;bottom:0;width:2px;background:var(--marker);box-shadow:0 0 0 4px color-mix(in srgb,var(--marker) 12%,transparent);z-index:4;}}
-    .act-condition-line span{{position:absolute;bottom:-38px;left:50%;transform:translateX(-50%);background:var(--marker);color:#FFFFFF;border-radius:999px;padding:4px 8px;font-size:9px;font-weight:950;white-space:nowrap;box-shadow:0 8px 16px color-mix(in srgb,var(--marker) 18%,transparent);}}
-    .act-condition-line small{{position:absolute;bottom:-70px;left:50%;transform:translateX(-50%);width:145px;background:#FFFFFF;border:1px solid color-mix(in srgb,var(--marker) 34%,#DCE6EF);border-top:3px solid var(--marker);border-radius:9px;padding:5px 7px;color:#475569;font-size:8px;font-weight:850;line-height:1.15;text-align:center;box-shadow:0 8px 18px rgba(15,23,42,.06);}}
+    .act-condition-axis{{position:relative;z-index:12;margin-left:260px;margin-right:120px;margin-top:8px;display:grid;grid-template-columns:repeat(var(--condition-count),minmax(0,1fr));gap:8px;align-items:stretch;}}
+    .act-condition-card{{min-height:62px;background:#FFFFFF;border:1px solid color-mix(in srgb,var(--marker) 34%,#DCE6EF);border-top:3px solid var(--marker);border-radius:10px;padding:7px 8px;box-shadow:0 8px 18px rgba(15,23,42,.06);overflow:hidden;}}
+    .act-condition-card b{{display:block;color:var(--marker);font-size:9px;font-weight:950;line-height:1.15;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}}
+    .act-condition-card small{{display:block;margin-top:5px;color:#475569;font-size:8px;font-weight:850;line-height:1.18;}}
     .act-row{{position:relative;z-index:10;background:#FFFFFF;border:1px solid #E2E8F0;border-radius:14px;overflow:hidden;box-shadow:0 7px 16px rgba(15,23,42,.03);}}
     .act-main{{appearance:none;width:100%;border:0;background:transparent;display:grid;grid-template-columns:250px minmax(260px,1fr) 108px;gap:10px;align-items:center;padding:11px 10px;cursor:pointer;text-align:left;}}
     .act-main:hover{{background:#FAFCFE;}}
@@ -2734,7 +2747,7 @@ def render_expandable_activity_gantt(df: pd.DataFrame, pmo_source: pd.DataFrame 
     .act-copy span{{display:block;font-size:10px;color:#64748B;margin-top:3px;line-height:1.25;}}
     .act-date{{font-size:10px;color:#475569;font-weight:850;text-align:center;line-height:1.2;}}
     .act-amount{{font-size:10px;color:#0B1633;font-weight:950;text-align:right;white-space:nowrap;}}
-    @media(max-width:980px){{.act-axis{{margin-left:0;margin-right:0;}}.act-main{{grid-template-columns:1fr;}}.act-overlay{{display:none;}}.act-detail-row{{grid-template-columns:1fr;}}.act-total{{text-align:left;}}}}
+    @media(max-width:980px){{.act-axis{{margin-left:0;margin-right:0;}}.act-main{{grid-template-columns:1fr;}}.act-overlay{{display:none;}}.act-condition-axis{{margin-left:0;margin-right:0;grid-template-columns:1fr;}}.act-detail-row{{grid-template-columns:1fr;}}.act-total{{text-align:left;}}}}
     </style>
     <div class="act-shell" id="activity-gantt-shell">
       <div class="act-head">
@@ -2743,8 +2756,9 @@ def render_expandable_activity_gantt(df: pd.DataFrame, pmo_source: pd.DataFrame 
       </div>
       <div class="act-axis">{months_html}</div>
       <div class="act-list">
-        <div class="act-overlay"><div class="act-today"><span>HOY</span></div>{''.join(condition_markers)}</div>
+        <div class="act-overlay"><div class="act-today"><span>HOY</span></div>{''.join(condition_lines)}</div>
         {''.join(rows)}
+        {condition_axis_html}
       </div>
     </div>
     <script>
@@ -2760,7 +2774,7 @@ def render_expandable_activity_gantt(df: pd.DataFrame, pmo_source: pd.DataFrame 
     }})();
     </script>
     """
-    components.html(html_doc, height=820, scrolling=True)
+    components.html(html_doc, height=900, scrolling=True)
 
 
 def render_project_timeline_conditions(df: pd.DataFrame, pmo_source: pd.DataFrame | None = None) -> None:
