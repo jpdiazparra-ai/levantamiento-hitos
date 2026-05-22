@@ -2706,13 +2706,13 @@ def render_expandable_activity_gantt(df: pd.DataFrame, pmo_source: pd.DataFrame 
     .act-badge{{background:#FFFFFF;border:1px solid #DCE6EF;border-radius:999px;padding:7px 10px;font-size:11px;font-weight:900;color:#475569;white-space:nowrap;}}
     .act-axis{{position:relative;margin-left:260px;margin-right:120px;height:30px;border-bottom:1px solid #E2E8F0;}}
     .act-axis span{{position:absolute;top:3px;transform:translateX(-2px);font-size:10px;font-weight:850;color:#64748B;text-transform:uppercase;white-space:nowrap;}}
-    .act-list{{position:relative;display:grid;gap:10px;padding-top:8px;}}
+    .act-list{{position:relative;display:grid;gap:10px;padding-top:8px;padding-bottom:74px;}}
     .act-overlay{{position:absolute;left:260px;right:120px;top:0;bottom:0;pointer-events:none;}}
     .act-today{{position:absolute;top:0;bottom:0;left:{today_left:.2f}%;width:2px;background:#EF4444;box-shadow:0 0 0 5px rgba(239,68,68,.08);z-index:5;}}
     .act-today span{{position:absolute;top:-24px;left:50%;transform:translateX(-50%);background:#EF4444;color:#FFFFFF;border-radius:999px;padding:4px 9px;font-size:10px;font-weight:950;}}
     .act-condition-line{{position:absolute;top:0;bottom:0;width:2px;background:var(--marker);box-shadow:0 0 0 4px color-mix(in srgb,var(--marker) 12%,transparent);z-index:4;}}
-    .act-condition-line span{{position:absolute;top:8px;left:7px;background:var(--marker);color:#FFFFFF;border-radius:999px;padding:4px 8px;font-size:9px;font-weight:950;white-space:nowrap;box-shadow:0 8px 16px color-mix(in srgb,var(--marker) 18%,transparent);}}
-    .act-condition-line small{{position:absolute;top:33px;left:7px;max-width:145px;background:#FFFFFF;border:1px solid color-mix(in srgb,var(--marker) 34%,#DCE6EF);border-left:3px solid var(--marker);border-radius:9px;padding:5px 7px;color:#475569;font-size:8px;font-weight:850;line-height:1.15;box-shadow:0 8px 18px rgba(15,23,42,.06);}}
+    .act-condition-line span{{position:absolute;bottom:-38px;left:50%;transform:translateX(-50%);background:var(--marker);color:#FFFFFF;border-radius:999px;padding:4px 8px;font-size:9px;font-weight:950;white-space:nowrap;box-shadow:0 8px 16px color-mix(in srgb,var(--marker) 18%,transparent);}}
+    .act-condition-line small{{position:absolute;bottom:-70px;left:50%;transform:translateX(-50%);width:145px;background:#FFFFFF;border:1px solid color-mix(in srgb,var(--marker) 34%,#DCE6EF);border-top:3px solid var(--marker);border-radius:9px;padding:5px 7px;color:#475569;font-size:8px;font-weight:850;line-height:1.15;text-align:center;box-shadow:0 8px 18px rgba(15,23,42,.06);}}
     .act-row{{position:relative;z-index:10;background:#FFFFFF;border:1px solid #E2E8F0;border-radius:14px;overflow:hidden;box-shadow:0 7px 16px rgba(15,23,42,.03);}}
     .act-main{{appearance:none;width:100%;border:0;background:transparent;display:grid;grid-template-columns:250px minmax(260px,1fr) 108px;gap:10px;align-items:center;padding:11px 10px;cursor:pointer;text-align:left;}}
     .act-main:hover{{background:#FAFCFE;}}
