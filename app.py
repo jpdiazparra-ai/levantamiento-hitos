@@ -470,20 +470,17 @@ def add_css() -> None:
             margin-bottom: 6px;
         }
         .hero-title {
-            color: #0B1B3A;
-            font-size: 19px;
+            color: #23457A;
+            font-size: 20px;
             line-height: 1.1;
             font-weight: 950;
-            letter-spacing: .04em;
-            text-transform: uppercase;
-            margin: 0 0 9px 0;
+            margin: 0 0 6px 0;
         }
         .hero-copy {
             color: #64748B;
-            font-size: 13px;
-            line-height: 1.42;
+            font-size: 12px;
+            line-height: 1.38;
             max-width: 780px;
-            font-weight: 650;
         }
         .section-note {
             background: #FFFFFF;
@@ -2409,8 +2406,8 @@ def render_release_cutoff_intelligence(df: pd.DataFrame) -> None:
     body{{margin:0;background:transparent;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;color:#0B1633;overflow-x:hidden;}}
     .release-shell{{background:#F8FAFC;border:1px solid #E2E8F0;border-radius:18px;padding:24px 28px 22px;box-shadow:0 8px 24px rgba(15,23,42,.06);overflow:hidden;}}
     .release-head{{display:flex;justify-content:space-between;gap:18px;align-items:flex-start;margin-bottom:34px;}}
-    .release-title{{font-size:19px;font-weight:950;color:#0B1B3A;line-height:1.1;letter-spacing:.04em;text-transform:uppercase;}}
-    .release-sub{{font-size:13px;color:#64748B;line-height:1.42;margin-top:9px;max-width:780px;font-weight:650;}}
+    .release-title{{font-size:20px;font-weight:950;color:#23457A;line-height:1.1;}}
+    .release-sub{{font-size:12px;color:#64748B;line-height:1.38;margin-top:6px;max-width:780px;}}
     .release-badge{{border:1px solid #E2E8F0;background:#FFFFFF;border-radius:999px;padding:12px 21px;color:#0B1B3A;font-size:14px;font-weight:900;white-space:nowrap;box-shadow:0 8px 18px rgba(15,23,42,.035);}}
     .release-flow{{position:relative;margin:0 0 15px 0;padding-top:50px;}}
     .release-line{{position:absolute;left:4px;right:4px;top:24px;height:1px;background:#CBD5E1;}}
