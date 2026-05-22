@@ -2439,12 +2439,12 @@ def render_release_cutoff_intelligence(df: pd.DataFrame) -> None:
     .stage-action{{font-size:13px;font-weight:950;color:#0B1B3A;margin-top:17px;letter-spacing:.01em;}}
     .stage-action b{{font-size:14px;margin-left:4px;}}
     .release-detail-stack{{display:grid;gap:12px;}}
-    .release-panel{{display:none;background:#FFFFFF;border:1px solid #E2E8F0;border-radius:12px;overflow:hidden;box-shadow:0 10px 22px rgba(15,23,42,.04);}}
+    .release-panel{{display:none;background:#FFFFFF;border:1px solid #C9D8E6;border-radius:12px;overflow:hidden;box-shadow:0 10px 22px rgba(15,23,42,.04);}}
     .release-panel.active{{display:block;}}
-    .panel-head{{appearance:none;width:100%;border:0;padding:14px 15px;display:flex;justify-content:space-between;gap:10px;align-items:center;background:linear-gradient(180deg,#FFFFFF,#FAFCFE);cursor:pointer;text-align:left;}}
-    .panel-head:hover{{background:#F8FAFC;}}
+    .panel-head{{appearance:none;width:100%;border:0;padding:14px 15px;display:flex;justify-content:space-between;gap:10px;align-items:center;background:linear-gradient(180deg,#F7FAFD,#EEF5FA);cursor:pointer;text-align:left;}}
+    .panel-head:hover{{background:#EAF2F8;}}
     .panel-head b{{display:block;font-size:14px;color:#0B1B3A;}}.panel-head small{{display:block;font-size:11px;color:#64748B;margin-top:3px;font-weight:750;}}.panel-head span{{font-size:12px;color:#0B1633;font-weight:950;white-space:nowrap;}}.panel-head i{{font-style:normal;font-size:16px;margin-left:4px;color:#475569;display:inline-block;transition:transform .16s ease;}}
-    .release-panel.expanded .panel-head{{border-bottom:1px solid #E8EEF5;}}
+    .release-panel.expanded .panel-head{{border-bottom:1px solid #C9D8E6;background:linear-gradient(180deg,#F4F8FC,#EAF2F8);}}
     .release-panel.expanded .panel-head i{{transform:rotate(180deg);}}
     .release-list{{padding:12px;display:none;gap:8px;max-height:520px;overflow:auto;background:#FAFCFE;}}
     .release-panel.expanded .release-list{{display:grid;}}
