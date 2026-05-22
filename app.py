@@ -2965,7 +2965,7 @@ def render_project_timeline_conditions(df: pd.DataFrame, pmo_source: pd.DataFram
           if (!previousRoot) return;
           const reserved = previous.getBoundingClientRect().height;
           const actual = previousRoot.scrollHeight;
-          const gap = Math.max(0, reserved - actual - 18);
+          const gap = Math.max(0, reserved - actual - 36);
           current.parentElement.style.marginTop = gap ? "-" + Math.min(gap, 760) + "px" : "0";
         }} catch (error) {{
           return;
