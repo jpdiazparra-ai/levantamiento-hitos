@@ -433,7 +433,13 @@ def add_css() -> None:
             --soft: #F5F8FB;
         }
         .stApp { background: #F6F8FB; color: #111827; }
-        .block-container { padding-top: 1.35rem; padding-bottom: 3rem; }
+        .block-container {
+            max-width: 1480px;
+            padding-top: 1.35rem;
+            padding-bottom: 3rem;
+            margin-left: auto;
+            margin-right: auto;
+        }
         [data-testid="stSidebar"] { background: #FFFFFF; border-right: 1px solid #E5EAF0; }
         h1, h2, h3 { color: var(--navy); letter-spacing: 0; }
         div[data-testid="stMetric"] {
@@ -449,10 +455,10 @@ def add_css() -> None:
         .hero {
             background: linear-gradient(135deg, #FFFFFF 0%, #F8FAFC 58%, #EEF3F8 100%);
             border: 1px solid #E2E8F0;
-            border-radius: 10px;
+            border-radius: 18px;
             padding: 16px 22px;
-            margin-bottom: 14px;
-            box-shadow: 0 10px 22px rgba(15,23,42,.045);
+            margin-bottom: 18px;
+            box-shadow: 0 8px 24px rgba(15,23,42,.06);
         }
         .hero-kicker {
             color: #475569;
@@ -2199,27 +2205,27 @@ def render_board_kpis(df: pd.DataFrame) -> None:
     <style>
     *{{box-sizing:border-box;}}
     body{{margin:0;background:transparent;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;color:#0B1633;overflow-x:hidden;}}
-    .exec-summary{{background:#FFFFFF;border:1px solid #DCE6EF;border-radius:16px;box-shadow:0 16px 36px rgba(15,23,42,.07);overflow:hidden;margin:0 0 14px 0;}}
-    .exec-title{{font-size:13px;font-weight:950;letter-spacing:.08em;text-transform:uppercase;color:#0F766E;padding:18px 22px 4px;}}
-    .exec-top{{display:grid;grid-template-columns:1.12fr .9fr 1fr;gap:0;padding:16px 22px 26px;align-items:center;}}
-    .exec-block{{display:grid;grid-template-columns:76px minmax(0,1fr);gap:18px;align-items:center;min-height:142px;padding:0 24px;}}
+    .exec-summary{{background:#FFFFFF;border:1px solid #DCE6EF;border-radius:18px;box-shadow:0 8px 24px rgba(15,23,42,.06);overflow:hidden;margin:0 0 18px 0;}}
+    .exec-title{{font-size:12px;font-weight:950;letter-spacing:.08em;text-transform:uppercase;color:#0F766E;padding:15px 20px 0;}}
+    .exec-top{{display:grid;grid-template-columns:1.08fr .88fr 1fr;gap:0;padding:12px 20px 20px;align-items:center;}}
+    .exec-block{{display:grid;grid-template-columns:58px minmax(0,1fr);gap:15px;align-items:center;min-height:112px;padding:0 22px;}}
     .exec-block:first-child{{padding-left:0;}}.exec-block:not(:last-child){{border-right:1px solid #E2E8F0;}}
-    .exec-icon{{width:72px;height:72px;border-radius:999px;background:radial-gradient(circle at 35% 30%,#0F5F78,#062A43 70%);display:flex;align-items:center;justify-content:center;color:#FFFFFF;font-size:34px;font-weight:300;box-shadow:0 14px 28px rgba(6,42,67,.22);}}
-    .exec-label{{font-size:12px;font-weight:950;text-transform:uppercase;letter-spacing:.04em;color:#0F766E;margin-bottom:8px;}}
-    .exec-main{{font-size:26px;line-height:1.18;font-weight:950;color:#08152F;letter-spacing:-.03em;}}
-    .exec-money{{font-size:40px;line-height:1;font-weight:950;color:#08152F;letter-spacing:-.045em;}}
-    .exec-copy{{font-size:13px;line-height:1.35;color:#64748B;font-weight:750;margin-top:10px;max-width:360px;}}
-    .exec-pill{{display:inline-flex;margin-top:14px;border-radius:999px;background:#EAF2F8;color:#23457A;padding:7px 13px;font-size:12px;font-weight:950;}}
+    .exec-icon{{width:56px;height:56px;border-radius:999px;background:radial-gradient(circle at 35% 30%,#0F5F78,#062A43 70%);display:flex;align-items:center;justify-content:center;color:#FFFFFF;font-size:27px;font-weight:300;box-shadow:0 10px 22px rgba(6,42,67,.20);}}
+    .exec-label{{font-size:11px;font-weight:950;text-transform:uppercase;letter-spacing:.04em;color:#0F766E;margin-bottom:7px;}}
+    .exec-main{{font-size:21px;line-height:1.18;font-weight:950;color:#08152F;letter-spacing:-.02em;}}
+    .exec-money{{font-size:34px;line-height:1;font-weight:950;color:#08152F;letter-spacing:-.04em;}}
+    .exec-copy{{font-size:12px;line-height:1.34;color:#64748B;font-weight:700;margin-top:8px;max-width:340px;}}
+    .exec-pill{{display:inline-flex;margin-top:10px;border-radius:999px;background:#EAF2F8;color:#23457A;padding:6px 11px;font-size:11px;font-weight:950;}}
     .exec-pill.warn{{background:#FBF0D9;color:#B7791F;}}
-    .exec-bottom{{border-top:1px solid #E2E8F0;display:grid;grid-template-columns:.9fr .75fr 1.5fr;gap:0;padding:17px 22px;}}
-    .exec-mini{{display:grid;grid-template-columns:38px minmax(0,1fr);gap:14px;align-items:center;padding:0 22px;}}
+    .exec-bottom{{border-top:1px solid #E2E8F0;display:grid;grid-template-columns:.9fr .75fr 1.5fr;gap:0;padding:14px 20px;}}
+    .exec-mini{{display:grid;grid-template-columns:32px minmax(0,1fr);gap:12px;align-items:center;padding:0 20px;}}
     .exec-mini:first-child{{padding-left:0;}}.exec-mini:not(:last-child){{border-right:1px solid #E2E8F0;}}
-    .mini-ico{{font-size:26px;color:#475569;line-height:1;text-align:center;}}
-    .mini-label{{font-size:11px;color:#64748B;font-weight:950;text-transform:uppercase;letter-spacing:.04em;margin-bottom:7px;}}
-    .mini-value{{font-size:22px;color:#08152F;font-weight:950;letter-spacing:-.02em;}}
-    .mini-side{{font-size:13px;color:#64748B;font-weight:850;margin-left:24px;}}
-    .risk-value{{font-size:20px;font-weight:950;color:{risk_color};}}
-    .reco{{font-size:14px;line-height:1.38;color:#475569;font-weight:800;max-width:620px;}}
+    .mini-ico{{font-size:22px;color:#475569;line-height:1;text-align:center;}}
+    .mini-label{{font-size:10px;color:#64748B;font-weight:950;text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px;}}
+    .mini-value{{font-size:19px;color:#08152F;font-weight:950;letter-spacing:-.02em;}}
+    .mini-side{{font-size:12px;color:#64748B;font-weight:850;margin-left:18px;}}
+    .risk-value{{font-size:18px;font-weight:950;color:{risk_color};}}
+    .reco{{font-size:13px;line-height:1.36;color:#475569;font-weight:800;max-width:620px;}}
     @media(max-width:1050px){{.exec-top,.exec-bottom{{grid-template-columns:1fr;}}.exec-block,.exec-mini{{border-right:0!important;border-bottom:1px solid #E2E8F0;padding:16px 0;}}.exec-block:last-child,.exec-mini:last-child{{border-bottom:0;}}.exec-money{{font-size:34px;}}}}
     </style>
     <div class="exec-summary">
@@ -2277,7 +2283,7 @@ def render_board_kpis(df: pd.DataFrame) -> None:
       </div>
     </div>
     """
-    components.html(html_doc, height=315, scrolling=False)
+    components.html(html_doc, height=265, scrolling=False)
 
 
 def render_release_cutoff_intelligence(df: pd.DataFrame) -> None:
@@ -2336,7 +2342,7 @@ def render_release_cutoff_intelligence(df: pd.DataFrame) -> None:
             <span><i class="meta-icon">▤</i><small>Partidas</small></span>
           </div>
           <div class="stage-track"><i style="width:{width:.0f}%;"></i></div>
-          <div class="stage-action">Detalle PMO <b>→</b></div>
+          <div class="stage-action">Ver requerimiento <b>→</b></div>
         </button>
         """
 
@@ -2429,12 +2435,12 @@ def render_release_cutoff_intelligence(df: pd.DataFrame) -> None:
     <style>
     *{{box-sizing:border-box;}}
     body{{margin:0;background:transparent;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;color:#0B1633;overflow-x:hidden;}}
-    .release-shell{{background:#F8FAFC;border:1px solid #E2E8F0;border-radius:14px;padding:20px;box-shadow:0 12px 28px rgba(15,23,42,.045);overflow:hidden;}}
-    .release-head{{display:flex;justify-content:space-between;gap:18px;align-items:flex-start;margin-bottom:28px;}}
+    .release-shell{{background:#F8FAFC;border:1px solid #E2E8F0;border-radius:18px;padding:18px 20px;box-shadow:0 8px 24px rgba(15,23,42,.06);overflow:hidden;}}
+    .release-head{{display:flex;justify-content:space-between;gap:18px;align-items:flex-start;margin-bottom:22px;}}
     .release-title{{font-size:20px;font-weight:950;color:#23457A;line-height:1.1;letter-spacing:0;}}
     .release-sub{{font-size:12px;color:#64748B;line-height:1.38;margin-top:6px;max-width:780px;}}
     .release-badge{{border:1px solid #E2E8F0;background:#FFFFFF;border-radius:999px;padding:9px 16px;color:#0B1B3A;font-size:13px;font-weight:900;white-space:nowrap;}}
-    .release-flow{{position:relative;margin:0 0 16px 0;padding-top:50px;}}
+    .release-flow{{position:relative;margin:0 0 14px 0;padding-top:46px;}}
     .release-line{{position:absolute;left:4px;right:4px;top:24px;height:1px;background:#CBD5E1;}}
     .release-line::before,.release-line::after{{content:"";position:absolute;top:50%;width:8px;height:8px;border-radius:999px;background:#CBD5E1;transform:translateY(-50%);}}
     .release-line::before{{left:-1px;}}.release-line::after{{right:-1px;}}
@@ -2442,13 +2448,13 @@ def render_release_cutoff_intelligence(df: pd.DataFrame) -> None:
     .release-node-wrap{{display:flex;justify-content:center;position:relative;}}
     .release-node-wrap::after{{content:"";position:absolute;top:42px;width:1px;height:24px;background:#E2E8F0;}}
     .release-node{{width:42px;height:42px;border-radius:999px;background:var(--accent);color:#FFFFFF;font-size:18px;font-weight:950;display:flex;align-items:center;justify-content:center;box-shadow:0 0 0 5px #FFFFFF,0 6px 16px rgba(15,23,42,.10);}}
-    .stage-grid{{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px;margin-bottom:14px;}}
-    .release-stage{{appearance:none;text-align:left;width:100%;background:#FFFFFF;border:1px solid #E2E8F0;border-top:4px solid var(--accent);border-radius:12px;padding:15px 16px;box-shadow:0 8px 20px rgba(15,23,42,.04);cursor:pointer;transition:transform .16s ease,border-color .16s ease,box-shadow .16s ease;position:relative;min-height:230px;}}
+    .stage-grid{{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin-bottom:12px;}}
+    .release-stage{{appearance:none;text-align:left;width:100%;background:#FFFFFF;border:1px solid #E2E8F0;border-top:4px solid var(--accent);border-radius:14px;padding:13px 14px;box-shadow:0 8px 20px rgba(15,23,42,.04);cursor:pointer;transition:transform .16s ease,border-color .16s ease,box-shadow .16s ease;position:relative;min-height:190px;}}
     .release-stage:hover{{transform:translateY(-2px);box-shadow:0 14px 24px rgba(15,23,42,.065);}}
     .release-stage.active{{border-color:#CBD5E1;box-shadow:0 0 0 3px rgba(11,27,58,.045),0 14px 26px rgba(15,23,42,.06);}}
     .stage-date{{display:inline-flex;align-items:center;justify-content:center;border-radius:999px;padding:7px 12px;background:#F1F5F9;color:#475569;font-size:12px;font-weight:850;white-space:nowrap;}}
-    .stage-title{{font-size:18px;font-weight:950;color:#0B1B3A;line-height:1.08;margin-top:18px;}}
-    .stage-total{{font-size:26px;font-weight:950;color:#0B1633;margin-top:13px;letter-spacing:-.03em;line-height:1;}}
+    .stage-title{{font-size:17px;font-weight:950;color:#0B1B3A;line-height:1.08;margin-top:14px;}}
+    .stage-total{{font-size:24px;font-weight:950;color:#0B1633;margin-top:10px;letter-spacing:-.03em;line-height:1;}}
     .stage-detail{{font-size:12px;color:#475569;font-weight:850;margin-top:8px;}}
     .stage-rule{{height:1px;background:#E2E8F0;margin:14px 0 12px 0;}}
     .stage-meta{{display:grid;grid-template-columns:1fr 1fr;gap:0;margin:0 0 12px 0;}}
@@ -2456,7 +2462,7 @@ def render_release_cutoff_intelligence(df: pd.DataFrame) -> None:
     .stage-meta span:first-child{{border-right:1px solid #DCE6EF;}}
     .stage-meta small{{font-size:11px;color:#475569;font-weight:850;}}
     .meta-icon{{width:22px;height:22px;border-radius:999px;background:#F8FAFC;color:#475569;font-style:normal;font-size:14px;display:flex;align-items:center;justify-content:center;}}
-    .stage-track{{height:8px;background:#E2E8F0;border-radius:999px;overflow:hidden;margin-top:4px;}}
+    .stage-track{{height:5px;background:#E2E8F0;border-radius:999px;overflow:hidden;margin-top:2px;}}
     .stage-track i{{display:block;height:100%;background:var(--accent);border-radius:999px;}}
     .stage-action{{font-size:12px;font-weight:950;color:#0B1B3A;margin-top:14px;letter-spacing:.01em;}}
     .stage-action b{{font-size:14px;margin-left:4px;}}
@@ -2474,8 +2480,8 @@ def render_release_cutoff_intelligence(df: pd.DataFrame) -> None:
     .release-control-summary div{{background:#FFFFFF;border:1px solid #E2E8F0;border-radius:11px;padding:10px 11px;box-shadow:0 8px 18px rgba(15,23,42,.035);}}
     .release-control-summary small{{display:block;font-size:9px;color:#64748B;font-weight:900;text-transform:uppercase;letter-spacing:.04em;}}
     .release-control-summary b{{display:block;margin-top:5px;font-size:15px;color:#0B1633;font-weight:950;}}
-    .release-table-head{{display:grid;grid-template-columns:108px minmax(0,1.25fr) minmax(150px,.78fr) 142px minmax(140px,.8fr) 104px;gap:10px;padding:8px 11px;background:#EEF4F8;border:1px solid #DCE6EF;border-radius:10px;color:#475569;font-size:9px;font-weight:950;text-transform:uppercase;letter-spacing:.04em;position:sticky;top:0;z-index:2;}}
-    .release-row{{display:grid;grid-template-columns:108px minmax(0,1.25fr) minmax(150px,.78fr) 142px minmax(140px,.8fr) 104px;gap:10px;align-items:center;padding:11px;border:1px solid #E8EEF5;border-radius:12px;background:#FFFFFF;box-shadow:0 8px 18px rgba(15,23,42,.028);transition:transform .14s ease,box-shadow .14s ease,border-color .14s ease;}}
+    .release-table-head{{display:grid;grid-template-columns:96px minmax(0,1.05fr) minmax(140px,.7fr) 122px minmax(170px,1fr) 96px;gap:10px;padding:8px 11px;background:#EEF4F8;border:1px solid #DCE6EF;border-radius:10px;color:#475569;font-size:9px;font-weight:950;text-transform:uppercase;letter-spacing:.04em;position:sticky;top:0;z-index:2;}}
+    .release-row{{display:grid;grid-template-columns:96px minmax(0,1.05fr) minmax(140px,.7fr) 122px minmax(170px,1fr) 96px;gap:10px;align-items:center;padding:12px;border:1px solid #E8EEF5;border-radius:14px;background:#FFFFFF;box-shadow:0 8px 18px rgba(15,23,42,.028);transition:transform .14s ease,box-shadow .14s ease,border-color .14s ease;}}
     .release-row:hover{{transform:translateY(-1px);border-color:#CBD5E1;box-shadow:0 12px 24px rgba(15,23,42,.055);}}
     .release-key{{display:flex;align-items:center;gap:8px;min-width:0;}}
     .release-key span{{font-size:9px;color:#64748B;font-weight:850;line-height:1.1;}}
@@ -2509,7 +2515,7 @@ def render_release_cutoff_intelligence(df: pd.DataFrame) -> None:
         <div class="release-nodes">{release_nodes}</div>
         <div class="stage-grid">{''.join(stage_card(panel, idx) for idx, panel in enumerate(panels))}</div>
       </div>
-      <div class="release-legend"><span><i class="legend-icon">◎</i>Hitos activos</span><span><i class="legend-icon">▤</i>Partidas</span><span><i class="legend-line"></i>Avance de ejecución</span><span>Montos en millones de pesos chilenos CLP</span></div>
+      <div class="release-legend"><span><i class="legend-icon">◎</i>Hitos activos</span><span><i class="legend-icon">▤</i>Partidas</span><span><i class="legend-line"></i>Avance</span><span>Montos MMCLP</span></div>
       <div class="release-detail-stack">{detail_panels}</div>
     </div>
     <script>
@@ -2538,7 +2544,7 @@ def render_release_cutoff_intelligence(df: pd.DataFrame) -> None:
     }})();
     </script>
     """
-    components.html(html_doc, height=760, scrolling=True)
+    components.html(html_doc, height=700, scrolling=True)
 
 
 def render_expandable_activity_gantt(df: pd.DataFrame) -> None:
@@ -2640,26 +2646,26 @@ def render_expandable_activity_gantt(df: pd.DataFrame) -> None:
     <style>
     *{{box-sizing:border-box;}}
     body{{margin:0;background:transparent;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;color:#0B1633;overflow-x:hidden;}}
-    .act-shell{{background:linear-gradient(180deg,#FFFFFF 0%,#F8FBFD 100%);border:1px solid #DCE6EF;border-radius:14px;padding:18px 20px;box-shadow:0 14px 32px rgba(15,23,42,.06);overflow:hidden;}}
+    .act-shell{{background:linear-gradient(180deg,#FFFFFF 0%,#F8FBFD 100%);border:1px solid #DCE6EF;border-radius:18px;padding:18px 20px;box-shadow:0 8px 24px rgba(15,23,42,.06);overflow:hidden;}}
     .act-head{{display:flex;justify-content:space-between;gap:18px;align-items:flex-start;margin-bottom:14px;}}
     .act-title{{font-size:20px;font-weight:950;color:#23457A;line-height:1.1;}}
     .act-sub{{font-size:12px;color:#64748B;line-height:1.38;margin-top:6px;max-width:780px;}}
     .act-badge{{background:#FFFFFF;border:1px solid #DCE6EF;border-radius:999px;padding:7px 10px;font-size:11px;font-weight:900;color:#475569;white-space:nowrap;}}
     .act-axis{{position:relative;margin-left:260px;margin-right:120px;height:30px;border-bottom:1px solid #E2E8F0;}}
     .act-axis span{{position:absolute;top:3px;transform:translateX(-2px);font-size:10px;font-weight:850;color:#64748B;text-transform:uppercase;white-space:nowrap;}}
-    .act-list{{position:relative;display:grid;gap:9px;padding-top:8px;}}
+    .act-list{{position:relative;display:grid;gap:10px;padding-top:8px;}}
     .act-overlay{{position:absolute;left:260px;right:120px;top:0;bottom:0;pointer-events:none;}}
     .act-today{{position:absolute;top:0;bottom:0;left:{today_left:.2f}%;width:2px;background:#EF4444;box-shadow:0 0 0 5px rgba(239,68,68,.08);z-index:5;}}
     .act-today span{{position:absolute;top:-24px;left:50%;transform:translateX(-50%);background:#EF4444;color:#FFFFFF;border-radius:999px;padding:4px 9px;font-size:10px;font-weight:950;}}
-    .act-row{{position:relative;z-index:10;background:#FFFFFF;border:1px solid #E2E8F0;border-radius:13px;overflow:hidden;box-shadow:0 9px 18px rgba(15,23,42,.035);}}
-    .act-main{{appearance:none;width:100%;border:0;background:transparent;display:grid;grid-template-columns:250px minmax(260px,1fr) 108px;gap:10px;align-items:center;padding:10px;cursor:pointer;text-align:left;}}
+    .act-row{{position:relative;z-index:10;background:#FFFFFF;border:1px solid #E2E8F0;border-radius:14px;overflow:hidden;box-shadow:0 7px 16px rgba(15,23,42,.03);}}
+    .act-main{{appearance:none;width:100%;border:0;background:transparent;display:grid;grid-template-columns:250px minmax(260px,1fr) 108px;gap:10px;align-items:center;padding:11px 10px;cursor:pointer;text-align:left;}}
     .act-main:hover{{background:#FAFCFE;}}
     .act-label{{display:flex;align-items:center;gap:10px;min-width:0;}}
     .act-code{{width:38px;height:38px;border-radius:12px;color:#FFFFFF;font-size:14px;font-weight:950;display:flex;align-items:center;justify-content:center;box-shadow:0 8px 18px rgba(15,23,42,.16);flex:0 0 auto;}}
     .act-name{{font-size:12px;font-weight:950;color:#0B1633;line-height:1.14;}}
     .act-meta{{font-size:10px;color:#64748B;margin-top:3px;font-weight:750;}}
-    .act-track{{height:38px;border-radius:12px;background:linear-gradient(90deg,rgba(226,232,240,.70),rgba(248,250,252,.35));position:relative;overflow:hidden;border:1px solid #EEF3F7;}}
-    .act-bar{{position:absolute;top:8px;height:22px;border-radius:999px;background:linear-gradient(90deg,var(--accent),color-mix(in srgb,var(--accent) 70%,#FFFFFF));box-shadow:0 10px 20px color-mix(in srgb,var(--accent) 20%,transparent);display:flex;align-items:center;padding:0 10px;min-width:34px;}}
+    .act-track{{height:34px;border-radius:12px;background:linear-gradient(90deg,rgba(226,232,240,.70),rgba(248,250,252,.35));position:relative;overflow:hidden;border:1px solid #EEF3F7;}}
+    .act-bar{{position:absolute;top:8px;height:18px;border-radius:999px;background:linear-gradient(90deg,var(--accent),color-mix(in srgb,var(--accent) 70%,#FFFFFF));box-shadow:0 8px 16px color-mix(in srgb,var(--accent) 16%,transparent);display:flex;align-items:center;padding:0 10px;min-width:34px;}}
     .act-bar span{{font-size:10px;color:#FFFFFF;font-weight:950;white-space:nowrap;text-shadow:0 1px 2px rgba(15,23,42,.22);}}
     .act-total{{text-align:right;}}
     .act-total b{{display:block;font-size:11px;color:#0B1633;white-space:nowrap;}}
@@ -2850,7 +2856,7 @@ def render_project_timeline_conditions(df: pd.DataFrame, pmo_source: pd.DataFram
     <style>
     *{{box-sizing:border-box;}}
     body{{margin:0;background:transparent;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;color:#0B1633;overflow-x:hidden;}}
-    .tl-shell{{background:linear-gradient(180deg,#FFFFFF 0%,#F8FBFD 100%);border:1px solid #DCE6EF;border-radius:16px;padding:18px 20px;box-shadow:0 16px 36px rgba(15,23,42,.07);overflow:hidden;}}
+    .tl-shell{{background:linear-gradient(180deg,#FFFFFF 0%,#F8FBFD 100%);border:1px solid #DCE6EF;border-radius:18px;padding:18px 20px;box-shadow:0 8px 24px rgba(15,23,42,.06);overflow:hidden;}}
     .tl-top{{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:16px;align-items:start;margin-bottom:14px;}}
     .tl-eyebrow{{font-size:10px;text-transform:uppercase;letter-spacing:.15em;color:#0F766E;font-weight:950;margin-bottom:5px;}}
     .tl-title{{font-size:20px;font-weight:950;color:#23457A;line-height:1.1;letter-spacing:0;}}
