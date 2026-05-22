@@ -2898,7 +2898,7 @@ def render_project_timeline_conditions(df: pd.DataFrame, pmo_source: pd.DataFram
       </div>
     </div>
     """
-    components.html(html_doc, height=600, scrolling=True)
+    components.html(html_doc, height=760, scrolling=False)
 
 
 def render_pmo_roadmap_matrix(
