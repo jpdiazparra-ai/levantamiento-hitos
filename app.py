@@ -2288,13 +2288,20 @@ def render_release_cutoff_intelligence(df: pd.DataFrame) -> None:
     panels: list[dict[str, object]] = []
     max_amount = 1.0
     scheduled = df[df["Inicio"].notna()].copy()
+
+    def short_text(value: object, limit: int = 150) -> str:
+        text = re.sub(r"\s+", " ", str(value or "").strip())
+        if len(text) <= limit:
+            return text
+        return text[: limit - 1].rstrip() + "…"
+
     for title, date_label, start_cut, end_cut, color, thesis in cuts:
         if start_cut is None:
             window = scheduled[scheduled["Inicio"].le(end_cut)].copy()
         else:
             window = scheduled[scheduled["Inicio"].gt(start_cut) & scheduled["Inicio"].le(end_cut)].copy()
         if window.empty:
-            detail = pd.DataFrame(columns=["Hito", "Hito Corto", "Categoría/Línea", "Partidas", "Monto"])
+            detail = pd.DataFrame(columns=["Hito", "Hito Corto", "Categoría/Línea", "Partidas", "Monto", "Descripciones"])
             total = 0.0
         else:
             detail = (
@@ -2307,6 +2314,16 @@ def render_release_cutoff_intelligence(df: pd.DataFrame) -> None:
                     Habilitantes=("Es habilitante", "sum"),
                     Inicio=("Inicio", "min"),
                     Termino=("Termino", "max"),
+                    Descripciones=(
+                        "Descripción Técnica / Acción",
+                        lambda values: " · ".join(
+                            dict.fromkeys(
+                                short_text(value, 150)
+                                for value in values
+                                if str(value).strip() and str(value).strip().lower() != "nan"
+                            )
+                        ),
+                    ),
                 )
                 .sort_values(["Monto", "Hito"], ascending=[False, True])
             )
@@ -2327,10 +2344,10 @@ def render_release_cutoff_intelligence(df: pd.DataFrame) -> None:
           <div class="stage-date">{html.escape(str(panel["date"]))}</div>
           <div class="stage-title">{html.escape(str(panel["thesis"]))}</div>
           <div class="stage-total">{money_mm(float(panel["total"]))}</div>
-          <div class="stage-detail">{int(panel["hitos"])} hitos · {int(panel["partidas"])} partidas</div>
+          <div class="stage-detail">{int(panel["hitos"])} áreas · {int(panel["partidas"])} partidas</div>
           <div class="stage-rule"></div>
           <div class="stage-meta">
-            <span><i class="meta-icon">◎</i><small>Hitos activos</small></span>
+            <span><i class="meta-icon">◎</i><small>Áreas activas</small></span>
             <span><i class="meta-icon">▤</i><small>Partidas</small></span>
           </div>
           <div class="stage-track"><i style="width:{width:.0f}%;"></i></div>
@@ -2358,6 +2375,7 @@ def render_release_cutoff_intelligence(df: pd.DataFrame) -> None:
         habilitating_count = int((detail.get("Habilitantes", pd.Series(dtype=float)).fillna(0) > 0).sum())
         for _, row in detail.iterrows():
             hito_code = str(row["Hito"])
+            area_code = hito_code.replace("H", "A", 1) if hito_code.startswith("H") else hito_code
             hito_color = hito_colors.get(hito_code, "#0B2D42")
             amount = float(row["Monto"] or 0)
             physical = float(row.get("AvanceFisico", 0) or 0)
@@ -2375,16 +2393,19 @@ def render_release_cutoff_intelligence(df: pd.DataFrame) -> None:
                 else "Reduce riesgo de atraso operacional"
             )
             risk_class = {"Bajo": "low", "Medio": "medium", "Alto": "high", "Crítico": "critical"}.get(risk, "medium")
+            descriptions = str(row.get("Descripciones", "") or "").strip()
+            if not descriptions:
+                descriptions = "Sin descripción técnica asociada."
             rows.append(
                 f"""
-                <div class="release-row">
+                <div class="release-row" role="button" tabindex="0">
                   <div class="release-key">
-                    <div class="release-hito" style="background:{hito_color};">{html.escape(hito_code)}</div>
+                    <div class="release-hito" style="background:{hito_color};">{html.escape(area_code)}</div>
                     <span>{html.escape(str(row["Hito Corto"]))}</span>
                   </div>
                   <div class="release-copy">
                     <b>{html.escape(str(row["Categoría/Línea"]))}</b>
-                    <span>{int(row["Partidas"])} partidas · {format_date(row.get("Inicio"))} a {format_date(row.get("Termino"))}</span>
+                    <span>{int(row["Partidas"])} partidas · {format_date(row.get("Inicio"))} a {format_date(row.get("Termino"))} · Ver descripción</span>
                   </div>
                   <div class="release-metrics">
                     <div class="mini-bar"><span>Físico {format_pct(physical)}</span><i><b style="width:{physical * 100:.0f}%;"></b></i></div>
@@ -2396,6 +2417,7 @@ def render_release_cutoff_intelligence(df: pd.DataFrame) -> None:
                   </div>
                   <div class="release-impact"><b>{html.escape(impact)}</b><span>{html.escape(dependency)}</span></div>
                   <div class="release-amount">{format_clp(amount)}</div>
+                  <div class="release-description"><b>Descripción técnica</b><span>{html.escape(descriptions)}</span></div>
                 </div>
                 """
             )
@@ -2407,7 +2429,7 @@ def render_release_cutoff_intelligence(df: pd.DataFrame) -> None:
           <div><small>Habilitantes</small><b>{habilitating_count}</b></div>
         </div>
         <div class="release-table-head">
-          <span>Hito</span><span>Componente técnico</span><span>Avance</span><span>Riesgo / estado</span><span>Impacto operacional</span><span>Monto</span>
+          <span>Área</span><span>Componente técnico</span><span>Avance</span><span>Riesgo / estado</span><span>Impacto operacional</span><span>Monto</span>
         </div>
         {''.join(rows)}
         """
@@ -2416,7 +2438,7 @@ def render_release_cutoff_intelligence(df: pd.DataFrame) -> None:
         f"""
         <div class="release-panel {'active expanded' if idx == 0 else ''}" data-panel="{idx}" style="--panel-color:{html.escape(str(panel['color']))};">
           <button class="panel-head" type="button">
-            <div><b>Control operacional por hito</b><small>{html.escape(str(panel["date"]))} · {html.escape(str(panel["thesis"]))}</small></div>
+            <div><b>Control operacional por área</b><small>{html.escape(str(panel["date"]))} · {html.escape(str(panel["thesis"]))}</small></div>
             <span>{money_mm(float(panel["total"]))} · {int(panel["partidas"])} partidas <i>⌄</i></span>
           </button>
           <div class="release-list">{detail_rows(panel)}</div>
@@ -2479,8 +2501,9 @@ def render_release_cutoff_intelligence(df: pd.DataFrame) -> None:
     .release-control-summary small{{display:block;font-size:9px;color:#64748B;font-weight:900;text-transform:uppercase;letter-spacing:.04em;}}
     .release-control-summary b{{display:block;margin-top:5px;font-size:15px;color:#0B1633;font-weight:950;}}
     .release-table-head{{display:grid;grid-template-columns:96px minmax(0,1.05fr) minmax(140px,.7fr) 122px minmax(170px,1fr) 96px;gap:10px;padding:8px 11px;background:#EEF4F8;border:1px solid #DCE6EF;border-radius:10px;color:#475569;font-size:9px;font-weight:950;text-transform:uppercase;letter-spacing:.04em;position:sticky;top:0;z-index:2;}}
-    .release-row{{display:grid;grid-template-columns:96px minmax(0,1.05fr) minmax(140px,.7fr) 122px minmax(170px,1fr) 96px;gap:10px;align-items:center;padding:12px;border:1px solid #E8EEF5;border-radius:14px;background:#FFFFFF;box-shadow:0 8px 18px rgba(15,23,42,.028);transition:transform .14s ease,box-shadow .14s ease,border-color .14s ease;}}
+    .release-row{{display:grid;grid-template-columns:96px minmax(0,1.05fr) minmax(140px,.7fr) 122px minmax(170px,1fr) 96px;gap:10px;align-items:center;padding:12px;border:1px solid #E8EEF5;border-radius:14px;background:#FFFFFF;box-shadow:0 8px 18px rgba(15,23,42,.028);transition:transform .14s ease,box-shadow .14s ease,border-color .14s ease;cursor:pointer;}}
     .release-row:hover{{transform:translateY(-1px);border-color:#CBD5E1;box-shadow:0 12px 24px rgba(15,23,42,.055);}}
+    .release-row:focus{{outline:2px solid color-mix(in srgb,var(--panel-color) 38%,#94A3B8);outline-offset:2px;}}
     .release-key{{display:flex;align-items:center;gap:8px;min-width:0;}}
     .release-key span{{font-size:9px;color:#64748B;font-weight:850;line-height:1.1;}}
     .release-hito{{width:34px;height:32px;border-radius:10px;background:#0B1B3A;color:#FFFFFF;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:950;box-shadow:0 8px 16px rgba(15,23,42,.14);flex:0 0 auto;}}
@@ -2494,6 +2517,10 @@ def render_release_cutoff_intelligence(df: pd.DataFrame) -> None:
     .risk.low{{color:#0F766E;background:#EAF6F2;}}.risk.medium{{color:#8A5A16;background:#FBF4E7;}}.risk.high{{color:#7F1D1D;background:#F8EAEA;}}.risk.critical{{color:#7F1D1D;background:#F4DCDC;}}
     .release-impact{{font-size:10px;color:#475569;font-weight:800;line-height:1.2;}}.release-impact b{{display:block;color:#0B1633;font-size:10px;}}.release-impact span{{display:block;margin-top:3px;color:#64748B;font-size:9px;}}
     .release-amount{{font-size:11px;font-weight:950;color:#0B1633;text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums;}}
+    .release-description{{display:none;grid-column:1/-1;background:color-mix(in srgb,var(--panel-color) 8%,#FFFFFF);border:1px solid color-mix(in srgb,var(--panel-color) 24%,#DCE6EF);border-radius:11px;padding:10px 12px;color:#475569;font-size:10px;font-weight:750;line-height:1.35;}}
+    .release-description b{{display:block;color:#0B1633;font-size:10px;font-weight:950;margin-bottom:5px;}}
+    .release-row.open{{border-color:color-mix(in srgb,var(--panel-color) 42%,#CBD5E1);box-shadow:0 12px 24px rgba(15,23,42,.06);}}
+    .release-row.open .release-description{{display:block;}}
     .release-empty{{font-size:12px;color:#64748B;padding:14px;}}
     .release-legend{{display:flex;gap:26px;justify-content:center;align-items:center;color:#64748B;font-size:12px;font-weight:850;margin:14px auto 18px;background:#FFFFFF;border:1px solid #E2E8F0;border-radius:999px;padding:9px 16px;width:max-content;max-width:100%;}}
     .release-legend span{{display:flex;align-items:center;gap:8px;}}
@@ -2505,7 +2532,7 @@ def render_release_cutoff_intelligence(df: pd.DataFrame) -> None:
     </style>
     <div class="release-shell" id="release-shell-main">
       <div class="release-head">
-        <div><div class="release-title">Arquitectura de liberación PMO</div><div class="release-sub">Cortes financieros, capital requerido y control operacional por hito.</div></div>
+        <div><div class="release-title">Arquitectura de liberación PMO</div><div class="release-sub">Cortes financieros, capital requerido y control operacional por área.</div></div>
         <div class="release-badge">Fuente: Cronograma Integrado</div>
       </div>
       <div class="release-flow">
@@ -2513,7 +2540,7 @@ def render_release_cutoff_intelligence(df: pd.DataFrame) -> None:
         <div class="release-nodes">{release_nodes}</div>
         <div class="stage-grid">{''.join(stage_card(panel, idx) for idx, panel in enumerate(panels))}</div>
       </div>
-      <div class="release-legend"><span><i class="legend-icon">◎</i>Hitos activos</span><span><i class="legend-icon">▤</i>Partidas</span><span><i class="legend-line"></i>Avance</span><span>Montos MMCLP</span></div>
+      <div class="release-legend"><span><i class="legend-icon">◎</i>Áreas activas</span><span><i class="legend-icon">▤</i>Partidas</span><span><i class="legend-line"></i>Avance</span><span>Montos MMCLP</span></div>
       <div class="release-detail-stack">{detail_panels}</div>
     </div>
     <script>
@@ -2537,6 +2564,14 @@ def render_release_cutoff_intelligence(df: pd.DataFrame) -> None:
         head.addEventListener("click", () => {{
           const panel = head.closest(".release-panel");
           if (panel) panel.classList.toggle("expanded");
+        }});
+      }});
+      root.querySelectorAll(".release-row").forEach((row) => {{
+        row.addEventListener("click", () => row.classList.toggle("open"));
+        row.addEventListener("keydown", (event) => {{
+          if (event.key !== "Enter" && event.key !== " ") return;
+          event.preventDefault();
+          row.classList.toggle("open");
         }});
       }});
       root.querySelectorAll(".release-list").forEach((list) => {{
