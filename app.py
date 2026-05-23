@@ -2329,7 +2329,7 @@ def render_release_cutoff_intelligence(df: pd.DataFrame) -> None:
             )
             total = float(detail["Monto"].sum() or 0)
             max_amount = max(max_amount, float(detail["Monto"].max() or 0))
-        panels.append({"title": title, "date": date_label, "color": color, "thesis": thesis, "detail": detail, "total": total, "hitos": int(detail["Hito"].nunique()) if not detail.empty else 0, "partidas": int(detail["Partidas"].sum()) if not detail.empty else 0})
+        panels.append({"title": title, "date": date_label, "color": color, "thesis": thesis, "detail": detail, "window": window, "total": total, "hitos": int(detail["Hito"].nunique()) if not detail.empty else 0, "partidas": int(detail["Partidas"].sum()) if not detail.empty else 0})
 
     max_total = max(max(float(panel["total"]) for panel in panels), 1.0)
 
@@ -2369,6 +2369,9 @@ def render_release_cutoff_intelligence(df: pd.DataFrame) -> None:
         color = str(panel["color"])
         if not isinstance(detail, pd.DataFrame) or detail.empty:
             return '<div class="release-empty">Sin partidas activas en este corte.</div>'
+        activity_window = panel.get("window")
+        if not isinstance(activity_window, pd.DataFrame):
+            activity_window = pd.DataFrame()
         rows = []
         panel_total = max(float(panel["total"] or 0), 1)
         critical_count = int((detail.get("Criticas", pd.Series(dtype=float)).fillna(0) > 0).sum())
@@ -2393,9 +2396,34 @@ def render_release_cutoff_intelligence(df: pd.DataFrame) -> None:
                 else "Reduce riesgo de atraso operacional"
             )
             risk_class = {"Bajo": "low", "Medio": "medium", "Alto": "high", "Crítico": "critical"}.get(risk, "medium")
-            descriptions = str(row.get("Descripciones", "") or "").strip()
-            if not descriptions:
-                descriptions = "Sin descripción técnica asociada."
+            activity_rows = activity_window[
+                activity_window["Hito"].astype(str).eq(hito_code)
+                & activity_window["Categoría/Línea"].astype(str).eq(str(row["Categoría/Línea"]))
+            ].sort_values(["Inicio", "Termino", "Monto CLP Num"], ascending=[True, True, False])
+            description_rows = []
+            for _, activity in activity_rows.iterrows():
+                description = str(activity.get("Descripción Técnica / Acción", "") or "").strip()
+                description_rows.append(
+                    f"""
+                    <div class="release-desc-row">
+                      <span>{html.escape(description or "Sin descripción técnica asociada.")}</span>
+                      <b>{format_clp(float(activity.get("Monto CLP Num", 0) or 0))}</b>
+                      <b>{format_date(activity.get("Inicio"))} a {format_date(activity.get("Termino"))}</b>
+                      <b>{html.escape(str(activity.get("ID", "-")))}</b>
+                    </div>
+                    """
+                )
+            if not description_rows:
+                description_rows.append(
+                    f"""
+                    <div class="release-desc-row">
+                      <span>Sin descripción técnica asociada.</span>
+                      <b>{format_clp(amount)}</b>
+                      <b>{format_date(row.get("Inicio"))} a {format_date(row.get("Termino"))}</b>
+                      <b>{int(row["Partidas"])}</b>
+                    </div>
+                    """
+                )
             rows.append(
                 f"""
                 <div class="release-row" role="button" tabindex="0">
@@ -2418,13 +2446,8 @@ def render_release_cutoff_intelligence(df: pd.DataFrame) -> None:
                   <div class="release-impact"><b>{html.escape(impact)}</b><span>{html.escape(dependency)}</span></div>
                   <div class="release-amount">{format_clp(amount)}</div>
                   <div class="release-description">
-                    <div class="release-desc-head"><span>Descripción técnica</span><span>Monto</span><span>Periodo</span><span>Partidas</span></div>
-                    <div class="release-desc-row">
-                      <span>{html.escape(descriptions)}</span>
-                      <b>{format_clp(amount)}</b>
-                      <b>{format_date(row.get("Inicio"))} a {format_date(row.get("Termino"))}</b>
-                      <b>{int(row["Partidas"])}</b>
-                    </div>
+                    <div class="release-desc-head"><span>Descripción técnica</span><span>Monto</span><span>Periodo</span><span>ID</span></div>
+                    {''.join(description_rows)}
                   </div>
                 </div>
                 """
@@ -2528,7 +2551,8 @@ def render_release_cutoff_intelligence(df: pd.DataFrame) -> None:
     .release-description{{display:none;grid-column:1/-1;background:color-mix(in srgb,var(--panel-color) 8%,#FFFFFF);border:1px solid color-mix(in srgb,var(--panel-color) 24%,#DCE6EF);border-radius:11px;overflow:hidden;color:#475569;font-size:10px;font-weight:750;line-height:1.35;}}
     .release-desc-head,.release-desc-row{{display:grid;grid-template-columns:minmax(260px,1fr) 110px 150px 70px;gap:10px;align-items:start;}}
     .release-desc-head{{background:#FFFFFF;border-bottom:1px solid color-mix(in srgb,var(--panel-color) 18%,#DCE6EF);padding:8px 10px;color:#475569;font-size:9px;font-weight:950;text-transform:uppercase;letter-spacing:.04em;}}
-    .release-desc-row{{padding:10px;color:#475569;}}
+    .release-desc-row{{padding:10px;color:#475569;border-bottom:1px solid color-mix(in srgb,var(--panel-color) 12%,#E8EEF5);}}
+    .release-desc-row:last-child{{border-bottom:0;}}
     .release-desc-row b{{display:block;color:#0B1633;font-size:10px;font-weight:950;}}
     .release-row.open{{border-color:color-mix(in srgb,var(--panel-color) 42%,#CBD5E1);box-shadow:0 12px 24px rgba(15,23,42,.06);}}
     .release-row.open .release-description{{display:block;}}
@@ -3046,10 +3070,10 @@ def render_reference_activity_gantt(df: pd.DataFrame, pmo_source: pd.DataFrame |
     .rg-board-head{{height:36px;align-items:center;border-bottom:1px solid #E8EEF5;color:#687891;font-size:10px;font-weight:950;text-transform:uppercase;letter-spacing:.08em;}}
     .rg-board-head div{{padding:0 18px;}}
     .rg-board-head div:last-child{{text-align:right;}}
-    .rg-grid{{position:absolute;left:320px;right:145px;top:0;bottom:0;pointer-events:none;z-index:8;}}
+    .rg-grid{{position:absolute;left:320px;right:145px;top:0;bottom:0;pointer-events:none;z-index:1;}}
     .rg-grid i{{position:absolute;top:0;bottom:0;border-left:1px solid rgba(203,213,225,.45);}}
     .rg-grid .rg-marker{{border-left:2px solid var(--mark);box-shadow:0 0 0 5px color-mix(in srgb,var(--mark) 10%,transparent);opacity:.78;}}
-    .rg-row-wrap{{position:relative;z-index:2;border-bottom:1px solid #E8EEF5;background:#FFFFFF;}}
+    .rg-row-wrap{{position:relative;z-index:2;border-bottom:1px solid #E8EEF5;background:rgba(255,255,255,.92);}}
     .rg-row-wrap:last-child{{border-bottom:0;}}
     .rg-row{{appearance:none;width:100%;border:0;background:transparent;position:relative;min-height:56px;align-items:center;text-align:left;cursor:pointer;padding:0;}}
     .rg-row:hover{{background:#FAFCFE;}}
@@ -3063,9 +3087,9 @@ def render_reference_activity_gantt(df: pd.DataFrame, pmo_source: pd.DataFrame |
     .rg-total{{padding:10px 18px;text-align:right;}}
     .rg-total b{{display:block;font-size:11px;font-weight:950;color:#0B1633;white-space:nowrap;}}
     .rg-total span{{display:block;margin-top:4px;font-size:9px;font-weight:950;color:#1F7AFA;text-transform:uppercase;}}
-    .rg-details{{display:none;border-top:1px solid #E8EEF5;background:#FBFCFE;padding:9px 12px 12px;gap:7px;}}
+    .rg-details{{display:none;position:relative;z-index:6;border-top:1px solid #E8EEF5;background:#FBFCFE;padding:9px 12px 12px;gap:7px;}}
     .rg-row-wrap.open .rg-details{{display:grid;}}
-    .rg-detail-row{{display:grid;grid-template-columns:70px minmax(0,1fr) 86px 100px;gap:10px;align-items:center;background:#FFFFFF;border:1px solid #EEF3F7;border-radius:10px;padding:9px;}}
+    .rg-detail-row{{display:grid;grid-template-columns:70px minmax(0,1fr) 86px 100px;gap:10px;align-items:center;background:#FFFFFF;border:1px solid #EEF3F7;border-radius:10px;padding:9px;box-shadow:0 6px 14px rgba(15,23,42,.025);}}
     .rg-detail-id{{font-size:10px;font-weight:950;background:#EEF6FF;border-radius:999px;padding:5px 7px;text-align:center;}}
     .rg-detail-copy b{{display:block;font-size:11px;color:#0B1633;line-height:1.14;}}
     .rg-detail-copy span{{display:block;font-size:10px;color:#64748B;margin-top:3px;line-height:1.25;}}
@@ -3112,7 +3136,7 @@ def render_reference_activity_gantt(df: pd.DataFrame, pmo_source: pd.DataFrame |
     }})();
     </script>
     """
-    components.html(html_doc, height=835, scrolling=False)
+    components.html(html_doc, height=765, scrolling=True)
 
 
 def render_project_timeline_conditions(df: pd.DataFrame, pmo_source: pd.DataFrame | None = None) -> None:
