@@ -25,6 +25,12 @@ PMO_MATRIX_URL = (
     "pub?gid=446249592&single=true&output=csv"
 )
 
+TECHNICAL_MILESTONES_URL = (
+    "https://docs.google.com/spreadsheets/d/e/"
+    "2PACX-1vR6ouTippfyLquWDgCXB7j_arqGGn2i5kND2FX5CKxTiQ0amOu33ZC2sY7kh_yqtQ/"
+    "pub?gid=49488577&single=true&output=csv"
+)
+
 TECHNICAL_MILESTONES = [
     "Gestion tecnica y continuidad del proyecto",
     "Habilitacion del sitio y obras previas",
@@ -1456,6 +1462,7 @@ def clean_pmo_matrix_source(raw_pmo: pd.DataFrame | None) -> pd.DataFrame:
     rename_map = {
         "Hito": "Hito",
         "Hito Ejecutivo": "Hito Ejecutivo",
+        "Nombre Ejecutivo": "Hito Ejecutivo",
         "Inicio": "Inicio",
         "Termino": "Termino",
         "Monto Restante CLP": "Monto_CLP",
@@ -1465,8 +1472,10 @@ def clean_pmo_matrix_source(raw_pmo: pd.DataFrame | None) -> pd.DataFrame:
         "Total Liberacion": "Total_Liberacion",
         "Condicion de Liberacion": "Condición de Liberación",
         "de": "Condición de Liberación",
+        "Resultado Esperado": "Condición de Liberación",
         "Fecha condicion": "Fecha Condición",
         "Fecha Condicion": "Fecha Condición",
+        "Fecha": "Fecha Condición",
     }
     pmo = pmo.rename(columns={col: rename_map.get(col, col) for col in pmo.columns})
 
@@ -4005,6 +4014,11 @@ def main() -> None:
     except Exception:
         pmo_source = pd.DataFrame()
 
+    try:
+        technical_milestones_source = load_csv(TECHNICAL_MILESTONES_URL)
+    except Exception:
+        technical_milestones_source = pd.DataFrame()
+
     selected_sources = sorted(df["Fuente"].unique())
     selected_hitos = DISPLAY_MILESTONES
     selected_criticidad = "Todas"
@@ -4029,7 +4043,7 @@ def main() -> None:
     render_board_kpis(filtered)
     render_release_cutoff_intelligence(filtered)
     render_project_timeline_conditions(filtered, pmo_source)
-    render_expandable_activity_gantt(filtered, pmo_source)
+    render_expandable_activity_gantt(filtered, technical_milestones_source)
 
     pending_df = filtered[filtered["Pendiente programación"]].copy()
     if not pending_df.empty:
