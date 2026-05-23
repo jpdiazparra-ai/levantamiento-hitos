@@ -2786,6 +2786,239 @@ def render_expandable_activity_gantt(df: pd.DataFrame, pmo_source: pd.DataFrame 
     components.html(html_doc, height=900, scrolling=True)
 
 
+def render_reference_activity_gantt(df: pd.DataFrame, pmo_source: pd.DataFrame | None = None) -> None:
+    scheduled = df[df["Inicio"].notna() & df["Termino"].notna()].copy()
+    if scheduled.empty:
+        return
+
+    hito_ranges = (
+        scheduled.groupby(["Hito", "Hito Ejecutivo", "Hito Corto"], as_index=False)
+        .agg(
+            Inicio_hito=("Inicio", "min"),
+            Termino_hito=("Termino", "max"),
+            Actividades=("ID", "count"),
+            Monto=("Monto CLP Num", "sum"),
+        )
+        .sort_values("Hito")
+    )
+    hito_ranges["Orden"] = pd.to_numeric(hito_ranges["Hito"].astype(str).str.extract(r"(\d+)")[0], errors="coerce")
+    hito_ranges = hito_ranges.sort_values(["Orden", "Inicio_hito"])
+
+    area_colors = {
+        "H1": "#0B2D42",
+        "H2": "#2F80ED",
+        "H3": "#1D4ED8",
+        "H4": "#DC2626",
+        "H5": "#64748B",
+        "H6": "#0F766E",
+        "H7": "#7C3AED",
+        "H8": "#DC2626",
+    }
+    milestone_colors = ["#0B3A68", "#1F7AFA", "#EF1D1D", "#7C3AED"]
+    pmo_conditions = clean_pmo_matrix_source(pmo_source)
+    if not pmo_conditions.empty:
+        pmo_conditions = pmo_conditions.copy()
+        pmo_conditions["Orden"] = pd.to_numeric(
+            pmo_conditions["Hito"].astype(str).str.extract(r"(\d+)")[0], errors="coerce"
+        )
+        pmo_conditions = pmo_conditions[pmo_conditions["Fecha Condición"].notna()].sort_values(
+            ["Orden", "Fecha Condición"]
+        )
+
+    date_candidates = list(hito_ranges["Inicio_hito"]) + list(hito_ranges["Termino_hito"])
+    if not pmo_conditions.empty:
+        date_candidates += list(pmo_conditions["Fecha Condición"])
+    min_date = pd.Timestamp(min(date_candidates))
+    max_date = pd.Timestamp(max(date_candidates))
+    chart_start = pd.Timestamp(min_date.year, min_date.month, 1)
+    chart_end = pd.Timestamp(max_date.year, max_date.month, 1) + pd.DateOffset(months=1) + pd.offsets.MonthEnd(0)
+    horizon_days = max((chart_end - chart_start).days, 1)
+
+    def pct(date_value: pd.Timestamp) -> float:
+        return max(0.0, min(100.0, ((date_value - chart_start).days / horizon_days) * 100.0))
+
+    def month_es(date_value: pd.Timestamp) -> str:
+        return ["ENE", "FEB", "MAR", "ABR", "MAY", "JUN", "JUL", "AGO", "SEP", "OCT", "NOV", "DIC"][
+            date_value.month - 1
+        ]
+
+    def compact_date(date_value: object) -> str:
+        dt = pd.to_datetime(date_value, errors="coerce")
+        return "-" if pd.isna(dt) else f"{dt.day:02d} · {month_es(dt)} · {dt.year}"
+
+    def card_date(date_value: object) -> str:
+        dt = pd.to_datetime(date_value, errors="coerce")
+        return "-" if pd.isna(dt) else f"{dt.day:02d} {month_es(dt)} {dt.year}"
+
+    def short_text(value: object, limit: int = 76) -> str:
+        text = re.sub(r"\s+", " ", str(value or "").strip())
+        if len(text) <= limit:
+            return text
+        return text[: limit - 1].rstrip() + "…"
+
+    month_labels = []
+    month_lines = []
+    cursor = pd.Timestamp(chart_start.year, chart_start.month, 1)
+    while cursor <= chart_end:
+        left = pct(cursor)
+        month_labels.append(f"<span style='left:{left:.2f}%;'>{month_es(cursor)}</span>")
+        month_lines.append(f"<i style='left:{left:.2f}%;'></i>")
+        cursor = cursor + pd.DateOffset(months=1)
+
+    strategic_items = []
+    marker_lines = []
+    milestone_cards = []
+    if not pmo_conditions.empty:
+        for idx, (_, marker) in enumerate(pmo_conditions.iterrows()):
+            marker_date = pd.Timestamp(marker["Fecha Condición"])
+            marker_code = str(marker.get("Hito", "")).strip() or f"H{idx + 1}"
+            marker_title = str(marker.get("Hito Ejecutivo", "")).strip() or marker_code
+            marker_condition = short_text(marker.get("Condición de Liberación", ""), 68)
+            marker_color = milestone_colors[idx % len(milestone_colors)]
+            marker_left = pct(marker_date)
+            strategic_items.append(
+                f"""
+                <div class="rg-milestone" style="left:{marker_left:.2f}%;--mark:{marker_color};">
+                  <b>{html.escape(marker_code)}</b>
+                  <strong>{html.escape(marker_title)}</strong>
+                  <span>{compact_date(marker_date)}</span>
+                  <em></em>
+                </div>
+                """
+            )
+            marker_lines.append(
+                f"<i class='rg-marker' style='left:{marker_left:.2f}%;--mark:{marker_color};'></i>"
+            )
+            milestone_cards.append(
+                f"""
+                <div class="rg-card" style="--mark:{marker_color};">
+                  <b><span></span>{html.escape(marker_code)} · {card_date(marker_date)}</b>
+                  <p>{html.escape(marker_condition)}</p>
+                </div>
+                """
+            )
+    rail_left = 0.0
+    rail_width = 100.0
+    if not pmo_conditions.empty:
+        positions = [pct(pd.Timestamp(date)) for date in pmo_conditions["Fecha Condición"]]
+        rail_left = min(positions)
+        rail_width = max(positions) - rail_left
+
+    rows = []
+    for _, hito in hito_ranges.iterrows():
+        code = str(hito["Hito"])
+        area_code = code.replace("H", "A", 1) if code.startswith("H") else code
+        start = pd.Timestamp(hito["Inicio_hito"])
+        end = pd.Timestamp(hito["Termino_hito"])
+        color = area_colors.get(code, "#0F766E")
+        left = pct(start)
+        width = max(3.0, pct(end) - left)
+        rows.append(
+            f"""
+            <div class="rg-row">
+              <div class="rg-area">
+                <div class="rg-code" style="background:{color};">{html.escape(area_code)}</div>
+                <div>
+                  <b>{html.escape(str(hito["Hito Corto"]))}</b>
+                  <span>{int(hito["Actividades"])} actividades · {format_date(start)} a {format_date(end)}</span>
+                </div>
+              </div>
+              <div class="rg-track">
+                <div class="rg-bar" style="left:{left:.2f}%;width:{width:.2f}%;--accent:{color};">
+                  <span>{business_days(start, end)} días hábiles</span>
+                </div>
+              </div>
+              <div class="rg-total">
+                <b>{format_clp(float(hito["Monto"] or 0))}</b>
+                <span>Ver detalle</span>
+              </div>
+            </div>
+            """
+        )
+
+    html_doc = f"""
+    <style>
+    *{{box-sizing:border-box;}}
+    body{{margin:0;background:transparent;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;color:#0B1633;}}
+    .rg-shell{{padding:6px 0 2px;}}
+    .rg-head{{display:flex;justify-content:space-between;align-items:flex-start;margin:0 8px 16px;gap:18px;}}
+    .rg-title{{font-size:22px;font-weight:950;color:#0B3670;line-height:1.05;letter-spacing:0;}}
+    .rg-sub{{font-size:13px;color:#536681;font-weight:650;margin-top:6px;}}
+    .rg-badge{{border:1px solid #CFE0F2;background:#FFFFFF;border-radius:999px;color:#0B3670;font-size:12px;font-weight:850;padding:9px 14px;white-space:nowrap;box-shadow:0 6px 18px rgba(15,23,42,.04);}}
+    .rg-strategy{{position:relative;height:118px;background:#FFFFFF;border:1px solid #D9E5F0;border-radius:16px;margin:0 0 22px;padding:22px 24px;box-shadow:0 12px 28px rgba(15,23,42,.06);overflow:hidden;}}
+    .rg-strategy-label{{position:absolute;left:24px;top:26px;width:190px;color:#0B3670;}}
+    .rg-strategy-label b{{display:block;font-size:15px;font-weight:950;line-height:1.12;text-transform:uppercase;}}
+    .rg-strategy-label span{{display:block;margin-top:9px;color:#536681;font-size:11px;font-weight:750;line-height:1.35;}}
+    .rg-strategy-track{{position:absolute;left:270px;right:180px;top:0;bottom:0;}}
+    .rg-rail{{position:absolute;top:62px;height:3px;border-radius:999px;background:linear-gradient(90deg,#0B3A68 0%,#1F7AFA 38%,#EF1D1D 68%,#7C3AED 100%);box-shadow:0 6px 14px rgba(47,128,237,.18);}}
+    .rg-milestone{{position:absolute;top:18px;width:180px;transform:translateX(-50%);text-align:center;color:var(--mark);}}
+    .rg-milestone b{{display:block;font-size:14px;font-weight:950;line-height:1.1;}}
+    .rg-milestone strong{{display:block;margin-top:4px;color:#0B3670;font-size:10px;font-weight:850;line-height:1.15;min-height:24px;}}
+    .rg-milestone span{{display:block;margin-top:4px;color:#536681;font-size:10px;font-weight:850;letter-spacing:.08em;}}
+    .rg-milestone em{{position:absolute;left:50%;top:55px;width:20px;height:20px;background:var(--mark);border:3px solid #FFFFFF;border-radius:6px;transform:translateX(-50%) rotate(45deg);box-shadow:0 8px 16px color-mix(in srgb,var(--mark) 28%,transparent);}}
+    .rg-milestone::after{{content:"";position:absolute;left:50%;top:76px;height:36px;border-left:1px dashed color-mix(in srgb,var(--mark) 35%,transparent);}}
+    .rg-months{{position:relative;display:grid;grid-template-columns:220px 1fr 150px;align-items:end;margin:0 18px 10px;height:28px;color:#0B203D;}}
+    .rg-period{{font-size:11px;font-weight:950;text-transform:uppercase;letter-spacing:.02em;}}
+    .rg-month-axis{{position:relative;height:24px;}}
+    .rg-month-axis span{{position:absolute;top:0;transform:translateX(-50%);font-size:11px;font-weight:950;color:#0B203D;}}
+    .rg-board{{position:relative;background:#FFFFFF;border:1px solid #D9E5F0;border-radius:16px;overflow:hidden;box-shadow:0 12px 28px rgba(15,23,42,.06);}}
+    .rg-board-head,.rg-row{{display:grid;grid-template-columns:320px minmax(520px,1fr) 145px;}}
+    .rg-board-head{{height:36px;align-items:center;border-bottom:1px solid #E8EEF5;color:#687891;font-size:10px;font-weight:950;text-transform:uppercase;letter-spacing:.08em;}}
+    .rg-board-head div{{padding:0 18px;}}
+    .rg-board-head div:last-child{{text-align:right;}}
+    .rg-grid{{position:absolute;left:320px;right:145px;top:0;bottom:0;pointer-events:none;z-index:1;}}
+    .rg-grid i{{position:absolute;top:0;bottom:0;border-left:1px solid rgba(203,213,225,.45);}}
+    .rg-grid .rg-marker{{border-left:1px dashed var(--mark);box-shadow:0 0 0 4px color-mix(in srgb,var(--mark) 8%,transparent);opacity:.55;}}
+    .rg-row{{position:relative;z-index:2;min-height:56px;align-items:center;border-bottom:1px solid #E8EEF5;}}
+    .rg-row:last-child{{border-bottom:0;}}
+    .rg-area{{display:flex;align-items:center;gap:14px;padding:8px 18px;min-width:0;}}
+    .rg-code{{width:38px;height:38px;border-radius:8px;color:#FFFFFF;font-size:15px;font-weight:950;display:flex;align-items:center;justify-content:center;box-shadow:0 8px 16px rgba(15,23,42,.18);flex:0 0 auto;}}
+    .rg-area b{{display:block;font-size:12px;font-weight:950;color:#0B1633;line-height:1.15;}}
+    .rg-area span{{display:block;margin-top:4px;font-size:10px;font-weight:750;color:#536681;line-height:1.15;}}
+    .rg-track{{position:relative;height:56px;}}
+    .rg-bar{{position:absolute;top:17px;height:22px;border-radius:999px;background:linear-gradient(90deg,var(--accent),color-mix(in srgb,var(--accent) 72%,#FFFFFF));box-shadow:0 7px 14px color-mix(in srgb,var(--accent) 24%,transparent);display:flex;align-items:center;padding:0 13px;min-width:52px;}}
+    .rg-bar span{{color:#FFFFFF;font-size:10px;font-weight:950;text-shadow:0 1px 2px rgba(15,23,42,.22);white-space:nowrap;}}
+    .rg-total{{padding:10px 18px;text-align:right;}}
+    .rg-total b{{display:block;font-size:11px;font-weight:950;color:#0B1633;white-space:nowrap;}}
+    .rg-total span{{display:block;margin-top:4px;font-size:9px;font-weight:950;color:#1F7AFA;text-transform:uppercase;}}
+    .rg-cards{{display:grid;grid-template-columns:repeat({max(len(milestone_cards), 1)},minmax(0,1fr));gap:18px;margin:16px 160px 0;}}
+    .rg-card{{background:#FFFFFF;border:1px solid color-mix(in srgb,var(--mark) 35%,#D9E5F0);border-top:3px solid var(--mark);border-radius:6px;min-height:78px;padding:12px 14px;box-shadow:0 10px 20px rgba(15,23,42,.06);}}
+    .rg-card b{{display:flex;gap:8px;align-items:center;color:var(--mark);font-size:11px;font-weight:950;line-height:1.15;}}
+    .rg-card b span{{width:12px;height:12px;border-radius:3px;background:var(--mark);transform:rotate(45deg);flex:0 0 auto;}}
+    .rg-card p{{margin:12px 0 0 26px;color:#536681;font-size:10px;font-weight:750;line-height:1.25;}}
+    @media(max-width:980px){{.rg-head{{display:block;}}.rg-badge{{display:inline-block;margin-top:10px;}}.rg-strategy{{height:auto;padding-bottom:18px;}}.rg-strategy-label{{position:relative;left:auto;top:auto;width:auto;margin-bottom:18px;}}.rg-strategy-track{{display:none;}}.rg-months{{grid-template-columns:1fr;margin:0 4px 8px;}}.rg-month-axis{{display:none;}}.rg-board{{overflow:auto;}}.rg-board-head,.rg-row{{grid-template-columns:260px 520px 120px;min-width:900px;}}.rg-grid{{display:none;}}.rg-cards{{margin:14px 0 0;grid-template-columns:1fr;}}}}
+    </style>
+    <div class="rg-shell">
+      <div class="rg-head">
+        <div>
+          <div class="rg-title">Cronograma técnico por área</div>
+          <div class="rg-sub">Vista integrada de actividades, hitos estratégicos, fechas y montos por hito.</div>
+        </div>
+        <div class="rg-badge">▣ Detalle por hito · Cronograma integrado</div>
+      </div>
+      <div class="rg-strategy">
+        <div class="rg-strategy-label"><b>Hitos<br>estratégicos</b><span>Línea de avance<br>del proyecto</span></div>
+        <div class="rg-strategy-track">
+          <div class="rg-rail" style="left:{rail_left:.2f}%;width:{rail_width:.2f}%;"></div>
+          {''.join(strategic_items)}
+        </div>
+      </div>
+      <div class="rg-months">
+        <div class="rg-period">Período 2026</div>
+        <div class="rg-month-axis">{''.join(month_labels)}</div>
+        <div></div>
+      </div>
+      <div class="rg-board">
+        <div class="rg-grid">{''.join(month_lines)}{''.join(marker_lines)}</div>
+        <div class="rg-board-head"><div>Áreas técnicas</div><div></div><div>Monto (USD)</div></div>
+        {''.join(rows)}
+      </div>
+      <div class="rg-cards">{''.join(milestone_cards)}</div>
+    </div>
+    """
+    components.html(html_doc, height=820, scrolling=False)
+
+
 def render_project_timeline_conditions(df: pd.DataFrame, pmo_source: pd.DataFrame | None = None) -> None:
     scheduled = df[df["Inicio"].notna() & df["Termino"].notna()].copy()
     if scheduled.empty:
@@ -4044,6 +4277,7 @@ def main() -> None:
     render_release_cutoff_intelligence(filtered)
     render_project_timeline_conditions(filtered, pmo_source)
     render_expandable_activity_gantt(filtered, technical_milestones_source)
+    render_reference_activity_gantt(filtered, technical_milestones_source)
 
     pending_df = filtered[filtered["Pendiente programación"]].copy()
     if not pending_df.empty:
