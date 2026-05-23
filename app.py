@@ -2895,6 +2895,44 @@ def render_reference_activity_gantt(df: pd.DataFrame, pmo_source: pd.DataFrame |
             ["Orden", "Fecha Condición"]
         )
 
+    executive_summary = []
+    if pmo_source is not None and not pmo_source.empty:
+        hito_source = pmo_source.copy()
+        hito_source.columns = [normalize_text(col) for col in hito_source.columns]
+        if {"Hito", "Nombre Ejecutivo", "Objetivo Estrategico", "Resultado Esperado"}.issubset(hito_source.columns):
+            hito_source["Orden"] = pd.to_numeric(hito_source["Hito"].astype(str).str.extract(r"(\d+)")[0], errors="coerce")
+            hito_source = hito_source.sort_values(["Orden", "Hito"])
+            for _, item in hito_source.iterrows():
+                code = str(item.get("Hito", "")).strip()
+                color = area_colors.get(code, "#0B3670")
+                executive_summary.append(
+                    f"""
+                    <div class="rg-summary-card" style="--mark:{color};">
+                      <div class="rg-summary-code">{html.escape(code)}</div>
+                      <div>
+                        <b>{html.escape(str(item.get("Nombre Ejecutivo", "")).strip())}</b>
+                        <span>Objetivo estratégico</span>
+                        <p>{html.escape(str(item.get("Objetivo Estrategico", "")).strip())}</p>
+                        <span>Resultado esperado</span>
+                        <p>{html.escape(str(item.get("Resultado Esperado", "")).strip())}</p>
+                      </div>
+                    </div>
+                    """
+                )
+    summary_html = (
+        f"""
+        <div class="rg-summary">
+          <div class="rg-summary-head">
+            <b>Resumen ejecutivo de hitos</b>
+            <span>Objetivos estratégicos y resultados esperados asociados a la ruta técnica.</span>
+          </div>
+          <div class="rg-summary-grid">{''.join(executive_summary)}</div>
+        </div>
+        """
+        if executive_summary
+        else ""
+    )
+
     date_candidates = list(hito_ranges["Inicio_hito"]) + list(hito_ranges["Termino_hito"])
     if not pmo_conditions.empty:
         date_candidates += list(pmo_conditions["Fecha Condición"])
@@ -3043,7 +3081,7 @@ def render_reference_activity_gantt(df: pd.DataFrame, pmo_source: pd.DataFrame |
     <style>
     *{{box-sizing:border-box;}}
     body{{margin:0;background:transparent;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;color:#0B1633;}}
-    .rg-shell{{padding:6px 0 2px;}}
+    .rg-shell{{background:#F8FAFC;border:1px solid #B8C9D8;border-top:2px solid #8FA8BB;border-radius:18px;padding:20px 22px 22px;box-shadow:0 8px 24px rgba(15,23,42,.06),inset 0 1px 0 rgba(255,255,255,.86);overflow:hidden;}}
     .rg-head{{display:flex;justify-content:space-between;align-items:flex-start;margin:0 8px 16px;gap:18px;}}
     .rg-title{{font-size:22px;font-weight:950;color:#0B3670;line-height:1.05;letter-spacing:0;}}
     .rg-sub{{font-size:13px;color:#536681;font-weight:650;margin-top:6px;}}
@@ -3095,7 +3133,17 @@ def render_reference_activity_gantt(df: pd.DataFrame, pmo_source: pd.DataFrame |
     .rg-detail-copy span{{display:block;font-size:10px;color:#64748B;margin-top:3px;line-height:1.25;}}
     .rg-detail-date{{font-size:10px;color:#475569;font-weight:850;text-align:center;line-height:1.2;}}
     .rg-detail-amount{{font-size:10px;color:#0B1633;font-weight:950;text-align:right;white-space:nowrap;}}
-    @media(max-width:980px){{.rg-head{{display:block;}}.rg-badge{{display:inline-block;margin-top:10px;}}.rg-strategy{{height:auto;padding-bottom:18px;}}.rg-strategy-label{{position:relative;left:auto;top:auto;width:auto;margin-bottom:18px;}}.rg-strategy-track{{display:none;}}.rg-months{{grid-template-columns:1fr;margin:0 4px 8px;}}.rg-month-axis{{display:none;}}.rg-board{{overflow:auto;}}.rg-board-head,.rg-row{{grid-template-columns:260px 520px 120px;min-width:900px;}}.rg-grid{{display:none;}}.rg-detail-row{{grid-template-columns:1fr;}}}}
+    .rg-summary{{margin-top:14px;background:#FFFFFF;border:1px solid #D9E5F0;border-radius:16px;padding:14px 16px;box-shadow:0 10px 22px rgba(15,23,42,.04);}}
+    .rg-summary-head{{display:flex;justify-content:space-between;gap:16px;align-items:flex-end;margin-bottom:12px;}}
+    .rg-summary-head b{{font-size:14px;font-weight:950;color:#0B3670;}}
+    .rg-summary-head span{{font-size:10px;font-weight:800;color:#64748B;text-align:right;}}
+    .rg-summary-grid{{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;}}
+    .rg-summary-card{{display:grid;grid-template-columns:38px minmax(0,1fr);gap:10px;border:1px solid color-mix(in srgb,var(--mark) 28%,#D9E5F0);border-top:3px solid var(--mark);border-radius:10px;padding:10px;background:#FFFFFF;}}
+    .rg-summary-code{{width:32px;height:32px;border-radius:8px;background:var(--mark);color:#FFFFFF;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:950;}}
+    .rg-summary-card b{{display:block;color:#0B1633;font-size:11px;font-weight:950;line-height:1.12;margin-bottom:7px;}}
+    .rg-summary-card span{{display:block;color:var(--mark);font-size:8px;font-weight:950;text-transform:uppercase;letter-spacing:.04em;margin-top:6px;}}
+    .rg-summary-card p{{margin:3px 0 0;color:#64748B;font-size:9px;font-weight:750;line-height:1.22;}}
+    @media(max-width:980px){{.rg-head{{display:block;}}.rg-badge{{display:inline-block;margin-top:10px;}}.rg-strategy{{height:auto;padding-bottom:18px;}}.rg-strategy-label{{position:relative;left:auto;top:auto;width:auto;margin-bottom:18px;}}.rg-strategy-track{{display:none;}}.rg-months{{grid-template-columns:1fr;margin:0 4px 8px;}}.rg-month-axis{{display:none;}}.rg-board{{overflow:auto;}}.rg-board-head,.rg-row{{grid-template-columns:260px 520px 120px;min-width:900px;}}.rg-grid{{display:none;}}.rg-detail-row{{grid-template-columns:1fr;}}.rg-summary-grid{{grid-template-columns:1fr;}}.rg-summary-head{{display:block;}}.rg-summary-head span{{display:block;text-align:left;margin-top:4px;}}}}
     </style>
     <div class="rg-shell">
       <div class="rg-head">
@@ -3122,6 +3170,7 @@ def render_reference_activity_gantt(df: pd.DataFrame, pmo_source: pd.DataFrame |
         <div class="rg-board-head"><div>Áreas técnicas</div><div></div><div>Monto (USD)</div></div>
         {''.join(rows)}
       </div>
+      {summary_html}
     </div>
     <script>
     (() => {{
