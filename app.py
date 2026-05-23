@@ -2417,7 +2417,15 @@ def render_release_cutoff_intelligence(df: pd.DataFrame) -> None:
                   </div>
                   <div class="release-impact"><b>{html.escape(impact)}</b><span>{html.escape(dependency)}</span></div>
                   <div class="release-amount">{format_clp(amount)}</div>
-                  <div class="release-description"><b>Descripción técnica</b><span>{html.escape(descriptions)}</span></div>
+                  <div class="release-description">
+                    <div class="release-desc-head"><span>Descripción técnica</span><span>Monto</span><span>Periodo</span><span>Partidas</span></div>
+                    <div class="release-desc-row">
+                      <span>{html.escape(descriptions)}</span>
+                      <b>{format_clp(amount)}</b>
+                      <b>{format_date(row.get("Inicio"))} a {format_date(row.get("Termino"))}</b>
+                      <b>{int(row["Partidas"])}</b>
+                    </div>
+                  </div>
                 </div>
                 """
             )
@@ -2517,8 +2525,11 @@ def render_release_cutoff_intelligence(df: pd.DataFrame) -> None:
     .risk.low{{color:#0F766E;background:#EAF6F2;}}.risk.medium{{color:#8A5A16;background:#FBF4E7;}}.risk.high{{color:#7F1D1D;background:#F8EAEA;}}.risk.critical{{color:#7F1D1D;background:#F4DCDC;}}
     .release-impact{{font-size:10px;color:#475569;font-weight:800;line-height:1.2;}}.release-impact b{{display:block;color:#0B1633;font-size:10px;}}.release-impact span{{display:block;margin-top:3px;color:#64748B;font-size:9px;}}
     .release-amount{{font-size:11px;font-weight:950;color:#0B1633;text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums;}}
-    .release-description{{display:none;grid-column:1/-1;background:color-mix(in srgb,var(--panel-color) 8%,#FFFFFF);border:1px solid color-mix(in srgb,var(--panel-color) 24%,#DCE6EF);border-radius:11px;padding:10px 12px;color:#475569;font-size:10px;font-weight:750;line-height:1.35;}}
-    .release-description b{{display:block;color:#0B1633;font-size:10px;font-weight:950;margin-bottom:5px;}}
+    .release-description{{display:none;grid-column:1/-1;background:color-mix(in srgb,var(--panel-color) 8%,#FFFFFF);border:1px solid color-mix(in srgb,var(--panel-color) 24%,#DCE6EF);border-radius:11px;overflow:hidden;color:#475569;font-size:10px;font-weight:750;line-height:1.35;}}
+    .release-desc-head,.release-desc-row{{display:grid;grid-template-columns:minmax(260px,1fr) 110px 150px 70px;gap:10px;align-items:start;}}
+    .release-desc-head{{background:#FFFFFF;border-bottom:1px solid color-mix(in srgb,var(--panel-color) 18%,#DCE6EF);padding:8px 10px;color:#475569;font-size:9px;font-weight:950;text-transform:uppercase;letter-spacing:.04em;}}
+    .release-desc-row{{padding:10px;color:#475569;}}
+    .release-desc-row b{{display:block;color:#0B1633;font-size:10px;font-weight:950;}}
     .release-row.open{{border-color:color-mix(in srgb,var(--panel-color) 42%,#CBD5E1);box-shadow:0 12px 24px rgba(15,23,42,.06);}}
     .release-row.open .release-description{{display:block;}}
     .release-empty{{font-size:12px;color:#64748B;padding:14px;}}
@@ -2903,6 +2914,7 @@ def render_reference_activity_gantt(df: pd.DataFrame, pmo_source: pd.DataFrame |
     strategic_items = []
     marker_lines = []
     milestone_cards = []
+    marker_records = []
     if not pmo_conditions.empty:
         for idx, (_, marker) in enumerate(pmo_conditions.iterrows()):
             marker_date = pd.Timestamp(marker["Fecha Condición"])
@@ -2911,24 +2923,58 @@ def render_reference_activity_gantt(df: pd.DataFrame, pmo_source: pd.DataFrame |
             marker_condition = short_text(marker.get("Condición de Liberación", ""), 68)
             marker_color = milestone_colors[idx % len(milestone_colors)]
             marker_left = pct(marker_date)
+            marker_records.append(
+                {
+                    "left": marker_left,
+                    "date": marker_date,
+                    "code": marker_code,
+                    "title": marker_title,
+                    "condition": marker_condition,
+                    "color": marker_color,
+                }
+            )
+
+        marker_records = sorted(marker_records, key=lambda item: float(item["left"]))
+        for idx, marker in enumerate(marker_records):
+            marker_left = float(marker["left"])
+            prev_gap = marker_left - float(marker_records[idx - 1]["left"]) if idx > 0 else 100.0
+            next_gap = float(marker_records[idx + 1]["left"]) - marker_left if idx < len(marker_records) - 1 else 100.0
+            crowded_left = prev_gap < 15
+            crowded_right = next_gap < 15
+            level = 0
+            label_offset = 0
+            align = "center"
+            if crowded_left or crowded_right:
+                level = idx % 3
+                if crowded_left and not crowded_right:
+                    label_offset = 44
+                    align = "left"
+                elif crowded_right and not crowded_left:
+                    label_offset = -44
+                    align = "right"
+                else:
+                    label_offset = [-54, 0, 54][idx % 3]
+                    align = "right" if label_offset < 0 else "left" if label_offset > 0 else "center"
             strategic_items.append(
                 f"""
-                <div class="rg-milestone" style="left:{marker_left:.2f}%;--mark:{marker_color};">
-                  <b>{html.escape(marker_code)}</b>
-                  <strong>{html.escape(marker_title)}</strong>
-                  <span>{compact_date(marker_date)}</span>
+                <div class="rg-milestone" style="left:{marker_left:.2f}%;--mark:{marker["color"]};--label-x:{label_offset}px;--label-y:{level * 15}px;--label-align:{align};">
+                  <div class="rg-milestone-label">
+                    <b>{html.escape(str(marker["code"]))}</b>
+                    <strong>{html.escape(str(marker["title"]))}</strong>
+                    <span>{compact_date(marker["date"])}</span>
+                  </div>
                   <em></em>
                 </div>
                 """
             )
             marker_lines.append(
-                f"<i class='rg-marker' style='left:{marker_left:.2f}%;--mark:{marker_color};'></i>"
+                f"<i class='rg-marker' style='left:{marker_left:.2f}%;--mark:{marker['color']};'></i>"
             )
             milestone_cards.append(
                 f"""
-                <div class="rg-card" style="--mark:{marker_color};">
-                  <b><span></span>{html.escape(marker_code)} · {card_date(marker_date)}</b>
-                  <p>{html.escape(marker_condition)}</p>
+                <div class="rg-card" style="--mark:{marker["color"]};">
+                  <b><span></span>{html.escape(str(marker["code"]))} · {card_date(marker["date"])}</b>
+                  <p>{html.escape(str(marker["condition"]))}</p>
                 </div>
                 """
             )
@@ -2980,18 +3026,19 @@ def render_reference_activity_gantt(df: pd.DataFrame, pmo_source: pd.DataFrame |
     .rg-title{{font-size:22px;font-weight:950;color:#0B3670;line-height:1.05;letter-spacing:0;}}
     .rg-sub{{font-size:13px;color:#536681;font-weight:650;margin-top:6px;}}
     .rg-badge{{border:1px solid #CFE0F2;background:#FFFFFF;border-radius:999px;color:#0B3670;font-size:12px;font-weight:850;padding:9px 14px;white-space:nowrap;box-shadow:0 6px 18px rgba(15,23,42,.04);}}
-    .rg-strategy{{position:relative;height:118px;background:#FFFFFF;border:1px solid #D9E5F0;border-radius:16px;margin:0 0 22px;padding:22px 24px;box-shadow:0 12px 28px rgba(15,23,42,.06);overflow:hidden;}}
+    .rg-strategy{{position:relative;height:142px;background:#FFFFFF;border:1px solid #D9E5F0;border-radius:16px;margin:0 0 22px;padding:22px 24px;box-shadow:0 12px 28px rgba(15,23,42,.06);overflow:hidden;}}
     .rg-strategy-label{{position:absolute;left:24px;top:26px;width:190px;color:#0B3670;}}
     .rg-strategy-label b{{display:block;font-size:15px;font-weight:950;line-height:1.12;text-transform:uppercase;}}
     .rg-strategy-label span{{display:block;margin-top:9px;color:#536681;font-size:11px;font-weight:750;line-height:1.35;}}
     .rg-strategy-track{{position:absolute;left:270px;right:180px;top:0;bottom:0;}}
     .rg-rail{{position:absolute;top:62px;height:3px;border-radius:999px;background:linear-gradient(90deg,#0B3A68 0%,#1F7AFA 38%,#EF1D1D 68%,#7C3AED 100%);box-shadow:0 6px 14px rgba(47,128,237,.18);}}
-    .rg-milestone{{position:absolute;top:18px;width:180px;transform:translateX(-50%);text-align:center;color:var(--mark);}}
-    .rg-milestone b{{display:block;font-size:14px;font-weight:950;line-height:1.1;}}
-    .rg-milestone strong{{display:block;margin-top:4px;color:#0B3670;font-size:10px;font-weight:850;line-height:1.15;min-height:24px;}}
-    .rg-milestone span{{display:block;margin-top:4px;color:#536681;font-size:10px;font-weight:850;letter-spacing:.08em;}}
-    .rg-milestone em{{position:absolute;left:50%;top:55px;width:20px;height:20px;background:var(--mark);border:3px solid #FFFFFF;border-radius:6px;transform:translateX(-50%) rotate(45deg);box-shadow:0 8px 16px color-mix(in srgb,var(--mark) 28%,transparent);}}
-    .rg-milestone::after{{content:"";position:absolute;left:50%;top:76px;height:36px;border-left:1px dashed color-mix(in srgb,var(--mark) 35%,transparent);}}
+    .rg-milestone{{position:absolute;top:0;width:1px;height:100%;color:var(--mark);}}
+    .rg-milestone-label{{position:absolute;top:14px;left:0;width:126px;transform:translateX(calc(-50% + var(--label-x))) translateY(var(--label-y));text-align:var(--label-align);}}
+    .rg-milestone b{{display:block;font-size:14px;font-weight:950;line-height:1.05;color:var(--mark);}}
+    .rg-milestone strong{{display:block;margin-top:4px;color:#0B3670;font-size:10px;font-weight:850;line-height:1.12;min-height:22px;}}
+    .rg-milestone span{{display:block;margin-top:4px;color:#536681;font-size:10px;font-weight:850;letter-spacing:.08em;white-space:nowrap;}}
+    .rg-milestone em{{position:absolute;left:0;top:62px;width:20px;height:20px;background:var(--mark);border:3px solid #FFFFFF;border-radius:6px;transform:translateX(-50%) rotate(45deg);box-shadow:0 8px 16px color-mix(in srgb,var(--mark) 28%,transparent);}}
+    .rg-milestone::after{{content:"";position:absolute;left:0;top:83px;height:50px;border-left:1px dashed color-mix(in srgb,var(--mark) 35%,transparent);}}
     .rg-months{{position:relative;display:grid;grid-template-columns:220px 1fr 150px;align-items:end;margin:0 18px 10px;height:28px;color:#0B203D;}}
     .rg-period{{font-size:11px;font-weight:950;text-transform:uppercase;letter-spacing:.02em;}}
     .rg-month-axis{{position:relative;height:24px;}}
@@ -3051,7 +3098,7 @@ def render_reference_activity_gantt(df: pd.DataFrame, pmo_source: pd.DataFrame |
       <div class="rg-cards">{''.join(milestone_cards)}</div>
     </div>
     """
-    components.html(html_doc, height=820, scrolling=False)
+    components.html(html_doc, height=850, scrolling=False)
 
 
 def render_project_timeline_conditions(df: pd.DataFrame, pmo_source: pd.DataFrame | None = None) -> None:
@@ -4310,7 +4357,6 @@ def main() -> None:
 
     render_board_kpis(filtered)
     render_release_cutoff_intelligence(filtered)
-    render_project_timeline_conditions(filtered, pmo_source)
     render_expandable_activity_gantt(filtered, technical_milestones_source)
     render_reference_activity_gantt(filtered, technical_milestones_source)
 
