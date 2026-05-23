@@ -2280,10 +2280,10 @@ def render_release_cutoff_intelligence(df: pd.DataFrame) -> None:
         "H8": "#DC2626",
     }
     cuts = [
-        ("Liberación 1", "hasta 30-05-2026", None, pd.Timestamp("2026-05-30"), "#0F766E", "Activación inicial"),
-        ("Liberación 2", "31-05 a 30-06-2026", pd.Timestamp("2026-05-30"), pd.Timestamp("2026-06-30"), "#2563EB", "Continuidad técnica"),
-        ("Liberación 3", "01-07 a 30-07-2026", pd.Timestamp("2026-06-30"), pd.Timestamp("2026-07-30"), "#B7791F", "Integración operacional"),
-        ("Liberación 4", "31-07 a 30-09-2026", pd.Timestamp("2026-07-30"), pd.Timestamp("2026-09-30"), "#7F1D1D", "Cierre del horizonte"),
+        ("Liberación 1", "30-05-2026", None, pd.Timestamp("2026-05-30"), "#0F766E", "Activación inicial"),
+        ("Liberación 2", "30-06-2026", pd.Timestamp("2026-05-30"), pd.Timestamp("2026-06-30"), "#2563EB", "Continuidad técnica"),
+        ("Liberación 3", "20-07-2026", pd.Timestamp("2026-06-30"), pd.Timestamp("2026-07-20"), "#B7791F", "Integración operacional"),
+        ("Liberación 4", "30-09-2026", pd.Timestamp("2026-07-20"), pd.Timestamp("2026-09-30"), "#7F1D1D", "Cierre del horizonte"),
     ]
     panels: list[dict[str, object]] = []
     max_amount = 1.0
