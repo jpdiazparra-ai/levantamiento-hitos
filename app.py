@@ -3133,6 +3133,26 @@ def render_reference_activity_gantt(df: pd.DataFrame, pmo_source: pd.DataFrame |
           if (row) row.classList.toggle("open");
         }});
       }});
+      const adjustToReleaseHeight = () => {{
+        try {{
+          const frames = Array.from(window.parent.document.querySelectorAll("iframe"));
+          const current = frames.find((frame) => frame.contentWindow === window);
+          if (!current) return;
+          const previous = frames[frames.indexOf(current) - 1];
+          if (!previous || !previous.contentDocument) return;
+          const releaseRoot = previous.contentDocument.getElementById("release-shell-main");
+          if (!releaseRoot) return;
+          const reserved = previous.getBoundingClientRect().height;
+          const actual = releaseRoot.scrollHeight;
+          const gap = Math.max(0, reserved - actual - 24);
+          current.parentElement.style.marginTop = gap ? "-" + Math.min(gap, 760) + "px" : "0";
+        }} catch (error) {{
+          return;
+        }}
+      }};
+      adjustToReleaseHeight();
+      window.setInterval(adjustToReleaseHeight, 500);
+      window.addEventListener("resize", adjustToReleaseHeight);
     }})();
     </script>
     """
