@@ -2989,31 +2989,51 @@ def render_reference_activity_gantt(df: pd.DataFrame, pmo_source: pd.DataFrame |
     for _, hito in hito_ranges.iterrows():
         code = str(hito["Hito"])
         area_code = code.replace("H", "A", 1) if code.startswith("H") else code
+        hito_df = scheduled[scheduled["Hito"].astype(str).eq(code)].copy()
+        hito_df = hito_df.sort_values(["Inicio", "Termino", "Monto CLP Num"], ascending=[True, True, False])
         start = pd.Timestamp(hito["Inicio_hito"])
         end = pd.Timestamp(hito["Termino_hito"])
         color = area_colors.get(code, "#0F766E")
         left = pct(start)
         width = max(3.0, pct(end) - left)
+        detail_rows = []
+        for _, activity in hito_df.iterrows():
+            detail_rows.append(
+                f"""
+                <div class="rg-detail-row">
+                  <div class="rg-detail-id" style="color:{color};">{html.escape(str(activity["ID"]))}</div>
+                  <div class="rg-detail-copy">
+                    <b>{html.escape(str(activity["Categoría/Línea"]))}</b>
+                    <span>{html.escape(str(activity["Descripción Técnica / Acción"]))}</span>
+                  </div>
+                  <div class="rg-detail-date">{format_date(activity["Inicio"])}<br>{format_date(activity["Termino"])}</div>
+                  <div class="rg-detail-amount">{format_clp(float(activity["Monto CLP Num"] or 0))}</div>
+                </div>
+                """
+            )
         rows.append(
             f"""
-            <div class="rg-row">
-              <div class="rg-area">
-                <div class="rg-code" style="background:{color};">{html.escape(area_code)}</div>
-                <div>
-                  <b>{html.escape(str(hito["Hito Corto"]))}</b>
-                  <span>{int(hito["Actividades"])} actividades · {format_date(start)} a {format_date(end)}</span>
+            <div class="rg-row-wrap">
+              <button class="rg-row" type="button">
+                <div class="rg-area">
+                  <div class="rg-code" style="background:{color};">{html.escape(area_code)}</div>
+                  <div>
+                    <b>{html.escape(str(hito["Hito Corto"]))}</b>
+                    <span>{int(hito["Actividades"])} actividades · {format_date(start)} a {format_date(end)}</span>
+                  </div>
                 </div>
-              </div>
-              <div class="rg-track">
-                <div class="rg-bar" style="left:{left:.2f}%;width:{width:.2f}%;--accent:{color};">
-                  <span>{business_days(start, end)} días hábiles</span>
+                <div class="rg-track">
+                  <div class="rg-bar" style="left:{left:.2f}%;width:{width:.2f}%;--accent:{color};">
+                    <span>{business_days(start, end)} días hábiles</span>
+                  </div>
                 </div>
+                <div class="rg-total">
+                  <b>{format_clp(float(hito["Monto"] or 0))}</b>
+                  <span>Ver detalle</span>
+                </div>
+              </button>
+              <div class="rg-details">{''.join(detail_rows)}</div>
               </div>
-              <div class="rg-total">
-                <b>{format_clp(float(hito["Monto"] or 0))}</b>
-                <span>Ver detalle</span>
-              </div>
-            </div>
             """
         )
 
@@ -3026,19 +3046,19 @@ def render_reference_activity_gantt(df: pd.DataFrame, pmo_source: pd.DataFrame |
     .rg-title{{font-size:22px;font-weight:950;color:#0B3670;line-height:1.05;letter-spacing:0;}}
     .rg-sub{{font-size:13px;color:#536681;font-weight:650;margin-top:6px;}}
     .rg-badge{{border:1px solid #CFE0F2;background:#FFFFFF;border-radius:999px;color:#0B3670;font-size:12px;font-weight:850;padding:9px 14px;white-space:nowrap;box-shadow:0 6px 18px rgba(15,23,42,.04);}}
-    .rg-strategy{{position:relative;height:142px;background:#FFFFFF;border:1px solid #D9E5F0;border-radius:16px;margin:0 0 22px;padding:22px 24px;box-shadow:0 12px 28px rgba(15,23,42,.06);overflow:hidden;}}
-    .rg-strategy-label{{position:absolute;left:24px;top:26px;width:190px;color:#0B3670;}}
+    .rg-strategy{{position:relative;height:190px;background:#FFFFFF;border:1px solid #D9E5F0;border-radius:16px;margin:0 0 22px;padding:28px 24px;box-shadow:0 12px 28px rgba(15,23,42,.06);overflow:hidden;}}
+    .rg-strategy-label{{position:absolute;left:24px;top:34px;width:220px;color:#0B3670;}}
     .rg-strategy-label b{{display:block;font-size:15px;font-weight:950;line-height:1.12;text-transform:uppercase;}}
     .rg-strategy-label span{{display:block;margin-top:9px;color:#536681;font-size:11px;font-weight:750;line-height:1.35;}}
-    .rg-strategy-track{{position:absolute;left:270px;right:180px;top:0;bottom:0;}}
-    .rg-rail{{position:absolute;top:62px;height:3px;border-radius:999px;background:linear-gradient(90deg,#0B3A68 0%,#1F7AFA 38%,#EF1D1D 68%,#7C3AED 100%);box-shadow:0 6px 14px rgba(47,128,237,.18);}}
+    .rg-strategy-track{{position:absolute;left:360px;right:180px;top:0;bottom:0;}}
+    .rg-rail{{position:absolute;top:118px;height:3px;border-radius:999px;background:linear-gradient(90deg,#0B3A68 0%,#1F7AFA 38%,#EF1D1D 68%,#7C3AED 100%);box-shadow:0 6px 14px rgba(47,128,237,.18);}}
     .rg-milestone{{position:absolute;top:0;width:1px;height:100%;color:var(--mark);}}
-    .rg-milestone-label{{position:absolute;top:14px;left:0;width:126px;transform:translateX(calc(-50% + var(--label-x))) translateY(var(--label-y));text-align:var(--label-align);}}
+    .rg-milestone-label{{position:absolute;top:24px;left:0;width:126px;transform:translateX(calc(-50% + var(--label-x))) translateY(var(--label-y));text-align:var(--label-align);}}
     .rg-milestone b{{display:block;font-size:14px;font-weight:950;line-height:1.05;color:var(--mark);}}
     .rg-milestone strong{{display:block;margin-top:4px;color:#0B3670;font-size:10px;font-weight:850;line-height:1.12;min-height:22px;}}
     .rg-milestone span{{display:block;margin-top:4px;color:#536681;font-size:10px;font-weight:850;letter-spacing:.08em;white-space:nowrap;}}
-    .rg-milestone em{{position:absolute;left:0;top:62px;width:20px;height:20px;background:var(--mark);border:3px solid #FFFFFF;border-radius:6px;transform:translateX(-50%) rotate(45deg);box-shadow:0 8px 16px color-mix(in srgb,var(--mark) 28%,transparent);}}
-    .rg-milestone::after{{content:"";position:absolute;left:0;top:83px;height:50px;border-left:1px dashed color-mix(in srgb,var(--mark) 35%,transparent);}}
+    .rg-milestone em{{position:absolute;left:0;top:118px;width:20px;height:20px;background:var(--mark);border:3px solid #FFFFFF;border-radius:6px;transform:translateX(-50%) rotate(45deg);box-shadow:0 8px 16px color-mix(in srgb,var(--mark) 28%,transparent);}}
+    .rg-milestone::after{{content:"";position:absolute;left:0;top:139px;height:42px;border-left:1px dashed color-mix(in srgb,var(--mark) 35%,transparent);}}
     .rg-months{{position:relative;display:grid;grid-template-columns:220px 1fr 150px;align-items:end;margin:0 18px 10px;height:28px;color:#0B203D;}}
     .rg-period{{font-size:11px;font-weight:950;text-transform:uppercase;letter-spacing:.02em;}}
     .rg-month-axis{{position:relative;height:24px;}}
@@ -3051,8 +3071,10 @@ def render_reference_activity_gantt(df: pd.DataFrame, pmo_source: pd.DataFrame |
     .rg-grid{{position:absolute;left:320px;right:145px;top:0;bottom:0;pointer-events:none;z-index:1;}}
     .rg-grid i{{position:absolute;top:0;bottom:0;border-left:1px solid rgba(203,213,225,.45);}}
     .rg-grid .rg-marker{{border-left:1px dashed var(--mark);box-shadow:0 0 0 4px color-mix(in srgb,var(--mark) 8%,transparent);opacity:.55;}}
-    .rg-row{{position:relative;z-index:2;min-height:56px;align-items:center;border-bottom:1px solid #E8EEF5;}}
-    .rg-row:last-child{{border-bottom:0;}}
+    .rg-row-wrap{{position:relative;z-index:2;border-bottom:1px solid #E8EEF5;background:#FFFFFF;}}
+    .rg-row-wrap:last-child{{border-bottom:0;}}
+    .rg-row{{appearance:none;width:100%;border:0;background:transparent;position:relative;min-height:56px;align-items:center;text-align:left;cursor:pointer;padding:0;}}
+    .rg-row:hover{{background:#FAFCFE;}}
     .rg-area{{display:flex;align-items:center;gap:14px;padding:8px 18px;min-width:0;}}
     .rg-code{{width:38px;height:38px;border-radius:8px;color:#FFFFFF;font-size:15px;font-weight:950;display:flex;align-items:center;justify-content:center;box-shadow:0 8px 16px rgba(15,23,42,.18);flex:0 0 auto;}}
     .rg-area b{{display:block;font-size:12px;font-weight:950;color:#0B1633;line-height:1.15;}}
@@ -3063,12 +3085,20 @@ def render_reference_activity_gantt(df: pd.DataFrame, pmo_source: pd.DataFrame |
     .rg-total{{padding:10px 18px;text-align:right;}}
     .rg-total b{{display:block;font-size:11px;font-weight:950;color:#0B1633;white-space:nowrap;}}
     .rg-total span{{display:block;margin-top:4px;font-size:9px;font-weight:950;color:#1F7AFA;text-transform:uppercase;}}
+    .rg-details{{display:none;border-top:1px solid #E8EEF5;background:#FBFCFE;padding:9px 12px 12px;gap:7px;}}
+    .rg-row-wrap.open .rg-details{{display:grid;}}
+    .rg-detail-row{{display:grid;grid-template-columns:70px minmax(0,1fr) 86px 100px;gap:10px;align-items:center;background:#FFFFFF;border:1px solid #EEF3F7;border-radius:10px;padding:9px;}}
+    .rg-detail-id{{font-size:10px;font-weight:950;background:#EEF6FF;border-radius:999px;padding:5px 7px;text-align:center;}}
+    .rg-detail-copy b{{display:block;font-size:11px;color:#0B1633;line-height:1.14;}}
+    .rg-detail-copy span{{display:block;font-size:10px;color:#64748B;margin-top:3px;line-height:1.25;}}
+    .rg-detail-date{{font-size:10px;color:#475569;font-weight:850;text-align:center;line-height:1.2;}}
+    .rg-detail-amount{{font-size:10px;color:#0B1633;font-weight:950;text-align:right;white-space:nowrap;}}
     .rg-cards{{display:grid;grid-template-columns:repeat({max(len(milestone_cards), 1)},minmax(0,1fr));gap:18px;margin:16px 160px 0;}}
     .rg-card{{background:#FFFFFF;border:1px solid color-mix(in srgb,var(--mark) 35%,#D9E5F0);border-top:3px solid var(--mark);border-radius:6px;min-height:78px;padding:12px 14px;box-shadow:0 10px 20px rgba(15,23,42,.06);}}
     .rg-card b{{display:flex;gap:8px;align-items:center;color:var(--mark);font-size:11px;font-weight:950;line-height:1.15;}}
     .rg-card b span{{width:12px;height:12px;border-radius:3px;background:var(--mark);transform:rotate(45deg);flex:0 0 auto;}}
     .rg-card p{{margin:12px 0 0 26px;color:#536681;font-size:10px;font-weight:750;line-height:1.25;}}
-    @media(max-width:980px){{.rg-head{{display:block;}}.rg-badge{{display:inline-block;margin-top:10px;}}.rg-strategy{{height:auto;padding-bottom:18px;}}.rg-strategy-label{{position:relative;left:auto;top:auto;width:auto;margin-bottom:18px;}}.rg-strategy-track{{display:none;}}.rg-months{{grid-template-columns:1fr;margin:0 4px 8px;}}.rg-month-axis{{display:none;}}.rg-board{{overflow:auto;}}.rg-board-head,.rg-row{{grid-template-columns:260px 520px 120px;min-width:900px;}}.rg-grid{{display:none;}}.rg-cards{{margin:14px 0 0;grid-template-columns:1fr;}}}}
+    @media(max-width:980px){{.rg-head{{display:block;}}.rg-badge{{display:inline-block;margin-top:10px;}}.rg-strategy{{height:auto;padding-bottom:18px;}}.rg-strategy-label{{position:relative;left:auto;top:auto;width:auto;margin-bottom:18px;}}.rg-strategy-track{{display:none;}}.rg-months{{grid-template-columns:1fr;margin:0 4px 8px;}}.rg-month-axis{{display:none;}}.rg-board{{overflow:auto;}}.rg-board-head,.rg-row{{grid-template-columns:260px 520px 120px;min-width:900px;}}.rg-grid{{display:none;}}.rg-detail-row{{grid-template-columns:1fr;}}.rg-cards{{margin:14px 0 0;grid-template-columns:1fr;}}}}
     </style>
     <div class="rg-shell">
       <div class="rg-head">
@@ -3097,8 +3127,20 @@ def render_reference_activity_gantt(df: pd.DataFrame, pmo_source: pd.DataFrame |
       </div>
       <div class="rg-cards">{''.join(milestone_cards)}</div>
     </div>
+    <script>
+    (() => {{
+      const root = document.currentScript.previousElementSibling;
+      if (!root) return;
+      root.querySelectorAll(".rg-row").forEach((button) => {{
+        button.addEventListener("click", () => {{
+          const row = button.closest(".rg-row-wrap");
+          if (row) row.classList.toggle("open");
+        }});
+      }});
+    }})();
+    </script>
     """
-    components.html(html_doc, height=850, scrolling=False)
+    components.html(html_doc, height=940, scrolling=False)
 
 
 def render_project_timeline_conditions(df: pd.DataFrame, pmo_source: pd.DataFrame | None = None) -> None:
