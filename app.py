@@ -2913,7 +2913,6 @@ def render_reference_activity_gantt(df: pd.DataFrame, pmo_source: pd.DataFrame |
 
     strategic_items = []
     marker_lines = []
-    milestone_cards = []
     marker_records = []
     if not pmo_conditions.empty:
         for idx, (_, marker) in enumerate(pmo_conditions.iterrows()):
@@ -2941,23 +2940,10 @@ def render_reference_activity_gantt(df: pd.DataFrame, pmo_source: pd.DataFrame |
             next_gap = float(marker_records[idx + 1]["left"]) - marker_left if idx < len(marker_records) - 1 else 100.0
             crowded_left = prev_gap < 15
             crowded_right = next_gap < 15
-            level = 0
-            label_offset = 0
-            align = "center"
-            if crowded_left or crowded_right:
-                level = idx % 3
-                if crowded_left and not crowded_right:
-                    label_offset = 44
-                    align = "left"
-                elif crowded_right and not crowded_left:
-                    label_offset = -44
-                    align = "right"
-                else:
-                    label_offset = [-54, 0, 54][idx % 3]
-                    align = "right" if label_offset < 0 else "left" if label_offset > 0 else "center"
+            level = idx % 2 if crowded_left or crowded_right else 0
             strategic_items.append(
                 f"""
-                <div class="rg-milestone" style="left:{marker_left:.2f}%;--mark:{marker["color"]};--label-x:{label_offset}px;--label-y:{level * 15}px;--label-align:{align};">
+                <div class="rg-milestone" style="left:{marker_left:.2f}%;--mark:{marker["color"]};--label-y:{level * 16}px;">
                   <div class="rg-milestone-label">
                     <b>{html.escape(str(marker["code"]))}</b>
                     <strong>{html.escape(str(marker["title"]))}</strong>
@@ -2969,14 +2955,6 @@ def render_reference_activity_gantt(df: pd.DataFrame, pmo_source: pd.DataFrame |
             )
             marker_lines.append(
                 f"<i class='rg-marker' style='left:{marker_left:.2f}%;--mark:{marker['color']};'></i>"
-            )
-            milestone_cards.append(
-                f"""
-                <div class="rg-card" style="--mark:{marker["color"]};">
-                  <b><span></span>{html.escape(str(marker["code"]))} · {card_date(marker["date"])}</b>
-                  <p>{html.escape(str(marker["condition"]))}</p>
-                </div>
-                """
             )
     rail_left = 0.0
     rail_width = 100.0
@@ -3033,7 +3011,7 @@ def render_reference_activity_gantt(df: pd.DataFrame, pmo_source: pd.DataFrame |
                 </div>
               </button>
               <div class="rg-details">{''.join(detail_rows)}</div>
-              </div>
+            </div>
             """
         )
 
@@ -3050,10 +3028,10 @@ def render_reference_activity_gantt(df: pd.DataFrame, pmo_source: pd.DataFrame |
     .rg-strategy-label{{position:absolute;left:24px;top:34px;width:220px;color:#0B3670;}}
     .rg-strategy-label b{{display:block;font-size:15px;font-weight:950;line-height:1.12;text-transform:uppercase;}}
     .rg-strategy-label span{{display:block;margin-top:9px;color:#536681;font-size:11px;font-weight:750;line-height:1.35;}}
-    .rg-strategy-track{{position:absolute;left:360px;right:180px;top:0;bottom:0;}}
+    .rg-strategy-track{{position:absolute;left:320px;right:145px;top:0;bottom:0;}}
     .rg-rail{{position:absolute;top:118px;height:3px;border-radius:999px;background:linear-gradient(90deg,#0B3A68 0%,#1F7AFA 38%,#EF1D1D 68%,#7C3AED 100%);box-shadow:0 6px 14px rgba(47,128,237,.18);}}
     .rg-milestone{{position:absolute;top:0;width:1px;height:100%;color:var(--mark);}}
-    .rg-milestone-label{{position:absolute;top:24px;left:0;width:126px;transform:translateX(calc(-50% + var(--label-x))) translateY(var(--label-y));text-align:var(--label-align);}}
+    .rg-milestone-label{{position:absolute;top:24px;left:0;width:128px;transform:translateX(-50%) translateY(var(--label-y));text-align:center;}}
     .rg-milestone b{{display:block;font-size:14px;font-weight:950;line-height:1.05;color:var(--mark);}}
     .rg-milestone strong{{display:block;margin-top:4px;color:#0B3670;font-size:10px;font-weight:850;line-height:1.12;min-height:22px;}}
     .rg-milestone span{{display:block;margin-top:4px;color:#536681;font-size:10px;font-weight:850;letter-spacing:.08em;white-space:nowrap;}}
@@ -3068,9 +3046,9 @@ def render_reference_activity_gantt(df: pd.DataFrame, pmo_source: pd.DataFrame |
     .rg-board-head{{height:36px;align-items:center;border-bottom:1px solid #E8EEF5;color:#687891;font-size:10px;font-weight:950;text-transform:uppercase;letter-spacing:.08em;}}
     .rg-board-head div{{padding:0 18px;}}
     .rg-board-head div:last-child{{text-align:right;}}
-    .rg-grid{{position:absolute;left:320px;right:145px;top:0;bottom:0;pointer-events:none;z-index:1;}}
+    .rg-grid{{position:absolute;left:320px;right:145px;top:0;bottom:0;pointer-events:none;z-index:8;}}
     .rg-grid i{{position:absolute;top:0;bottom:0;border-left:1px solid rgba(203,213,225,.45);}}
-    .rg-grid .rg-marker{{border-left:1px dashed var(--mark);box-shadow:0 0 0 4px color-mix(in srgb,var(--mark) 8%,transparent);opacity:.55;}}
+    .rg-grid .rg-marker{{border-left:2px solid var(--mark);box-shadow:0 0 0 5px color-mix(in srgb,var(--mark) 10%,transparent);opacity:.78;}}
     .rg-row-wrap{{position:relative;z-index:2;border-bottom:1px solid #E8EEF5;background:#FFFFFF;}}
     .rg-row-wrap:last-child{{border-bottom:0;}}
     .rg-row{{appearance:none;width:100%;border:0;background:transparent;position:relative;min-height:56px;align-items:center;text-align:left;cursor:pointer;padding:0;}}
@@ -3080,7 +3058,7 @@ def render_reference_activity_gantt(df: pd.DataFrame, pmo_source: pd.DataFrame |
     .rg-area b{{display:block;font-size:12px;font-weight:950;color:#0B1633;line-height:1.15;}}
     .rg-area span{{display:block;margin-top:4px;font-size:10px;font-weight:750;color:#536681;line-height:1.15;}}
     .rg-track{{position:relative;height:56px;}}
-    .rg-bar{{position:absolute;top:17px;height:22px;border-radius:999px;background:linear-gradient(90deg,var(--accent),color-mix(in srgb,var(--accent) 72%,#FFFFFF));box-shadow:0 7px 14px color-mix(in srgb,var(--accent) 24%,transparent);display:flex;align-items:center;padding:0 13px;min-width:52px;}}
+    .rg-bar{{position:absolute;top:17px;height:22px;border-radius:999px;background:linear-gradient(90deg,var(--accent),color-mix(in srgb,var(--accent) 72%,#FFFFFF));box-shadow:0 7px 14px color-mix(in srgb,var(--accent) 24%,transparent);display:flex;align-items:center;padding:0 13px;min-width:52px;z-index:2;}}
     .rg-bar span{{color:#FFFFFF;font-size:10px;font-weight:950;text-shadow:0 1px 2px rgba(15,23,42,.22);white-space:nowrap;}}
     .rg-total{{padding:10px 18px;text-align:right;}}
     .rg-total b{{display:block;font-size:11px;font-weight:950;color:#0B1633;white-space:nowrap;}}
@@ -3093,12 +3071,7 @@ def render_reference_activity_gantt(df: pd.DataFrame, pmo_source: pd.DataFrame |
     .rg-detail-copy span{{display:block;font-size:10px;color:#64748B;margin-top:3px;line-height:1.25;}}
     .rg-detail-date{{font-size:10px;color:#475569;font-weight:850;text-align:center;line-height:1.2;}}
     .rg-detail-amount{{font-size:10px;color:#0B1633;font-weight:950;text-align:right;white-space:nowrap;}}
-    .rg-cards{{display:grid;grid-template-columns:repeat({max(len(milestone_cards), 1)},minmax(0,1fr));gap:18px;margin:16px 160px 0;}}
-    .rg-card{{background:#FFFFFF;border:1px solid color-mix(in srgb,var(--mark) 35%,#D9E5F0);border-top:3px solid var(--mark);border-radius:6px;min-height:78px;padding:12px 14px;box-shadow:0 10px 20px rgba(15,23,42,.06);}}
-    .rg-card b{{display:flex;gap:8px;align-items:center;color:var(--mark);font-size:11px;font-weight:950;line-height:1.15;}}
-    .rg-card b span{{width:12px;height:12px;border-radius:3px;background:var(--mark);transform:rotate(45deg);flex:0 0 auto;}}
-    .rg-card p{{margin:12px 0 0 26px;color:#536681;font-size:10px;font-weight:750;line-height:1.25;}}
-    @media(max-width:980px){{.rg-head{{display:block;}}.rg-badge{{display:inline-block;margin-top:10px;}}.rg-strategy{{height:auto;padding-bottom:18px;}}.rg-strategy-label{{position:relative;left:auto;top:auto;width:auto;margin-bottom:18px;}}.rg-strategy-track{{display:none;}}.rg-months{{grid-template-columns:1fr;margin:0 4px 8px;}}.rg-month-axis{{display:none;}}.rg-board{{overflow:auto;}}.rg-board-head,.rg-row{{grid-template-columns:260px 520px 120px;min-width:900px;}}.rg-grid{{display:none;}}.rg-detail-row{{grid-template-columns:1fr;}}.rg-cards{{margin:14px 0 0;grid-template-columns:1fr;}}}}
+    @media(max-width:980px){{.rg-head{{display:block;}}.rg-badge{{display:inline-block;margin-top:10px;}}.rg-strategy{{height:auto;padding-bottom:18px;}}.rg-strategy-label{{position:relative;left:auto;top:auto;width:auto;margin-bottom:18px;}}.rg-strategy-track{{display:none;}}.rg-months{{grid-template-columns:1fr;margin:0 4px 8px;}}.rg-month-axis{{display:none;}}.rg-board{{overflow:auto;}}.rg-board-head,.rg-row{{grid-template-columns:260px 520px 120px;min-width:900px;}}.rg-grid{{display:none;}}.rg-detail-row{{grid-template-columns:1fr;}}}}
     </style>
     <div class="rg-shell">
       <div class="rg-head">
@@ -3125,7 +3098,6 @@ def render_reference_activity_gantt(df: pd.DataFrame, pmo_source: pd.DataFrame |
         <div class="rg-board-head"><div>Áreas técnicas</div><div></div><div>Monto (USD)</div></div>
         {''.join(rows)}
       </div>
-      <div class="rg-cards">{''.join(milestone_cards)}</div>
     </div>
     <script>
     (() => {{
@@ -3140,7 +3112,7 @@ def render_reference_activity_gantt(df: pd.DataFrame, pmo_source: pd.DataFrame |
     }})();
     </script>
     """
-    components.html(html_doc, height=940, scrolling=False)
+    components.html(html_doc, height=835, scrolling=False)
 
 
 def render_project_timeline_conditions(df: pd.DataFrame, pmo_source: pd.DataFrame | None = None) -> None:
@@ -4399,7 +4371,6 @@ def main() -> None:
 
     render_board_kpis(filtered)
     render_release_cutoff_intelligence(filtered)
-    render_expandable_activity_gantt(filtered, technical_milestones_source)
     render_reference_activity_gantt(filtered, technical_milestones_source)
 
     pending_df = filtered[filtered["Pendiente programación"]].copy()
