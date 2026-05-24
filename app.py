@@ -2270,20 +2270,20 @@ def render_board_kpis(df: pd.DataFrame) -> None:
 
 def render_release_cutoff_intelligence(df: pd.DataFrame) -> None:
     hito_colors = {
-        "H1": "#0B2D42",
-        "H2": "#2F80ED",
-        "H3": "#1D4ED8",
-        "H4": "#DC2626",
-        "H5": "#64748B",
-        "H6": "#0F766E",
-        "H7": "#7C3AED",
-        "H8": "#DC2626",
-    }
+    "H1": "#0B3A3E",   # petróleo ejecutivo
+    "H2": "#243B53",   # azul directorio
+    "H3": "#3B4A6B",   # slate corporativo
+    "H4": "#6B1E1E",   # burdeo institucional
+    "H5": "#475569",   # gris ejecutivo
+    "H6": "#0F766E",   # verde control operacional
+    "H7": "#5B4B8A",   # morado muted premium
+    "H8": "#7F1D1D",   # rojo sobrio financiero
+}
     cuts = [
-        ("Liberación 1", "30-05-2026", None, pd.Timestamp("2026-05-30"), "#0F766E", "Activación inicial"),
-        ("Liberación 2", "30-06-2026", pd.Timestamp("2026-05-30"), pd.Timestamp("2026-06-30"), "#2563EB", "Continuidad técnica"),
-        ("Liberación 3", "30-07-2026", pd.Timestamp("2026-06-30"), pd.Timestamp("2026-07-30"), "#B7791F", "Integración operacional"),
-        ("Liberación 4", "30-09-2026", pd.Timestamp("2026-07-30"), pd.Timestamp("2026-09-30"), "#7F1D1D", "Cierre del horizonte"),
+        ("Liberación 1", "30-05-2026", None, pd.Timestamp("2026-05-30"), "#0B3A3E", "Activación inicial"),
+        ("Liberación 2", "30-06-2026", pd.Timestamp("2026-05-30"), pd.Timestamp("2026-06-30"), "#243B53", "Continuidad técnica"),
+        ("Liberación 3", "30-07-2026", pd.Timestamp("2026-06-30"), pd.Timestamp("2026-07-30"), "#A16207", "Integración operacional"),
+        ("Liberación 4", "30-09-2026", pd.Timestamp("2026-07-30"), pd.Timestamp("2026-09-30"), "#6B1E1E", "Cierre del horizonte"),
     ]
     panels: list[dict[str, object]] = []
     max_amount = 1.0
@@ -2482,26 +2482,28 @@ def render_release_cutoff_intelligence(df: pd.DataFrame) -> None:
     <style>
     *{{box-sizing:border-box;}}
     body{{margin:0;background:transparent;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;color:#0B1633;overflow-x:hidden;}}
-    .release-shell{{background:#F8FAFC;border:1px solid #B8C9D8;border-top:2px solid #8FA8BB;border-radius:18px;padding:24px 28px 22px;box-shadow:0 8px 24px rgba(15,23,42,.06),inset 0 1px 0 rgba(255,255,255,.86);overflow:hidden;}}
+    .release-shell{{background:#F4F6F8;
+border:1px solid rgba(15,23,42,.08);
+border-top:1px solid rgba(15,23,42,.10);border-radius:18px;padding:24px 28px 22px;box-shadow:0 8px 24px rgba(15,23,42,.06),inset 0 1px 0 rgba(255,255,255,.86);overflow:hidden;}}
     .release-head{{display:flex;justify-content:space-between;gap:18px;align-items:flex-start;margin-bottom:34px;}}
     .release-title{{font-size:20px;font-weight:950;color:#23457A;line-height:1.1;}}
     .release-sub{{font-size:12px;color:#64748B;line-height:1.38;margin-top:6px;max-width:780px;}}
     .release-badge{{border:1px solid #E2E8F0;background:#FFFFFF;border-radius:999px;padding:12px 21px;color:#0B1B3A;font-size:14px;font-weight:900;white-space:nowrap;box-shadow:0 8px 18px rgba(15,23,42,.035);}}
     .release-flow{{position:relative;margin:0 0 15px 0;padding-top:50px;}}
-    .release-line{{position:absolute;left:4px;right:4px;top:24px;height:1px;background:rgba(15,23,42,.08);}}
+    .release-line{{position:absolute;left:4px;right:4px;top:24px;height:2px;background:rgba(148,163,184,.22);}}
     .release-line::before,.release-line::after{{content:"";position:absolute;top:50%;width:8px;height:8px;border-radius:999px;background:#CBD5E1;transform:translateY(-50%);}}
     .release-line::before{{left:-1px;}}.release-line::after{{right:-1px;}}
     .release-nodes{{position:absolute;left:0;right:0;top:0;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));align-items:center;z-index:5;}}
     .release-node-wrap{{display:flex;justify-content:center;position:relative;}}
     .release-node-wrap::after{{content:"";position:absolute;top:43px;width:1px;height:29px;background:#E2E8F0;}}
-    .release-node{{width:44px;height:44px;border-radius:999px;background:var(--accent);color:#FFFFFF;font-size:19px;font-weight:950;display:flex;align-items:center;justify-content:center;box-shadow:0 0 0 5px #FFFFFF,0 6px 16px rgba(15,23,42,.10);}}
+    .release-node{{width:38px;height:38px;border-radius:999px;background:var(--accent);color:#FFFFFF;font-size:17px;font-weight:950;display:flex;align-items:center;justify-content:center;box-shadow:0 0 0 5px #FFFFFF,0 6px 16px rgba(15,23,42,.10);}}
     .stage-grid{{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:34px;margin-bottom:12px;}}
-    .release-stage{{appearance:none;text-align:left;width:100%;background:#FFFFFF;border:1px solid rgba(15,23,42,.06);border-top:4px solid var(--accent);border-radius:16px;padding:24px 24px 22px;box-shadow:0 1px 2px rgba(15,23,42,.03),0 10px 30px rgba(15,23,42,.045);cursor:pointer;transition:transform .16s ease,border-color .16s ease,box-shadow .16s ease;position:relative;min-height:248px;filter:saturate(.88);}}
-    .release-stage:hover{{transform:translateY(-2px);box-shadow:0 14px 24px rgba(15,23,42,.065);}}
-    .release-stage.active{{border-color:#CBD5E1;box-shadow:0 0 0 3px rgba(11,27,58,.045),0 14px 26px rgba(15,23,42,.06);}}
+    .release-stage{{appearance:none;text-align:left;width:100%;background:#FFFFFF;border:1px solid rgba(15,23,42,.05);border-top:3px solid var(--accent);border-radius:20px;padding:24px 24px 22px;box-shadow:0 8px 24px rgba(15,23,42,.045);cursor:pointer;transition:transform .16s ease,border-color .16s ease,box-shadow .16s ease;position:relative;min-height:248px;filter:saturate(.78);}}
+    .release-stage:hover{{transform:translateY(-2px);box-shadow:0 12px 22px rgba(15,23,42,.045);}}
+    .release-stage.active{{border-color:#CBD5E1;box-shadow:0 0 0 2px rgba(15,23,42,.045),0 12px 26px rgba(15,23,42,.05);}}
     .stage-date{{display:inline-flex;align-items:center;justify-content:center;border-radius:999px;padding:7px 12px;background:#F1F5F9;color:#475569;font-size:12px;font-weight:900;white-space:nowrap;text-transform:uppercase;}}
     .stage-title{{font-size:15px;font-weight:850;color:#0B1B3A;line-height:1.14;margin-top:18px;}}
-    .stage-total{{font-size:30px;font-weight:950;color:#0B1633;margin-top:10px;letter-spacing:-.045em;line-height:1;}}
+    .stage-total{{font-size:28px;font-weight:850;color:#0B1633;margin-top:10px;letter-spacing:-.045em;line-height:1;}}
     .stage-detail{{font-size:11px;color:#6B7A90;font-weight:800;margin-top:10px;}}
     .stage-rule{{height:1px;background:#E2E8F0;margin:17px 0 13px 0;}}
     .stage-meta{{display:grid;grid-template-columns:1fr 1fr;gap:0;margin:0 0 15px 0;}}
@@ -2516,7 +2518,7 @@ def render_release_cutoff_intelligence(df: pd.DataFrame) -> None:
     .release-detail-stack{{display:grid;gap:12px;}}
     .release-panel{{display:none;background:#FFFFFF;border:1px solid color-mix(in srgb,var(--panel-color) 34%,#C9D8E6);border-radius:12px;overflow:hidden;box-shadow:0 10px 22px rgba(15,23,42,.04);}}
     .release-panel.active{{display:block;}}
-    .panel-head{{appearance:none;width:100%;border:0;border-left:4px solid var(--panel-color);padding:16px 18px;display:flex;justify-content:space-between;gap:10px;align-items:center;background:#FAF8F4;cursor:pointer;text-align:left;}}
+    .panel-head{{appearance:none;width:100%;border:0;border-left:4px solid var(--panel-color);padding:16px 18px;display:flex;justify-content:space-between;gap:10px;align-items:center;background:#FFFFFF;cursor:pointer;text-align:left;}}
     .panel-head:hover{{background:color-mix(in srgb,var(--panel-color) 21%,#FFFFFF);}}
     .panel-head b{{display:block;font-size:14px;color:#0B1B3A;}}.panel-head small{{display:block;font-size:11px;color:#64748B;margin-top:3px;font-weight:750;}}.panel-head span{{font-size:12px;color:#0B1633;font-weight:950;white-space:nowrap;}}.panel-head i{{font-style:normal;font-size:16px;margin-left:4px;color:#475569;display:inline-block;transition:transform .16s ease;}}
     .release-panel.expanded .panel-head{{border-bottom:1px solid color-mix(in srgb,var(--panel-color) 34%,#C9D8E6);}}
